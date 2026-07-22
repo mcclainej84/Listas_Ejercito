@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Hoja de Ejército</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- IZQUIERDA -->
+  <div class="left-panel">
+
+    <h1>HOJA DE EJERCITO</h1>
+
+    <div class="row top-row">
+      <label>Ejercito</label>
+      <select id="ejercito" class="wide"></select>
+          <select id="filtroTipo" style="width: 50px;" disabled>
+        <option value="">-</option>
+        <option value="1">B</option>
+        <option value="2">E</option>
+        <option value="3">S</option>
+    </select>
+    </div>
+
+
+
+
+
+    <div class="row inputs-row">
+
+      <div class="num-field">
+        <label>Nº</label>
+        <input type="number" id="numero" min="0">
+      </div>
+
+      <div>
+        <label>Tropa</label>
+        <select id="tropa" class="wide"></select>
+      </div>
+
+      <div>
+        <label>Equipo</label>
+        <select id="equipo" class="wide"></select>
+      </div>
+
+      <div>
+        <label>Opciones</label>
+        <select id="opciones" class="wide"></select>
+      </div>
+
+      <div class="checkboxes">
+        <div><label><img src="ico/P.png" alt=""></label><input type="checkbox" id="checkP"></div>
+        <div><label><img src="ico/M.png" alt=""></label><input type="checkbox" id="checkM"></div>
+        <div><label><img src="ico/C.png" alt=""></label><input type="checkbox" id="checkC"></div>
+      </div>
+
+      <div class="coste-field">
+        <label>Coste</label>
+        <input type="number" id="coste" readonly>
+      </div>
+
+      <button id="btnAdd" class="add-btn">+</button>
+
+    </div>
+
+<div class="points-row">
+  <div></div> <!-- Nº -->
+  <div></div> <!-- Tropa -->
+  <div></div> <!-- Equipo -->
+  <div></div> <!-- Opciones -->
+  <div></div> <!-- P -->
+  <div></div> <!-- M -->
+  <div></div> <!-- C -->
+  <div class="points-box">
+    <label>Puntos</label>
+    <input type="text" id="puntos" readonly>
+  </div>
+  <div></div> <!-- X -->
+</div>
+
+
+
+    <table class="army-table">
+      <thead>
+        <tr>
+          <th>Rg</th>
+          <th>Nº</th>
+          <th>Tropa</th>
+          <th>Equipo</th>
+          <th>Opciones</th>
+          <th><img src="ico/P2.png" alt=""></th>
+          <th><img src="ico/M2.png" alt=""></th>
+          <th><img src="ico/C2.png" alt=""></th>
+          <th>Coste</th>
+          <th></th>
+          <!--<th><button id="btnClear" class="clear-btn">✖</button></th>-->
+        </tr>
+      </thead>
+      <tbody id="tablaUnidades">
+      </tbody>
+    </table>
+  </div>
+
+
+  <div class="top-buttons">
+  <button id="btnGuardar">💾</button>
+  <button id="btnCargar">📂</button>
+  <button id="btnBorrar">🗑️</button>
+  <button id="btnPDF">📄</button>
+
+  <input type="file" id="fileInput" style="display:none">
+</div>
+
+
+  <!-- DERECHA -->
+<div class="right-panel">
+
+  <div class="right-content">
+
+    <!-- 🖼️ IMAGEN INICIAL-->
+    <div class="empty-state">
+       <img src="ico/LIBRO.png" alt="Libro">
+    </div>
+
+    <!-- 🖼️ IMAGEN -->
+    <div class="photo-box"></div>
+
+    <!-- 📊 NOMBRE + FICHA -->
+    <div class="ficha-container">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>M</th><th>Ha</th><th>Hp</th><th>F</th><th>R</th><th>H</th><th>I</th><th>A</th><th>L</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Unidad</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          </tr>
+          <tr>
+            <td>Montura / dotación</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          </tr>
+          <tr>
+            <td>Carro</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-unidad">
+      <div class="tipo-unidad"></div>
+
+      <div class="costes-unidad">
+        <div><span class="num" id="costeTropa"></span> Tropa</div>
+        <div><span class="num" id="costeEquipo"></span> Equipo</div>
+        <div><span class="num" id="costeOpciones"></span> Opciones</div>
+        <div><span class="num" id="costePMC"></span> Grupo mando</div>
+      </div>
+    </div>
+
+
+    <!-- 📜 REGLAS FIJAS -->
+    <div class="rules">
+      <h3>Reglas</h3>
+      <ul></ul>
+    <div class="descripcion-regla" id="descripcionRegla"></div>  
+    </div>
+
+    
+
+  </div>
+
+</div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

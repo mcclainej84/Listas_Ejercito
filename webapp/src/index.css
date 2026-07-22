@@ -1,0 +1,331 @@
+@import "tailwindcss";
+
+/* Cinzel (título) y PT Serif (puntos) — solo se usan dentro de la ficha de
+   unidad (sección "Fichas"), para que sea tipográficamente idéntica a
+   CodexMaker (ver capturas de referencia). El resto de la app sigue usando
+   Caslon Antique/Iowan Old Style (--font-display/--font-body de arriba). */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap");
+
+/* Caslon Antique — misma tipografía que usan las herramientas hermanas
+   (HojaEjercito, CodexMaker) para las fichas de unidad; se reutiliza aquí
+   para que toda la familia de herramientas comparta un mismo lenguaje
+   visual "de códex".
+   ┌─────────────────────────────────────────────────────────────────────┐
+   OJO con las rutas de este archivo (fuentes y fondo): apuntan a ficheros
+   dentro de `src/`, NO a `public/`, para que los procese Vite. Es
+   deliberado y hay que mantenerlo así.
+
+   Motivo: en desarrollo este CSS se inyecta como <style> y las rutas
+   relativas se resuelven contra la PÁGINA (la raíz), mientras que en la
+   compilación acaba en un fichero real bajo `assets/`, y entonces
+   "./fonts/x.ttf" pasa a significar "assets/fonts/x.ttf". Un fichero de
+   `public/` se copia a la raíz, así que la ruta cuadraba en local y daba
+   404 al desplegar — que es como se perdieron el fondo y las tipografías
+   (v0.7 → v0.15). Con los ficheros en `src/`, Vite los emite junto al CSS
+   y reescribe la URL para cada modo; funciona igual en local y en
+   GitHub Pages, y con cualquier `base`.
+
+   Lo que SÍ vive en `public/` es lo que se pide por red en tiempo de
+   ejecución con `import.meta.env.BASE_URL` (fuentes y textura del PDF,
+   iconos de mando, sql-wasm, la base de datos).
+   └─────────────────────────────────────────────────────────────────────┘ */
+@font-face {
+  font-family: "Caslon Antique";
+  src: url("./fonts/CaslonAntique-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Caslon Antique";
+  src: url("./fonts/CaslonAntique-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: "Caslon Antique", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-body: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+
+  /* Paleta "pergamino": tonos tierra sobre el fondo de papel envejecido,
+     en vez de la paleta gris/azul de una app SaaS genérica. */
+  --color-parchment: #f6efdc;
+  --color-parchment-dark: #ece0c2;
+  --color-ink: #2b2013;
+  --color-ink-soft: #5a4c36;
+  --color-rule: #b9a06b;
+  --color-rule-dark: #8a713f;
+  --color-maroon: #7a2420;
+  --color-maroon-dark: #5e1a17;
+  --color-bronze: #9c7a35;
+
+  /* Colores SEMÁNTICOS (error / acierto). Existen porque el proyecto venía
+     usando los rojos y verdes por defecto de Tailwind —red-600/700/800/900 y,
+     para lo mismo, unas veces `green` y otras `emerald`— que son fríos y
+     desentonan sobre el pergamino. Estos están tirados hacia el tierra para
+     que convivan con la paleta.
+     Regla: nada de `text-red-*` ni `text-emerald-*` en la interfaz; usar
+     `text-danger`, `bg-danger`, `text-success`… */
+  --color-danger: #9b2c22;
+  --color-danger-dark: #7a1f18;
+  --color-danger-soft: #b4483c;
+  --color-success: #4a6b3a;
+  --color-success-dark: #3a552c;
+}
+
+/* ----------------------------------------------------------------------------
+   Escala tipográfica
+   El proyecto usaba text-[11px], text-[10px] y text-[9px] sueltos en más de 30
+   sitios. Se les da nombre para que dejen de ser números mágicos y haya una
+   escala real: micro < mini < xs.
+   ------------------------------------------------------------------------- */
+@utility text-mini {
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1rem;
+}
+@utility text-micro {
+  font-size: 0.625rem; /* 10px */
+  line-height: 0.875rem;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background-color: #e9dfc4;
+  background-image: url("./assets/backgrounds/parchment.jpg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Scrollbar discreta, coherente en todos los navegadores basados en Chromium/Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule) transparent;
+}
+
+/* ----------------------------------------------------------------------------
+   BLANCO Y NEGRO — dos controles independientes
+   (a) Interruptor GLOBAL de la barra superior (`.grayscale-media` en AppShell):
+       desatura SOLO las imágenes del programa (emblemas, ilustraciones); el
+       resto de la interfaz —pergamino, tipografía, colores— se mantiene a
+       color. Es lo que el usuario pidió: que el interruptor solo tocara las
+       imágenes, no el programa entero.
+   (b) B&N propio de la ficha (`.grayscale` en `.ficha-sheet`, control local de
+       la sección Fichas): convierte la TARJETA ENTERA a gris, para simular una
+       hoja impresa en blanco y negro.
+
+   La desaturación se deja LIMPIA (solo grayscale, sin brillo/contraste extra):
+   un realce añadido restaba definición/nitidez a los emblemas, así que se
+   mantiene el gris tal cual, conservando el detalle original. */
+
+/* (a) Interruptor global: solo imágenes (emblemas/ilustraciones).
+   IMPORTANTE: los escudos de categoría (CategoryShield, `svg[data-metal]`)
+   quedan DELIBERADAMENTE fuera. En ellos el color no es decoración, es el
+   dato: oro = Singular, bronce = Básica, plata = Especial. Desaturados se
+   convierten en tres grises casi idénticos y dejan de distinguirse, así que
+   se mantienen a color aunque el interruptor esté activado. */
+.grayscale-media img {
+  filter: grayscale(100%);
+}
+/* (b) B&N de la ficha: la tarjeta entera ya se desatura vía Tailwind
+   `grayscale` sobre `.ficha-sheet`; no hace falta nada aquí. */
+
+/* ============================================================================
+   Ficha de unidad (sección "Fichas") — CSS ad-hoc, deliberadamente FUERA de
+   la paleta "--color-*" de arriba: el usuario pidió que la ficha se vea
+   EXACTAMENTE igual que CodexMaker (ver capturas "NUEVA FICHA"/"SEÑOR DE LA
+   GUERRA" que adjuntó), pixel a pixel — tipografía, tamaños, negritas, y en
+   particular el fondo blanco puro (no el crema "pergamino" del resto de la
+   app) y el truco de la barra gris (logo con margen vertical negativo que la
+   hace parecer más fina de lo que realmente es). Todos los valores de aquí
+   están copiados literalmente de index.html (el programa de referencia).
+   Usada por UnitSheetCard.tsx y compartida en espíritu con exportWord.ts
+   (que genera el HTML de exportación con los mismos valores, pero inline,
+   porque los documentos Word no pueden depender de esta hoja de estilos).
+   ============================================================================ */
+.ficha-sheet {
+  --fs-ink: #1c1a16;
+  --fs-bar-gray: #d9d5c6;
+  --fs-bar-border: #7d795f;
+  width: 760px;
+  max-width: 100%;
+  background: #ffffff;
+  padding: 22px 26px 34px;
+  color: var(--fs-ink);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+  border: 2px solid transparent;
+}
+.ficha-sheet.ficha-sheet--framed {
+  border-color: var(--fs-ink);
+}
+.ficha-sheet .ficha-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  font-family: "Cinzel", "Georgia", serif;
+  position: relative;
+  z-index: 2;
+}
+.ficha-sheet .ficha-subbar {
+  background: var(--fs-bar-gray);
+  color: var(--fs-ink);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 12px;
+  border-radius: 1px;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--fs-bar-border);
+  border-bottom: 1px solid var(--fs-bar-border);
+  position: relative;
+  z-index: 2;
+}
+/*
+ * El logo "se sale" de la barra fina por arriba y por abajo con un MARGEN
+ * VERTICAL NEGATIVO sobre un hijo flex normal (`margin:-14px 0`) — EXACTAMENTE
+ * como CodexMaker (`.subbar .logo` en index.html). Es la clave para que la
+ * exportación (html2canvas) coincida con la pantalla: `position:absolute` con
+ * un `top` negativo html2canvas lo colocaba mal (el logo se subía y tapaba el
+ * texto); el margen negativo sobre un hijo flex sí lo respeta igual que el
+ * navegador. No usar aquí `position:absolute`.
+ */
+.ficha-sheet .ficha-subbar .ficha-logo {
+  width: 50px;
+  height: 50px;
+  margin: -14px 0;
+  flex-shrink: 0;
+  border-radius: 5px;
+  background: #efeadd;
+  border: 1px solid var(--fs-bar-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.ficha-sheet .ficha-subbar .ficha-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ficha-sheet .ficha-subbar .ficha-uname {
+  font-weight: bold;
+  font-size: 11.5px;
+  flex: 1;
+}
+.ficha-sheet .ficha-subbar .ficha-pts {
+  font-family: "PT Serif", serif;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.ficha-sheet .ficha-content {
+  position: relative;
+  min-height: 380px;
+}
+/* La columna ocupa TODO el ancho y es cada apartado el que se estrecha por su
+   cuenta (.ficha-section). Antes el 64% estaba aquí, en la columna entera, y
+   por eso no se podía dar más aire a un apartado concreto para esquivar la
+   ilustración. Ese 64% pasa a ser el valor por defecto de cada apartado
+   (DEFAULT_SECTION_WIDTH), así que lo ya hecho se sigue viendo igual. */
+.ficha-sheet .ficha-left-col {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ficha-sheet table.ficha-stats {
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+  width: auto;
+}
+.ficha-sheet table.ficha-stats th {
+  font-family: "Trebuchet MS", sans-serif;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-bottom: 1.5px solid var(--fs-ink);
+  text-align: center;
+  white-space: nowrap;
+}
+.ficha-sheet table.ficha-stats th:first-child,
+.ficha-sheet table.ficha-stats td:first-child {
+  text-align: left;
+  padding-left: 2px;
+  padding-right: 14px;
+}
+.ficha-sheet table.ficha-stats td {
+  padding: 3px 7px;
+  text-align: center;
+  border-bottom: 1px solid #d6cfba;
+  white-space: nowrap;
+}
+.ficha-sheet .ficha-field {
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ficha-sheet .ficha-field b {
+  font-weight: bold;
+}
+.ficha-sheet .ficha-opt-title,
+.ficha-sheet .ficha-rules-title {
+  font-weight: bold;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+.ficha-sheet ul.ficha-options {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ficha-sheet ul.ficha-options li {
+  margin-bottom: 2px;
+}
+.ficha-sheet .ficha-rules-text {
+  font-style: italic;
+  font-size: 12.5px;
+  white-space: pre-line;
+}
+
+/* Apartado de texto con ancho propio (ver domain/sheetSections.ts). El ancho
+   lo pone el componente en línea, porque es un dato de cada ficha.
+   `overflow-wrap` evita que una palabra larga se salga del bloque al
+   estrecharlo mucho. */
+.ficha-sheet .ficha-section {
+  overflow-wrap: break-word;
+}
+
+/* Justificado SOLO donde compensa: "Reglas especiales", que es el apartado
+   largo. En los cortos ("Equipo: Arma de mano, escudo") justificar repartía el
+   sobrante entre dos o tres palabras y abría huecos enormes — peor que un
+   margen derecho irregular. */
+.ficha-sheet .ficha-section--justify {
+  text-align: justify;
+}
+
+/* Aviso "ideal para 2 fichas por página" (ver FichasPage.tsx) — mismo verde
+   y tamaño discreto que el checkbox "completada" del programa original. */
+.ficha-two-page-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Trebuchet MS", sans-serif;
+  font-size: 10.5px;
+  font-weight: bold;
+  color: #2e7d32;
+}

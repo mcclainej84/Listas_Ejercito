@@ -1,0 +1,373 @@
+// ============================================================================
+// Constructor de listas ("Ejércitos"): CRUD de listas guardadas y de sus
+// entradas. Cada entrada lleva la unidad completa resuelta (UnitDetail) —
+// reutiliza UnitRepository.getDetailById en vez de duplicar esas consultas,
+// porque tanto el coste como la validación de legalidad (domain/
+// armyValidation.ts) necesitan las reglas completas de la unidad, no solo
+// su id.
+// ============================================================================
+import { exec, execBatch, query, queryOne, type BatchStatement } from '@/data/sqlite/client'
+import { queryLocal } from '@/data/sqlite/localCatalog'
+import { UnitRepository } from '@/data/repositories/unitRepository'
+import { FactionRepository } from '@/data/repositories/factionRepository'
+import { computeCategoryInsertIndex } from '@/domain/armyValidation'
+import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput } from '@/domain/types'
+
+function mapArmyList(row: Record<string, unknown>): ArmyList {
+  return {
+    id: row.id as number,
+    factionId: row.faction_id as number,
+    name: row.name as string,
+    pointsLimit: (row.points_limit as number) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    userId: (row.user_id as number) ?? null,
+  }
+}
+
+export interface ArmyListSummary extends ArmyList {
+  factionName: string
+  entryCount: number
+}
+
+export interface ArmyListCreateInput {
+  factionId: number
+  name: string
+  pointsLimit: number | null
+  /** Dueño de la lista. Cada usuario ve solo las suyas (ver listAll). */
+  userId: number
+}
+
+async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry | null> {
+  // Las tres consultas son independientes entre sí (ninguna depende del
+  // resultado de otra: unit_id y row.id ya se conocen desde el principio),
+  // así que se lanzan en paralelo en vez de una detrás de otra.
+  const [unit, equipmentIds, upgradeIds] = await Promise.all([
+    UnitRepository.getDetailById(row.unit_id as number),
+    query<number>(
+      'SELECT equipment_id FROM army_list_entry_equipment WHERE entry_id = ?',
+      [row.id as number],
+      (r) => r.equipment_id as number,
+    ),
+    query<number>(
+      'SELECT upgrade_id FROM army_list_entry_upgrades WHERE entry_id = ?',
+      [row.id as number],
+      (r) => r.upgrade_id as number,
+    ),
+  ])
+  if (!unit) return null // unidad borrada después de añadirla a la lista: se omite en vez de romper la carga
+
+  return {
+    id: row.id as number,
+    armyListId: row.army_list_id as number,
+    unit,
+    quantity: row.quantity as number,
+    mountProfileId: (row.mount_profile_id as number) ?? null,
+    chariotProfileId: (row.chariot_profile_id as number) ?? null,
+    hasStandardBearer: Boolean(row.has_standard_bearer),
+    hasMusician: Boolean(row.has_musician),
+    hasChampion: Boolean(row.has_champion),
+    championName: (row.champion_name as string) ?? null,
+    sortOrder: row.sort_order as number,
+    equipmentIds,
+    upgradeIds,
+  }
+}
+
+async function touchList(armyListId: number): Promise<void> {
+  await exec('UPDATE army_lists SET updated_at = ? WHERE id = ?', [new Date().toISOString(), armyListId])
+}
+
+async function replaceEntryRelations(
+  entryId: number,
+  equipmentIds: number[],
+  upgradeIds: number[],
+): Promise<void> {
+  const statements: BatchStatement[] = [
+    { sql: 'DELETE FROM army_list_entry_equipment WHERE entry_id = ?', params: [entryId] },
+    ...equipmentIds.map((equipmentId) => ({
+      sql: 'INSERT OR IGNORE INTO army_list_entry_equipment (entry_id, equipment_id) VALUES (?, ?)',
+      params: [entryId, equipmentId],
+    })),
+    { sql: 'DELETE FROM army_list_entry_upgrades WHERE entry_id = ?', params: [entryId] },
+    ...upgradeIds.map((upgradeId) => ({
+      sql: 'INSERT OR IGNORE INTO army_list_entry_upgrades (entry_id, upgrade_id) VALUES (?, ?)',
+      params: [entryId, upgradeId],
+    })),
+  ]
+  await execBatch(statements)
+}
+
+export const ArmyListRepository = {
+  /**
+   * Listas del usuario indicado, y SOLO las suyas: los ejércitos son privados
+   * de cada uno (es el concepto central de la sección). Las que quedaran sin
+   * dueño de antes de existir los usuarios se asignan al usuario "admin" con
+   * una corrección de datos, en vez de mostrarse a todo el mundo.
+   */
+  async listAll(userId: number): Promise<ArmyListSummary[]> {
+    return query(
+      `SELECT al.*, f.name AS faction_name,
+              (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count
+       FROM army_lists al
+       JOIN factions f ON f.id = al.faction_id
+       WHERE al.user_id = ?
+       ORDER BY al.updated_at DESC`,
+      [userId],
+      (row) => ({
+        ...mapArmyList(row),
+        factionName: row.faction_name as string,
+        entryCount: row.entry_count as number,
+      }),
+    )
+  },
+
+  async create(input: ArmyListCreateInput): Promise<number> {
+    const now = new Date().toISOString()
+    return exec(
+      'INSERT INTO army_lists (faction_id, name, points_limit, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [input.factionId, input.name.trim(), input.pointsLimit, now, now, input.userId],
+    )
+  },
+
+  async rename(id: number, name: string): Promise<void> {
+    await exec('UPDATE army_lists SET name = ?, updated_at = ? WHERE id = ?', [
+      name.trim(),
+      new Date().toISOString(),
+      id,
+    ])
+  },
+
+  async setPointsLimit(id: number, pointsLimit: number | null): Promise<void> {
+    await exec('UPDATE army_lists SET points_limit = ?, updated_at = ? WHERE id = ?', [
+      pointsLimit,
+      new Date().toISOString(),
+      id,
+    ])
+  },
+
+  async remove(id: number): Promise<void> {
+    await exec('DELETE FROM army_lists WHERE id = ?', [id])
+  },
+
+  async getDetailById(id: number): Promise<ArmyListDetail | null> {
+    // La query de filas de entradas solo necesita `id` (ya conocido), no el
+    // resultado de `list`, así que se lanza en paralelo con ella en vez de
+    // esperar a que `list` resuelva primero.
+    const [list, entryRows] = await Promise.all([
+      queryOne('SELECT * FROM army_lists WHERE id = ?', [id], mapArmyList),
+      query('SELECT * FROM army_list_entries WHERE army_list_id = ? ORDER BY sort_order, id', [id], (row) => row),
+    ])
+    if (!list) return null
+
+    // La facción sí depende de `list.factionId`, pero resolver las entradas
+    // no depende de la facción: se lanzan también en paralelo entre sí.
+    const [faction, resolved] = await Promise.all([
+      FactionRepository.getById(list.factionId),
+      Promise.all(entryRows.map(resolveEntry)),
+    ])
+    if (!faction) return null
+
+    const entries = resolved.filter((e): e is ArmyListEntry => e !== null)
+
+    return { ...list, faction, entries }
+  },
+
+  /**
+   * Añade una unidad a la lista como una nueva entrada. Devuelve el id de la
+   * entrada creada.
+   *
+   * La posición por defecto de la entrada nueva no es simplemente "al final":
+   * se agrupa junto a las de su misma categoría (Personajes, luego Básicas,
+   * Especiales, Singulares, y el resto al final — ver
+   * domain/armyValidation.ts#computeCategoryInsertIndex), respetando el orden
+   * en el que ya estuvieran las demás entradas (incluida cualquier
+   * reordenación manual previa del usuario, ver `reorderEntries`). Para eso
+   * hace falta conocer la categoría de la unidad de cada entrada existente Y
+   * de la nueva ANTES de decidir su `sort_order`, así que estos pasos van
+   * secuenciales entre sí (cada uno depende del anterior); solo al final se
+   * hace el `UPDATE` en batch de todos los `sort_order` afectados de una vez.
+   */
+  async addEntry(armyListId: number, input: ArmyListEntryInput): Promise<number> {
+    const existingRows = await query<{ id: number; unitId: number }>(
+      'SELECT id, unit_id FROM army_list_entries WHERE army_list_id = ? ORDER BY sort_order, id',
+      [armyListId],
+      (row) => ({ id: row.id as number, unitId: row.unit_id as number }),
+    )
+
+    // Categoría de cada unidad implicada (las de las entradas ya presentes +
+    // la que se va a añadir), consultada de una sola vez contra el catálogo
+    // local (sql.js) — no hace falta ir al Worker para esto.
+    const unitIds = [...new Set([...existingRows.map((r) => r.unitId), input.unitId])]
+    const categoryByUnitId = new Map<number, string | null>()
+    if (unitIds.length > 0) {
+      const categoryRows = await queryLocal<{ unitId: number; code: string | null }>(
+        `SELECT u.id AS unit_id, uc.code AS code FROM units u
+         LEFT JOIN unit_categories uc ON uc.id = u.category_id
+         WHERE u.id IN (${unitIds.map(() => '?').join(',')})`,
+        unitIds,
+        (row) => ({ unitId: row.unit_id as number, code: (row.code as string | null) ?? null }),
+      )
+      for (const r of categoryRows) categoryByUnitId.set(r.unitId, r.code)
+    }
+    const categoryOf = (unitId: number) => {
+      const code = categoryByUnitId.get(unitId)
+      return code ? { code } : null
+    }
+
+    const insertIndex = computeCategoryInsertIndex(
+      existingRows.map((r) => ({ unit: { category: categoryOf(r.unitId) } })),
+      { category: categoryOf(input.unitId) },
+    )
+
+    const entryId = await exec(
+      `INSERT INTO army_list_entries
+         (army_list_id, unit_id, quantity, mount_profile_id, chariot_profile_id,
+          has_standard_bearer, has_musician, has_champion, champion_name, sort_order)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [
+        armyListId,
+        input.unitId,
+        input.quantity,
+        input.mountProfileId,
+        input.chariotProfileId,
+        input.hasStandardBearer ? 1 : 0,
+        input.hasMusician ? 1 : 0,
+        input.hasChampion ? 1 : 0,
+        input.championName,
+        existingRows.length, // provisional (al final); se corrige justo debajo
+      ],
+    )
+    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds)
+
+    const orderedIds = existingRows.map((r) => r.id)
+    orderedIds.splice(insertIndex, 0, entryId)
+    await execBatch(
+      orderedIds.map((id, i) => ({ sql: 'UPDATE army_list_entries SET sort_order = ? WHERE id = ?', params: [i, id] })),
+    )
+
+    await touchList(armyListId)
+    return entryId
+  },
+
+  /**
+   * Reordena a mano las entradas de una lista: `orderedEntryIds` es el orden
+   * completo deseado (todas las entradas de la lista, no un subconjunto).
+   * Usado por los botones subir/bajar de "Unidades en la lista" — a
+   * diferencia de `addEntry`, aquí no se aplica ningún criterio de
+   * categoría: es el usuario quien decide el orden explícitamente.
+   */
+  async reorderEntries(armyListId: number, orderedEntryIds: number[]): Promise<void> {
+    await execBatch(
+      orderedEntryIds.map((id, i) => ({
+        sql: 'UPDATE army_list_entries SET sort_order = ? WHERE id = ?',
+        params: [i, id],
+      })),
+    )
+    await touchList(armyListId)
+  },
+
+  async updateEntry(entryId: number, armyListId: number, input: ArmyListEntryInput): Promise<void> {
+    await exec(
+      `UPDATE army_list_entries
+       SET unit_id = ?, quantity = ?, mount_profile_id = ?, chariot_profile_id = ?,
+           has_standard_bearer = ?, has_musician = ?, has_champion = ?, champion_name = ?
+       WHERE id = ?`,
+      [
+        input.unitId,
+        input.quantity,
+        input.mountProfileId,
+        input.chariotProfileId,
+        input.hasStandardBearer ? 1 : 0,
+        input.hasMusician ? 1 : 0,
+        input.hasChampion ? 1 : 0,
+        input.championName,
+        entryId,
+      ],
+    )
+    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds)
+    await touchList(armyListId)
+  },
+
+  async removeEntry(entryId: number, armyListId: number): Promise<void> {
+    await exec('DELETE FROM army_list_entries WHERE id = ?', [entryId])
+    await touchList(armyListId)
+  },
+
+  /**
+   * Guarda de una sola vez TODAS las entradas de una lista, sustituyendo por
+   * completo lo que hubiera. Es lo que usa el botón "Guardar ejército" del
+   * constructor: mientras el usuario añade/edita/reordena unidades, todo vive
+   * en memoria (sin tocar la red — antes cada añadir era una escritura + una
+   * recarga completa, de ahí la lentitud); solo al pulsar Guardar se persiste
+   * aquí, en bloque.
+   *
+   * Estrategia "borrar y reinsertar": se borran todas las entradas de la lista
+   * (el ON DELETE CASCADE del esquema se lleva por delante su equipo/opciones)
+   * y se reinsertan todas en el orden recibido, con `sort_order` = índice. Para
+   * poder insertar el equipo/opciones de cada entrada en el MISMO lote sin
+   * depender del id que autogeneraría la BBDD, se eligen ids EXPLÍCITOS a
+   * partir de `MAX(id)+1` (por encima de cualquier id existente, así que no
+   * colisionan con los de otras listas ni con los recién borrados).
+   *
+   * El Worker limita cada batch a 50 sentencias (ver worker/src/index.ts:
+   * MAX_MUTATE_STATEMENTS), así que las sentencias se envían en trozos de
+   * como mucho 45. Como los ids son explícitos, el resultado no depende de
+   * dónde caigan los cortes entre trozos; lo único que debe ir primero es el
+   * DELETE (primer trozo) y el UPDATE de `updated_at` al final.
+   */
+  async replaceAllEntries(armyListId: number, entries: ArmyListEntryInput[]): Promise<void> {
+    const maxId =
+      (await queryOne<number>('SELECT COALESCE(MAX(id), 0) AS m FROM army_list_entries', [], (r) => r.m as number)) ?? 0
+
+    const statements: BatchStatement[] = [
+      { sql: 'DELETE FROM army_list_entries WHERE army_list_id = ?', params: [armyListId] },
+    ]
+
+    entries.forEach((entry, index) => {
+      const entryId = maxId + 1 + index
+      statements.push({
+        sql: `INSERT INTO army_list_entries
+                (id, army_list_id, unit_id, quantity, mount_profile_id, chariot_profile_id,
+                 has_standard_bearer, has_musician, has_champion, champion_name, sort_order)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        params: [
+          entryId,
+          armyListId,
+          entry.unitId,
+          entry.quantity,
+          entry.mountProfileId,
+          entry.chariotProfileId,
+          entry.hasStandardBearer ? 1 : 0,
+          entry.hasMusician ? 1 : 0,
+          entry.hasChampion ? 1 : 0,
+          entry.championName,
+          index,
+        ],
+      })
+      for (const equipmentId of entry.equipmentIds) {
+        statements.push({
+          sql: 'INSERT OR IGNORE INTO army_list_entry_equipment (entry_id, equipment_id) VALUES (?, ?)',
+          params: [entryId, equipmentId],
+        })
+      }
+      for (const upgradeId of entry.upgradeIds) {
+        statements.push({
+          sql: 'INSERT OR IGNORE INTO army_list_entry_upgrades (entry_id, upgrade_id) VALUES (?, ?)',
+          params: [entryId, upgradeId],
+        })
+      }
+    })
+
+    statements.push({
+      sql: 'UPDATE army_lists SET updated_at = ? WHERE id = ?',
+      params: [new Date().toISOString(), armyListId],
+    })
+
+    // Trozos de <=45 sentencias para no superar el límite del Worker (50).
+    const CHUNK = 45
+    for (let i = 0; i < statements.length; i += CHUNK) {
+      await execBatch(statements.slice(i, i + CHUNK))
+    }
+  },
+}

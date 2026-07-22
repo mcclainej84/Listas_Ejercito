@@ -1,0 +1,190 @@
+erDiagram
+    factions ||--o{ units : "tiene"
+    factions ||--o{ profile_factions : "puede usar"
+    factions ||--o{ faction_construction_rules : "define"
+    factions ||--o{ army_lists : "facción principal de"
+
+    unit_categories ||--o{ units : "clasifica"
+
+    attribute_profiles ||--o{ profile_factions : "asociado a"
+    attribute_profiles ||--o{ unit_profiles : "es perfil de"
+    attribute_profiles ||--o{ unit_command_options : "ficha de mando (opcional)"
+    attribute_profiles ||--o{ army_list_entries : "montura elegida"
+    attribute_profiles ||--o{ army_list_entries : "carro elegido"
+
+    special_rules ||--o{ unit_special_rules : "regla de"
+
+    equipment_options ||--o{ unit_equipment_options : "disponible en"
+    equipment_options ||--o{ equipment_incompatibilities : "pieza A"
+    equipment_options ||--o{ equipment_incompatibilities : "pieza B"
+    equipment_options ||--o{ army_list_entry_equipment : "elegido en"
+
+    upgrades ||--o{ unit_upgrade_options : "disponible en"
+    upgrades ||--o{ upgrade_incompatibilities : "opción A"
+    upgrades ||--o{ upgrade_incompatibilities : "opción B"
+    upgrades ||--o{ army_list_entry_upgrades : "elegido en"
+
+    command_roles ||--o{ unit_command_options : "rol de"
+
+    units ||--o{ unit_profiles : "tiene perfiles"
+    units ||--o{ unit_special_rules : "tiene reglas"
+    units ||--o{ unit_equipment_options : "ofrece equipo"
+    units ||--o{ unit_upgrade_options : "ofrece opciones"
+    units ||--o{ unit_command_options : "ofrece mando"
+    units ||--o{ army_list_entries : "añadida como"
+
+    army_lists ||--o{ army_list_entries : "contiene"
+    army_list_entries ||--o{ army_list_entry_equipment : "equipo elegido"
+    army_list_entries ||--o{ army_list_entry_upgrades : "opciones elegidas"
+
+    factions {
+        int id PK
+        text name
+        text slug
+        text image_path
+        blob emblem_data
+        text emblem_mime
+        text description
+        int sort_order
+    }
+    unit_categories {
+        int id PK
+        text code "BASICA|ESPECIAL|SINGULAR|PERSONAJE|ASEDIO|BESTIA"
+        text name
+        int sort_order
+    }
+    attribute_profiles {
+        int id PK
+        text name "NULL = perfil propio de una unidad"
+        text profile_kind "unidad|montura|carro"
+        bool equippable_by_character
+        text m
+        text ha
+        text hp
+        text f
+        text r
+        text h
+        text i
+        text a
+        text l
+    }
+    profile_factions {
+        int profile_id PK_FK
+        int faction_id PK_FK
+    }
+    special_rules {
+        int id PK
+        text name
+        text description
+    }
+    equipment_options {
+        int id PK
+        text name
+        int cost
+        text category "armadura|escudo|arma_cac|arma_dist|NULL"
+    }
+    equipment_incompatibilities {
+        int equipment_id_a PK_FK
+        int equipment_id_b PK_FK
+        text reason
+    }
+    upgrades {
+        int id PK
+        text name
+        int cost
+    }
+    upgrade_incompatibilities {
+        int upgrade_id_a PK_FK
+        int upgrade_id_b PK_FK
+        text reason
+    }
+    command_roles {
+        int id PK
+        text code "MUSICO|PORTAESTANDARTE|CAMPEON"
+        text name
+    }
+    units {
+        int id PK
+        int faction_id FK
+        int category_id FK
+        text unit_type "tropa|personaje"
+        text name
+        int base_cost
+        int min_size "límite de validación, NULL = sin definir"
+        int max_size "límite de validación, NULL = sin definir"
+        int default_size "sugerencia de cantidad al añadir, no bloquea"
+        bool is_unique
+        text equipment_text
+        int armor_save
+        text notes
+        int sort_order
+    }
+    unit_profiles {
+        int unit_id PK_FK
+        int profile_id PK_FK
+        text role PK "base|montura|carro"
+        int sort_order
+    }
+    unit_special_rules {
+        int unit_id PK_FK
+        int rule_id PK_FK
+    }
+    unit_equipment_options {
+        int unit_id PK_FK
+        int equipment_id PK_FK
+        bool is_default
+    }
+    unit_upgrade_options {
+        int unit_id PK_FK
+        int upgrade_id PK_FK
+        int max_per_unit
+    }
+    unit_command_options {
+        int unit_id PK_FK
+        int command_role_id PK_FK
+        int cost
+        text custom_name
+        int profile_id FK "ficha propia, solo CAMPEON"
+    }
+    faction_construction_rules {
+        int id PK
+        int faction_id FK
+        text rule_type
+        text description
+        text params "JSON"
+    }
+    army_lists {
+        int id PK
+        int faction_id FK "facción principal"
+        text name
+        int points_limit "NULL = sin límite"
+        text created_at
+        text updated_at
+    }
+    army_list_entries {
+        int id PK
+        int army_list_id FK
+        int unit_id FK
+        int quantity
+        int mount_profile_id FK
+        int chariot_profile_id FK
+        bool has_standard_bearer
+        bool has_musician
+        bool has_champion
+        text champion_name "NULL = usa el de la ficha"
+        int sort_order
+    }
+    army_list_entry_equipment {
+        int entry_id PK_FK
+        int equipment_id PK_FK
+    }
+    army_list_entry_upgrades {
+        int entry_id PK_FK
+        int upgrade_id PK_FK
+    }
+    import_meta {
+        int id PK
+        text source
+        text imported_at
+        text schema_version
+    }

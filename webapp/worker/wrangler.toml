@@ -1,0 +1,13 @@
+name = "wharmy-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wharmy-db"
+database_id = "d4faba12-adf0-4ee9-bcb8-17584667ddaa"
+
+# GROUP_PASSWORD_HASH (secreto, NO va aquí): se fija con
+#   wrangler secret put GROUP_PASSWORD_HASH
+# Debe ser el SHA-256 en hex de la contraseña de grupo (la misma función
+# sha256Hex que usa el cliente en src/data/network/auth.ts).

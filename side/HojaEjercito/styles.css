@@ -1,0 +1,725 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+
+
+body {
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("ico/TFONDO.png");
+  background-size: cover;        /* 🔥 ocupa toda la pantalla */
+  background-position: center;   /* centrado */
+  background-repeat: no-repeat;  /* no se repite */
+  background-attachment: fixed; /* efecto bonito al hacer scroll */
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  height: 100vh;
+}
+
+/* IZQUIERDA */
+.left-panel {
+  padding: 20px;
+  border-right: none; /*2px solid black;*/
+  position: relative; /* 🔴 necesario para puntos */
+}
+
+
+h1 {
+  position: relative;
+  text-align: center;
+  margin-bottom: 2cm;
+  font-family: 'Cinzel', serif;
+  font-size: 40px;
+  /*color: #2f2f2f;*/
+  color: #4a4a4a;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+
+h1::after {
+  content: "";
+  position: absolute;
+
+  top: 0;/*calc(100% + 5mm);  /* 🔥 EXACTO: 0,5 cm debajo */
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 1200px;
+  height: 180px;
+
+  background-image: url("ico/SUBRAYAR.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+
+  pointer-events: none;
+}
+
+
+
+/* FILAS */
+.row {
+  display: flex;
+  align-items: flex-end;
+}
+
+.top-row {
+  margin-bottom: 1cm;
+}
+
+.top-row select {
+  width: 240px;
+}
+
+.top-row label {
+  margin-right: 4mm;
+}
+
+/* FILA INPUTS */
+.inputs-row {
+  display: grid;
+  grid-template-columns: 
+    70px
+    240px
+    240px
+    240px
+    120px
+    70px
+    40px;
+  align-items: end;
+  column-gap: 12px;
+  margin-bottom: 2cm;
+}
+
+/* ANCHOS */
+.wide {
+  width: 240px;
+}
+
+.num-field input,
+.coste-field input {
+  width: 70px;
+}
+
+/* CHECKBOXES */
+.checkboxes {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.checkboxes div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+
+.checkboxes input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #6b5a3a; /* borde medieval */
+  border-radius: 3px;
+  background: transparent; /* fondo transparente */
+  cursor: pointer;
+}
+
+.checkboxes input[type="checkbox"]:checked {
+  background: #6b5a3a; /* marrón oscuro */
+  border-color: #6b5a3a;
+}
+
+
+
+
+/* BOTÓN */
+.add-btn {
+  height: 32px;
+  width: 32px;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  background-color: #2f80ed;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background-color: #1c5fcc;
+}
+
+/* ========================= */
+/* 🔥 PUNTOS ARRIBA IZQUIERDA */
+/* ========================= */
+
+.points-row {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  margin: 0; /* 🔴 importante */
+}
+
+.points-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.points-box input {
+  width: 70px;
+  text-align: center;
+}
+
+/* ========================= */
+/* TABLA */
+/* ========================= */
+
+.army-table {
+  width: 100%;
+  border-collapse: collapse;
+ /* margin-top: 2cm; /* 🔴 distancia correcta con listas */
+  table-layout: fixed;
+}
+
+/* COLUMNAS */
+/* RANGO */
+/* ========================= */
+/* COLUMNAS CORREGIDAS */
+/* ========================= */
+
+/* RANGO */
+.army-table th:nth-child(1),
+.army-table td:nth-child(1) { 
+  width: 40px; 
+  text-align: center; 
+}
+
+/* Nº */
+.army-table th:nth-child(2),
+.army-table td:nth-child(2) { 
+  width: 40px; 
+  text-align: center; 
+}
+
+/* TROPA */
+.army-table th:nth-child(3),
+.army-table td:nth-child(3) { 
+  width: 240px;
+  text-align: left;
+}
+
+/* EQUIPO */
+.army-table th:nth-child(4),
+.army-table td:nth-child(4) { 
+  width: 240px;
+  text-align: left;
+}
+
+/* OPCIONES */
+.army-table th:nth-child(5),
+.army-table td:nth-child(5) { 
+  width: 240px;
+  text-align: left;
+}
+
+/* P M C */
+.army-table th:nth-child(6),
+.army-table td:nth-child(6),
+.army-table th:nth-child(7),
+.army-table td:nth-child(7),
+.army-table th:nth-child(8),
+.army-table td:nth-child(8) { 
+  width: 50px; 
+  text-align: center; 
+}
+
+/* COSTE */
+.army-table th:nth-child(9),
+.army-table td:nth-child(9) { 
+  width: 70px; 
+  text-align: center; 
+}
+
+/* BORRAR */
+.army-table th:nth-child(10),
+.army-table td:nth-child(10) { 
+  width: 40px; 
+  text-align: center; 
+}
+
+.army-table th,
+.army-table td {
+  border: 1px solid black;
+  height: 26px;
+}
+
+.army-table th {
+  /*background-color: #cfe2ff;*/
+  background-image: url("ico/TCABECERA.png");
+  background-size: cover;       /* 🔥 ocupa toda la celda */
+  background-position: center;  /* centrado */
+  background-repeat: no-repeat;
+
+  color: white;                 /* 🔥 importante para contraste */
+  font-weight: bold;
+}
+
+.army-table td {
+  padding: 2px 4px;
+}
+
+/* separación texto columnas */
+.army-table td:nth-child(2),
+.army-table td:nth-child(3),
+.army-table td:nth-child(4),
+.army-table th:nth-child(2),
+.army-table th:nth-child(3),
+.army-table th:nth-child(4) {
+  padding-left: 8px;
+}
+
+/* fila seleccionada */
+#tablaUnidades tr.selected {
+  background-color: #dcdcdc;
+}
+
+/* ========================= */
+/* DERECHA */
+/* ========================= */
+
+.right-panel {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.right-content {
+  position: relative;
+  width: 85%;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  border-bottom: 1px solid black;
+  text-align: center;
+  padding: 5px;
+}
+
+.photo-rules {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.photo-box {
+  position: absolute;
+  top: 2cm;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  border: 2px solid black;
+}
+
+.ficha-container {
+  position: absolute;
+  top: calc(2cm + 260px + 1cm); /* 🔥 imagen + separación */
+  left: 0;
+  width: 100%;
+}
+
+.rules {
+  position: absolute;
+  top: calc(2cm + 260px + 1cm + 4cm); /* 🔥 relativo a ficha */
+  right: 0;
+  width: 250px;
+  text-align: right;
+}
+
+.rules ul {
+  list-style: none;
+}
+
+.rules h3 {
+  margin-bottom: 0.5cm;
+}
+
+.rules li {
+  text-align: right;
+  margin-bottom: 3px;
+  font-style: italic;
+}
+
+/* ========================= */
+/* INPUT COSTE */
+/* ========================= */
+
+#coste {
+  text-align: center;
+}
+
+/* ========================= */
+/* BOTÓN BORRAR */
+/* ========================= */
+
+.clear-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #c0392b;
+}
+
+.clear-btn:hover {
+  color: red;
+}
+
+.photo-box img {
+  border-radius: 4px;
+}
+
+.top-buttons {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.top-buttons button {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.stats-table th,
+.stats-table td {
+  width: 10%;
+}
+
+.stats-table th:first-child,
+.stats-table td:first-child {
+  width: 35%; /* nombre de unidad más ancho */
+}
+
+.stats-table th:not(:first-child),
+.stats-table td:not(:first-child) {
+  width: 7%; /* stats iguales */
+  text-align: center;
+}
+
+
+.info-unidad {
+  position: absolute;
+  top: calc(2cm + 260px + 1cm + 4cm); /* 🔥 misma altura que reglas */
+  left: 0;
+  width: 250px;
+}
+
+.tipo-unidad {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.costes-unidad {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.costes-unidad .num {
+  display: inline-block;
+  width: 30px;
+  text-align: right;
+  margin-right: 8px;
+}
+
+.empty-state {
+  position: absolute;
+  top: 12cm;
+  /*top: 50%;*/
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-state img {
+  width: 600px;
+  opacity: 0.8;
+}
+
+.photo-box,
+.ficha-container,
+.rules,
+.info-unidad {
+  display: none;
+}
+
+
+/* 🔥 FILAS TABLA UNIDADES */
+.army-table td {
+  background-image: url("ico/TCLARO.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 🔥 FILAS TABLA FICHA */
+.stats-table td {
+  background-image: url("ico/TCLARO.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/*.army-table tbody tr:hover {
+  filter: brightness(0.95);
+}*/
+
+
+.army-table tbody tr:hover td {
+  filter: brightness(0.90);
+}
+
+
+
+/* =========================
+   TEXTURA GENERAL (CUADROS)
+   ========================= */
+input,
+select,
+textarea,
+.rules,
+.info-unidad,
+.photo-box {
+
+  background-image: url("ico/TCLARO.png");
+  background-size: cover;
+  background-repeat: repeat;
+
+  border: 2px solid #6b5a3a;
+  border-radius: 8px;
+
+  color: #2b2b2b;
+}
+
+select {
+  border-radius: 0; /* 🔥 sin bordes redondeados */
+}
+
+/* =========================
+   LISTA DE REGLAS
+   ========================= */
+.rules {
+  padding: 10px;
+}
+
+.rules ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.rules li {
+  margin-bottom: 4px;
+}
+
+/* =========================
+   PANEL COSTES
+   ========================= */
+.info-unidad {
+  padding: 10px;
+}
+
+/* =========================
+   TIPO UNIDAD
+   ========================= */
+.tipo-unidad {
+  font-weight: bold;
+  /*text-align: center;
+  padding: 6px;*/
+}
+
+/* =========================
+   FOTO EJÉRCITO
+   ========================= */
+.photo-box {
+  padding: 0px;
+  overflow: hidden;
+}
+
+/* =========================
+   SELECT MÁS BONITO
+   ========================= */
+select {
+  appearance: none;
+  cursor: pointer;
+  padding-left: 4mm; /* 👈 lo que quieres */
+}
+
+/* =========================
+   INPUTS MÁS VISIBLES
+   ========================= */
+input {
+  padding: 4px;
+}
+
+
+
+
+button {
+  font-family: "Cinzel", serif;
+  font-weight: bold;
+
+  color: #f5f5f5;
+
+  /*padding: 10px 18px;*/
+  padding: 3px 3px;
+  border-radius: 10px;
+
+  border: 2px solid #2c2c2c;
+
+  /*background: linear-gradient(145deg, #3a5f9a, #1f3b6d);*/
+  /*background: linear-gradient(145deg, #8a5a2e, #5c3a1d);*/
+  background: linear-gradient(145deg, #c06a2a, #8a4518);
+  /*background: linear-gradient(145deg, #7a6248, #4e3f2e);*/
+  /*background: linear-gradient(145deg, #d2b48c, #b08a63);*/
+  box-shadow:
+    inset 0 2px 3px rgba(255,255,255,0.2),
+    inset 0 -2px 3px rgba(0,0,0,0.5),
+    0 4px 8px rgba(0,0,0,0.6);
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+
+button:hover {
+ /* background: linear-gradient(145deg, #4f79c7, #2a4c88);*/
+/*background: linear-gradient(145deg, #a06b3a, #704726);*/
+background: linear-gradient(145deg, #d47b34, #9a5320);
+/*background: linear-gradient(145deg, #8c7356, #5a4735);*/
+/*background: linear-gradient(145deg, #e0c6a4, #bfa17c);*/
+
+  transform: translateY(-1px);
+}
+
+
+button:active {
+  transform: translateY(2px);
+
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,0.7),
+    0 2px 4px rgba(0,0,0,0.5);
+}
+
+
+.fila-vacia td {
+  background-image: url("ico/TCLARO.png");
+  opacity: 0.4;
+}
+
+
+.checkboxes label img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.army-table th img {
+  height: 24px;     /* ajusta según el alto de tu cabecera */
+  width: auto;      /* mantiene la proporción original */
+  vertical-align: middle; /* centra la imagen verticalmente */
+}
+
+.descripcion-regla {
+  position: absolute;
+
+  top: calc(100% + 1cm);
+  left: 0; /* 🔥 en vez de right */
+
+  width: 100%; /* 🔥 mismo ancho que reglas */
+
+  padding: 10px;
+
+  background-image: url("ico/TCLARO.png");
+  background-size: cover;
+
+  border: 2px solid #6b5a3a;
+  border-radius: 8px;
+
+  display: none;
+  font-style: italic;
+  
+  text-align: left;
+  line-height: 1.4;
+
+  z-index: 1;
+}
+
+/*.rules {
+  position: relative; /* 🔥 clave */
+/*}*/
+
+.rules {
+  position: absolute;
+  top: calc(2cm + 260px + 1cm + 4cm);
+  right: 0;
+
+  width: 250px;
+
+  z-index: 2; /* 🔥 importante */
+}
+
+.rules li.activa {
+  font-weight: bold;
+  color: #000;
+
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.rules li:hover {
+  cursor: pointer;
+  background-color: rgba(0,0,0,0.05);
+}
+
+
+.ejercito-row {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* separación entre ambos */
+}
+
+#filtroTipo {
+  width: 1cm;
+  margin-left: 12px;
+  text-align: center;
+
+  height: 100%;          /* 🔥 clave */
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.icono-rango {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
