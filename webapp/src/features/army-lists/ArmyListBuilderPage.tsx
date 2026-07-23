@@ -1139,7 +1139,8 @@ export function ArmyListBuilderPage() {
                 )}
                 {selectedUnit.armorSave != null && (
                   <p className="text-xs text-ink-soft">
-                    <span className="font-semibold text-ink">T.S.:</span> {formatArmorSave(selectedUnit.armorSave)}
+                    <span className="font-semibold text-ink">Tirada de salvación:</span>{' '}
+                    {formatArmorSave(selectedUnit.armorSave)}
                   </p>
                 )}
 

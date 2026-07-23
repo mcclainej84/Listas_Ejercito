@@ -1,11 +1,15 @@
 import { useRef, useState } from 'react'
 import { FactionRepository } from '@/data/repositories/factionRepository'
+import { UserRepository } from '@/data/repositories/userRepository'
+import { useAsync } from '@/shared/hooks/useAsync'
+import { useSession } from '@/shared/session/useSession'
 import { resizeImageFile } from '@/shared/image'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
 import { TextField } from '@/shared/ui/TextField'
 import { TextArea } from '@/shared/ui/TextArea'
-import { TrashIcon } from '@/shared/ui/icons'
+import { TrashIcon, StarIcon } from '@/shared/ui/icons'
+import { FactionFeaturedRulesModal } from '@/features/user/FactionFeaturedRulesModal'
 import type { Faction } from '@/domain/types'
 
 function slugify(text: string): string {
@@ -38,6 +42,29 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
   const [emblemBusy, setEmblemBusy] = useState(false)
   const [emblemError, setEmblemError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Favorita y reglas destacadas viven aquí (dentro de "Editar") en vez de
+  // como botones sueltos sobre la lámina de la facción — una única acción
+  // de edición, en vez de tres controles distintos sobre la rejilla.
+  const { user } = useSession()
+  const { data: favoriteFactionId, reload: reloadFavorite } = useAsync(
+    () => (user ? UserRepository.getFavoriteFactionId(user.id) : Promise.resolve(null)),
+    [user],
+  )
+  const isFavorite = faction != null && favoriteFactionId === faction.id
+  const [favoriteBusy, setFavoriteBusy] = useState(false)
+  const [showRules, setShowRules] = useState(false)
+
+  async function handleToggleFavorite() {
+    if (!user || !faction) return
+    setFavoriteBusy(true)
+    try {
+      await UserRepository.setFavoriteFactionId(user.id, isFavorite ? null : faction.id)
+      reloadFavorite()
+    } finally {
+      setFavoriteBusy(false)
+    }
+  }
 
   async function handleEmblemFile(file: File | undefined) {
     if (!file || !faction) return
@@ -173,8 +200,41 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
           )}
         </div>
 
+        {faction && user && (
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-ink">Preferencias personales</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleFavorite}
+                disabled={favoriteBusy}
+                className="flex items-center gap-1.5 rounded-sm border border-rule-dark/40 px-2.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-parchment-dark/50 disabled:opacity-50"
+              >
+                <StarIcon className="h-3.5 w-3.5" filled={isFavorite} />
+                {isFavorite ? 'Favorita' : 'Marcar como favorita'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRules(true)}
+                className="rounded-sm border border-rule-dark/40 px-2.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-parchment-dark/50"
+              >
+                Reglas destacadas…
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
+
+      {showRules && faction && user && (
+        <FactionFeaturedRulesModal
+          userId={user.id}
+          faction={faction}
+          onClose={() => setShowRules(false)}
+          onSaved={() => setShowRules(false)}
+        />
+      )}
     </Modal>
   )
 }

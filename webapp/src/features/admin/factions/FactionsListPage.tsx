@@ -18,7 +18,7 @@
 // el ancho MENOR de esos dos: si el nombre no cabe en la lámina de 170 px,
 // parte la cartela en dos líneas y descuadra la fila entera.
 // ============================================================================
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FactionRepository, type FactionWithCounts } from '@/data/repositories/factionRepository'
 import { UserRepository } from '@/data/repositories/userRepository'
@@ -31,7 +31,6 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { TrashIcon, StarIcon } from '@/shared/ui/icons'
 import { FactionFormModal } from '@/features/admin/factions/FactionFormModal'
-import { FactionFeaturedRulesModal } from '@/features/user/FactionFeaturedRulesModal'
 import type { Faction } from '@/domain/types'
 
 /** "24 unidades · 6 personajes", o el aviso de que la facción está vacía. */
@@ -94,24 +93,15 @@ export function FactionsListPage() {
   const { data: factions, loading, error, reload } = useAsync(() => FactionRepository.listAllWithCounts())
   const [editing, setEditing] = useState<Faction | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Faction | null>(null)
-  const [rulesFor, setRulesFor] = useState<Faction | null>(null)
 
   // Facción favorita del usuario: se preselecciona en todas las pantallas con
-  // selector de facción. Es preferencia personal, así que va ligada al usuario
-  // de la sesión, no al catálogo compartido.
-  const [favoriteId, setFavoriteId] = useState<number | null>(null)
-  useEffect(() => {
-    if (!user) return
-    void UserRepository.getFavoriteFactionId(user.id).then(setFavoriteId)
-  }, [user])
-
-  async function toggleFavorite(factionId: number) {
-    if (!user) return
-    // Volver a pulsar la estrella de la favorita la quita (queda sin favorita).
-    const next = favoriteId === factionId ? null : factionId
-    setFavoriteId(next) // respuesta inmediata; la escritura va detrás
-    await UserRepository.setFavoriteFactionId(user.id, next)
-  }
+  // selector de facción. Se marca/desmarca dentro de "Editar" (ver
+  // FactionFormModal); aquí solo se lee, para pintar la estrella de la
+  // favorita sobre su lámina.
+  const { data: favoriteId, reload: reloadFavorite } = useAsync(
+    () => (user ? UserRepository.getFavoriteFactionId(user.id) : Promise.resolve(null)),
+    [user],
+  )
 
   const sorted = factions ?? []
 
@@ -170,49 +160,28 @@ export function FactionsListPage() {
                 </span>
               </button>
 
-              {/* La estrella de favorita, arriba a la izquierda. La favorita
-                  se ve SIEMPRE (rellena en dorado); en las demás la estrella
-                  vacía solo aparece al acercarse, para no ensuciar la rejilla.
-                  Es HERMANA del botón de la lámina, no hija: un <button>
-                  dentro de otro es HTML inválido. Solo se muestra con sesión
-                  iniciada — sin usuario no hay dónde guardar la preferencia. */}
-              {user && (
-                <button
-                  className={
-                    favoriteId === faction.id
-                      ? 'absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-sm border border-rule-dark/40 bg-parchment/95 text-bronze shadow-sm backdrop-blur-sm transition-opacity'
-                      : 'absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-sm border border-rule-dark/40 bg-parchment/95 text-ink-soft/70 opacity-0 shadow-sm backdrop-blur-sm transition-opacity duration-200 hover:text-bronze group-hover:opacity-100 focus-visible:opacity-100'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void toggleFavorite(faction.id)
-                  }}
-                  aria-label={favoriteId === faction.id ? `Quitar ${faction.name} de favorita` : `Marcar ${faction.name} como favorita`}
-                  title={favoriteId === faction.id ? 'Favorita — clic para quitar' : 'Marcar como favorita'}
+              {/* La estrella de favorita: solo un DISTINTIVO pasivo (no se
+                  puede pulsar aquí) para reconocer de un vistazo cuál es. La
+                  acción de marcar/desmarcar y la de elegir reglas destacadas
+                  viven ahora dentro de "Editar" (ver FactionFormModal), en
+                  vez de como botones sueltos sobre la lámina. */}
+              {favoriteId === faction.id && (
+                <span
+                  aria-hidden
+                  className="absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-sm border border-rule-dark/40 bg-parchment/95 text-bronze shadow-sm backdrop-blur-sm"
+                  title="Favorita"
                 >
-                  <StarIcon className="h-3.5 w-3.5" filled={favoriteId === faction.id} />
-                </button>
+                  <StarIcon className="h-3.5 w-3.5" filled />
+                </span>
               )}
 
-              {/* Editar/Borrar/Reglas flotan sobre la ilustración y solo
-                  aparecen al acercarse. Son HERMANOS del botón de la lámina,
-                  nunca hijos: un <button> dentro de otro es HTML inválido y
-                  el navegador reordena el marcado por su cuenta.
+              {/* Editar/Borrar flotan sobre la ilustración y solo aparecen al
+                  acercarse. Son HERMANOS del botón de la lámina, nunca hijos:
+                  un <button> dentro de otro es HTML inválido y el navegador
+                  reordena el marcado por su cuenta.
                   `focus-within` los hace alcanzables con el teclado, que si no
-                  quedarían invisibles para quien no usa ratón.
-                  Los tres comparten la misma altura (h-6) y el mismo estilo
-                  de "pastilla", para que se alineen en una fila prolija en
-                  vez de quedar cada uno con su propio tamaño. */}
+                  quedarían invisibles para quien no usa ratón. */}
               <div className="absolute top-1.5 right-1.5 flex h-6 items-stretch gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
-                {user && (
-                  <button
-                    className="flex items-center rounded-sm border border-rule-dark/40 bg-parchment/95 px-2 text-mini font-medium whitespace-nowrap text-ink-soft shadow-sm backdrop-blur-sm transition-colors hover:bg-parchment hover:text-maroon"
-                    onClick={() => setRulesFor(faction)}
-                    title="Elegir qué reglas especiales destacar de esta facción"
-                  >
-                    Reglas
-                  </button>
-                )}
                 <button
                   className="flex items-center rounded-sm border border-rule-dark/40 bg-parchment/95 px-2 text-mini font-medium whitespace-nowrap text-ink-soft shadow-sm backdrop-blur-sm transition-colors hover:bg-parchment hover:text-maroon"
                   onClick={() => setEditing(faction)}
@@ -240,6 +209,7 @@ export function FactionsListPage() {
           onSaved={() => {
             setEditing(null)
             reload()
+            reloadFavorite()
           }}
         />
       )}
@@ -255,15 +225,6 @@ export function FactionsListPage() {
             setDeleting(null)
             reload()
           }}
-        />
-      )}
-
-      {rulesFor && user && (
-        <FactionFeaturedRulesModal
-          userId={user.id}
-          faction={rulesFor}
-          onClose={() => setRulesFor(null)}
-          onSaved={() => setRulesFor(null)}
         />
       )}
     </div>
