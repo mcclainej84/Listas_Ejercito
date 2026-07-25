@@ -13,6 +13,18 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.44 — 25/07/2026 17:55
+
+La normalización de bytes que entró en 0.43 cubre además el caso de un
+`Uint8Array` que en algún punto pasó por `JSON.stringify` y llega como objeto
+con claves numéricas (`{"0":137,"1":80,…}`). Antes ese envase no daba error
+pero producía una imagen vacía, que es peor: falla en silencio.
+
+**Si sigues viendo «bytes.subarray is not a function», es una build antigua en
+caché.** El número de versión del pie de página lo confirma: tiene que poner
+0.44 o superior. Recarga forzando el vaciado de caché (Ctrl+Mayús+R, o
+Cmd+Mayús+R en Mac).
+
 ## 0.43 — 25/07/2026 11:20
 
 **Corrección de una regresión de 0.42: «bytes.subarray is not a function».**

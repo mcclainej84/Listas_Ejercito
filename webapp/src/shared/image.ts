@@ -285,18 +285,23 @@ export function resizeImageFile(
  * causa del "bytes.subarray is not a function" en las fichas que ya tenían
  * ilustración guardada.
  */
-export type ByteSource = Uint8Array | ArrayBuffer | number[]
+export type ByteSource = Uint8Array | ArrayBuffer | number[] | Record<string, number>
 
 function toUint8Array(bytes: ByteSource): Uint8Array {
   if (bytes instanceof Uint8Array) return bytes
   if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes)
-  return Uint8Array.from(bytes)
+  if (Array.isArray(bytes)) return Uint8Array.from(bytes)
+  // Último caso: un Uint8Array que en algún punto pasó por JSON.stringify y
+  // llegó como objeto con claves numéricas ({"0":137,"1":80,…}).
+  return Uint8Array.from(Object.values(bytes))
 }
 
 /** Longitud en bytes de cualquiera de los envases de arriba. */
 export function byteLength(bytes: ByteSource | null | undefined): number {
   if (!bytes) return 0
-  return bytes instanceof ArrayBuffer ? bytes.byteLength : bytes.length
+  if (bytes instanceof ArrayBuffer) return bytes.byteLength
+  if (bytes instanceof Uint8Array || Array.isArray(bytes)) return bytes.length
+  return Object.keys(bytes).length
 }
 
 /**
