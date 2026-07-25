@@ -13,7 +13,13 @@
 // tarjeta también se usa (montada fuera de pantalla) para las exportaciones
 // PNG/Word — ver offscreenRender.tsx.
 // ============================================================================
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { clsx } from 'clsx'
 import { sectionWidth, type SheetSection } from '@/domain/sheetSections'
 import type { UnitDetail, UnitSheet } from '@/domain/types'
@@ -41,11 +47,26 @@ import {
 export const CARD_W = 760
 const CARD_PAD_X = 26
 const CONTENT_W = CARD_W - CARD_PAD_X * 2
-/** Cuánto puede subir la ilustración por encima del borde superior del texto. */
-const ILLU_MIN_Y = -40
 /** Tamaño del hueco vacío cuando la ficha no tiene ilustración (`.illu-ph` en el original). */
 const ILLU_PLACEHOLDER_W = 249
 const ILLU_PLACEHOLDER_H = 340
+
+/**
+ * Cuántos píxeles de la ilustración deben quedar siempre dentro de la
+ * tarjeta. Es el ÚNICO límite del arrastre.
+ *
+ * Antes la imagen se acotaba a `0 … CONTENT_W - anchoImagen`, y eso era el
+ * fallo de fondo del "a veces no se puede mover": en cuanto la ilustración
+ * ocupaba el ancho útil de la ficha (a partir de ~68% de zoom, nada raro) ese
+ * rango se quedaba en un único punto y la imagen no se movía ni un píxel por
+ * más que se arrastrase — sin ningún aviso de por qué. Ahora la imagen puede
+ * salirse por los bordes tanto como se quiera (recortarla contra el borde es
+ * un encuadre legítimo, y la tarjeta ya recorta con `overflow: hidden`);
+ * lo único que se impide es perderla del todo de vista.
+ */
+const KEEP_VISIBLE = 56
+/** Margen de maniobra por arriba/abajo, para poder sacar la imagen fuera del alto de la tarjeta. */
+const ILLU_VERTICAL_SLACK = 400
 
 export interface UnitSheetCardProps {
   unit: UnitDetail
@@ -75,35 +96,110 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
     x: sheet.illuPosX ?? defaultPosX,
     y: sheet.illuPosY ?? defaultPosY,
   })
+  // Se sincroniza con lo que llega de fuera SALVO mientras se arrastra: si no,
+  // un re-render del padre a mitad de gesto devolvía la imagen a su sitio
+  // anterior y el arrastre "se soltaba solo".
+  const [dragging, setDragging] = useState(false)
   useEffect(() => {
+    if (dragging) return
     setLivePos({ x: sheet.illuPosX ?? defaultPosX, y: sheet.illuPosY ?? defaultPosY })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unit.id, sheet.illuPosX, sheet.illuPosY, sheet.illuWidthPct])
+  }, [unit.id, sheet.illuUrl, sheet.illuPosX, sheet.illuPosY, sheet.illuWidthPct])
 
   const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
   const layerRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  // `livePos` en una ref: el `pointerup` tiene que leer la ÚLTIMA posición, y
+  // leerla del estado capturado en la clausura del handler daba de vez en
+  // cuando la penúltima (la del render anterior), guardando una posición
+  // ligeramente distinta de la que se veía en pantalla.
+  const livePosRef = useRef(livePos)
+  livePosRef.current = livePos
+
+  /** Mueve la imagen actualizando a la vez el estado (para pintar) y la ref (para leer sin esperar al render). */
+  function applyPos(pos: { x: number; y: number }) {
+    livePosRef.current = pos
+    setLivePos(pos)
+  }
+
+  /**
+   * Alto real de la ilustración en pantalla. Hace falta para dibujar la zona
+   * de agarre encima (ver más abajo): la imagen se pinta con alto automático,
+   * así que solo se sabe una vez cargada.
+   */
+  const [illuHeight, setIlluHeight] = useState(0)
+  useEffect(() => {
+    const img = imgRef.current
+    if (!img) return
+    const update = () => setIlluHeight(img.offsetHeight)
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(img)
+    return () => observer.disconnect()
+  }, [sheet.illuUrl, illuWidthPx])
+
+  function clampPos(x: number, y: number) {
+    const layerH = layerRef.current?.clientHeight || 380
+    const visible = Math.min(KEEP_VISIBLE, illuWidthPx)
+    const visibleY = Math.min(KEEP_VISIBLE, illuHeight || KEEP_VISIBLE)
+    return {
+      x: Math.max(visible - illuWidthPx, Math.min(CONTENT_W - visible, x)),
+      y: Math.max(
+        -(illuHeight || 0) - ILLU_VERTICAL_SLACK + visibleY,
+        Math.min(layerH + ILLU_VERTICAL_SLACK - visibleY, y),
+      ),
+    }
+  }
 
   function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if (!editable || !sheet.illuUrl) return
-    dragState.current = { startX: e.clientX, startY: e.clientY, originX: livePos.x, originY: livePos.y }
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    // Sin esto, el navegador interpreta el gesto como "seleccionar texto" (en
+    // ratón) o "desplazar la página" (en táctil) y el arrastre se pierde a
+    // mitad de camino — otra de las razones de que solo funcionase a veces.
+    e.preventDefault()
+    dragState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: livePosRef.current.x,
+      originY: livePosRef.current.y,
+    }
+    // La captura va en `currentTarget` (la zona de agarre, que es quien tiene
+    // los handlers) y no en `e.target`, que puede ser un hijo cualquiera.
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDragging(true)
   }
+
   function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
     if (!dragState.current) return
     const dx = e.clientX - dragState.current.startX
     const dy = e.clientY - dragState.current.startY
-    const maxX = Math.max(0, CONTENT_W - illuWidthPx)
-    const layerH = layerRef.current?.clientHeight ?? 0
-    const maxY = Math.max(ILLU_MIN_Y, layerH)
-    setLivePos({
-      x: Math.max(0, Math.min(maxX, dragState.current.originX + dx)),
-      y: Math.max(ILLU_MIN_Y, Math.min(maxY, dragState.current.originY + dy)),
-    })
+    applyPos(clampPos(dragState.current.originX + dx, dragState.current.originY + dy))
   }
-  function handlePointerUp() {
+
+  function handlePointerUp(e: ReactPointerEvent<HTMLDivElement>) {
     if (!dragState.current) return
     dragState.current = null
-    onIlluDragEnd?.(livePos.x, livePos.y)
+    setDragging(false)
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    onIlluDragEnd?.(livePosRef.current.x, livePosRef.current.y)
+  }
+
+  /** Ajuste fino con el teclado, una vez la zona de agarre tiene el foco (Mayús = 10 px). */
+  function handleKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? 10 : 1
+    const delta: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    }
+    const move = delta[e.key]
+    if (!move) return
+    e.preventDefault()
+    const next = clampPos(livePosRef.current.x + move[0], livePosRef.current.y + move[1])
+    applyPos(next)
+    onIlluDragEnd?.(next.x, next.y)
   }
 
   const options = optionsList(unit)
@@ -207,21 +303,13 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
           </div>
         </div>
 
+        {/* La ilustración, PINTADA por debajo del texto (z-1 contra el z-2 de
+            .ficha-left-col): así es como se ve la ficha y como se exporta. */}
         <div ref={layerRef} className="pointer-events-none absolute inset-0 z-[1]">
           {sheet.illuUrl ? (
-            <div
-              className={clsx(
-                'absolute touch-none select-none',
-                editable && 'pointer-events-auto',
-                editable && (dragState.current ? 'cursor-grabbing' : 'cursor-grab'),
-              )}
-              style={{ width: illuWidthPx, left: livePos.x, top: livePos.y }}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            >
+            <div className="absolute select-none" style={{ width: illuWidthPx, left: livePos.x, top: livePos.y }}>
               <img
+                ref={imgRef}
                 src={sheet.illuUrl}
                 alt=""
                 draggable={false}
@@ -239,6 +327,47 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
             />
           )}
         </div>
+
+        {/*
+          ZONA DE AGARRE. Un rectángulo transparente del tamaño exacto de la
+          ilustración, colocado POR ENCIMA de todo (z-3).
+
+          Es la corrección de fondo del "no siempre funciona": la imagen se
+          pinta en una capa por debajo del texto, así que el navegador entrega
+          el clic al párrafo que haya delante y solo respondía al arrastre por
+          los trozos de imagen que no pisaba ningún texto — justo los que
+          menos se usan, porque la ilustración suele solaparse con la columna.
+          Separar "lo que se ve" de "lo que se agarra" deja el aspecto de la
+          ficha intacto y hace que valga cualquier punto de la imagen, incluidas
+          las zonas transparentes de un recorte.
+
+          Solo existe en el editor (`editable`), nunca en las exportaciones.
+        */}
+        {editable && sheet.illuUrl && (
+          <div
+            role="application"
+            aria-label="Mover la ilustración: arrastra, o usa las flechas del teclado"
+            tabIndex={0}
+            className={clsx(
+              'absolute z-[3] touch-none select-none rounded-[2px] outline-none',
+              'focus-visible:ring-2 focus-visible:ring-bronze/70',
+              dragging ? 'cursor-grabbing ring-1 ring-bronze/60' : 'cursor-grab hover:ring-1 hover:ring-bronze/30',
+            )}
+            style={{
+              width: illuWidthPx,
+              // Antes de que la imagen mida (primer render), un alto mínimo
+              // razonable para que ya se pueda agarrar.
+              height: illuHeight || Math.round(illuWidthPx * 1.2),
+              left: livePos.x,
+              top: livePos.y,
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onKeyDown={handleKeyDown}
+          />
+        )}
       </div>
     </div>
   )

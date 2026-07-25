@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ProfileCatalogEntry, ProfileCatalogInput } from '@/data/repositories/profileCatalogRepository'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { RuleRepository } from '@/data/repositories/ruleRepository'
@@ -59,6 +59,15 @@ export function ProfileCatalogListPage({
   const { data: allRules } = useAsync(() => (showSpecialRules ? RuleRepository.listAll() : Promise.resolve([])))
   const [editing, setEditing] = useState<ProfileCatalogEntry | 'new' | null>(null)
   const [deleting, setDeleting] = useState<ProfileCatalogEntry | null>(null)
+  // Buscador por nombre — misma idea que en "Equipo y opciones" (ver
+  // OptionsListPage), para encontrar una ficha concreta sin desplazarse por
+  // todo el catálogo.
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const shownEntries = useMemo(
+    () => (entries ?? []).filter((entry) => !q || (entry.profile.name ?? '').toLowerCase().includes(q)),
+    [entries, q],
+  )
 
   const factionNameById = new Map((factions ?? []).map((f) => [f.id, f.name]))
 
@@ -70,6 +79,17 @@ export function ProfileCatalogListPage({
         actions={<Button variant="primary" onClick={() => setEditing('new')}>+ {newLabel}</Button>}
       />
 
+      {!loading && (entries ?? []).length > 0 && (
+        <div className="mb-4">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre…"
+            className="h-[30px] w-full max-w-xs rounded-sm border border-rule-dark/50 bg-parchment/70 px-3 text-xs outline-none focus:border-bronze focus:ring-2 focus:ring-bronze/25"
+          />
+        </div>
+      )}
+
       {loading && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
 
@@ -77,9 +97,13 @@ export function ProfileCatalogListPage({
         <EmptyState title="Todavía no hay fichas" description={`Crea la primera con "+ ${newLabel}".`} />
       )}
 
-      {!loading && (entries ?? []).length > 0 && (
+      {!loading && (entries ?? []).length > 0 && shownEntries.length === 0 && (
+        <p className="text-xs text-ink-soft italic">Ninguna ficha coincide con "{search}".</p>
+      )}
+
+      {!loading && shownEntries.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(entries ?? []).map((entry) => (
+          {shownEntries.map((entry) => (
             <div key={entry.profile.id} className="group rounded-sm border border-rule-dark/40 bg-parchment/70 p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">

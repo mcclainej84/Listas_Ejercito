@@ -81,10 +81,17 @@ function isBase64Blob(value: unknown): value is Base64Blob {
   return typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
 }
 
+// Por trozos de 32 KB: concatenar carácter a carácter hacía que una
+// ilustración de medio mega tardase cientos de milisegundos en el hilo
+// principal (la subida "se quedaba pensando"), y pasar el array entero a
+// `String.fromCharCode.apply` desborda la pila de llamadas.
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-  return btoa(binary)
+  const CHUNK = 0x8000
+  const parts: string[] = []
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)))
+  }
+  return btoa(parts.join(''))
 }
 
 function base64ToBytes(b64: string): Uint8Array {

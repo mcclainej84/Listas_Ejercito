@@ -1,11 +1,11 @@
 import { execCatalog, execCatalogBatch } from '@/data/sqlite/client'
 import { queryLocal, queryLocalOne } from '@/data/sqlite/localCatalog'
 import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
-import { bytesToDataUrl } from '@/shared/image'
+import { byteLength, bytesToDataUrl, type ByteSource } from '@/shared/image'
 import type { Faction } from '@/domain/types'
 
-function resolveEmblemUrl(imagePath: string | null, emblemData: Uint8Array | null, emblemMime: string | null): string | null {
-  if (emblemData && emblemData.length > 0 && emblemMime) {
+function resolveEmblemUrl(imagePath: string | null, emblemData: ByteSource | null, emblemMime: string | null): string | null {
+  if (emblemData && byteLength(emblemData) > 0 && emblemMime) {
     return bytesToDataUrl(emblemData, emblemMime)
   }
   if (imagePath) {
@@ -16,7 +16,7 @@ function resolveEmblemUrl(imagePath: string | null, emblemData: Uint8Array | nul
 
 function mapFaction(row: Record<string, unknown>): Faction {
   const imagePath = (row.image_path as string) ?? null
-  const emblemData = (row.emblem_data as Uint8Array | null) ?? null
+  const emblemData = (row.emblem_data as ByteSource | null) ?? null
   const emblemMime = (row.emblem_mime as string) ?? null
   return {
     id: row.id as number,
@@ -26,7 +26,7 @@ function mapFaction(row: Record<string, unknown>): Faction {
     description: (row.description as string) ?? null,
     sortOrder: row.sort_order as number,
     emblemUrl: resolveEmblemUrl(imagePath, emblemData, emblemMime),
-    hasCustomEmblem: Boolean(emblemData && emblemData.length > 0),
+    hasCustomEmblem: byteLength(emblemData) > 0,
   }
 }
 

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { FactionRepository } from '@/data/repositories/factionRepository'
+import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
+import { sortFactionsFavoriteFirst } from '@/shared/session/sortFactionsFavoriteFirst'
 import {
   EquipmentRepository,
   UpgradeRepository,
@@ -65,6 +67,11 @@ export function OptionsListPage() {
   const [search, setSearch] = useState('')
 
   const { data: factions } = useAsync(() => FactionRepository.listAll())
+  const favoriteFactionId = useFavoriteFactionId()
+  // El filtro por defecto sigue siendo "todas" (factionId = null) a
+  // propósito — solo se reordena la lista para que la favorita salga la
+  // primera si el usuario decide filtrar.
+  const sortedFactions = sortFactionsFavoriteFirst(factions ?? [], favoriteFactionId)
 
   const {
     data: equipment,
@@ -220,7 +227,7 @@ export function OptionsListPage() {
             onChange={(e) => setFactionId(e.target.value ? Number(e.target.value) : null)}
           >
             <option value="">Todas las facciones</option>
-            {(factions ?? []).map((f) => (
+            {sortedFactions.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
               </option>

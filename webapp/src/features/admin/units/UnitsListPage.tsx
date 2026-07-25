@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
+import { sortFactionsFavoriteFirst } from '@/shared/session/sortFactionsFavoriteFirst'
 import { UnitRepository, type UnitSummary } from '@/data/repositories/unitRepository'
 import { runMigrations } from '@/data/sqlite/client'
 import { UnitCategoryRepository } from '@/data/repositories/lookupRepositories'
@@ -54,6 +55,9 @@ export function UnitsListPage() {
   const { data: factions, loading: loadingFactions } = useAsync(() => FactionRepository.listAll())
   const { data: categories } = useAsync(() => UnitCategoryRepository.listAll())
   const favoriteFactionId = useFavoriteFactionId()
+  // La favorita va la primera en el desplegable (y en el del formulario de
+  // unidad, que reutiliza esta misma lista) — el resto conserva su orden.
+  const sortedFactions = sortFactionsFavoriteFirst(factions ?? [], favoriteFactionId)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<UnitSummary | null>(null)
   // Id de la unidad que se está copiando (deshabilita los demás botones de
@@ -178,7 +182,7 @@ export function UnitsListPage() {
                 value={factionId ?? ''}
                 onChange={(e) => setSearchParams({ faccion: e.target.value })}
               >
-                {factions.map((f) => (
+                {sortedFactions.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
                   </option>
@@ -340,7 +344,7 @@ export function UnitsListPage() {
         <UnitFormModal
           factionId={Number(factionId)}
           categories={categories}
-          factions={factions ?? []}
+          factions={sortedFactions}
           defaultCategoryId={
             categories?.find((c) => c.name === openCategory)?.id ?? null
           }

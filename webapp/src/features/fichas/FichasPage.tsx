@@ -11,16 +11,37 @@
 // reparto que el programa de referencia. La tarjeta necesita más ancho del
 // que deja el contenedor centrado normal de la app (`AppShell` limita el
 // contenido a max-w-4xl), así que esta sección "escapa" de ese límite con un
-// wrapper a ancho de pantalla completo (ver `.breakout` más abajo) — si no,
-// la tarjeta se encoge de golpe y todo el contenido se ve amontonado.
+// wrapper a ancho de pantalla completo — si no, la tarjeta se encoge de golpe
+// y todo el contenido se ve amontonado.
+//
+// ---------------------------------------------------------------------------
+// EDICIÓN EN MEMORIA, GUARDADO EXPLÍCITO
+// ---------------------------------------------------------------------------
+// Antes cada control escribía por red en cuanto se movía: un deslizador de
+// tamaño disparaba una petición por paso, el arrastre otra al soltar, el
+// escudo otra… La sección se sentía pesada, y un fallo de red dejaba la
+// pantalla enseñando algo que no estaba guardado.
+//
+// Ahora la ficha abierta vive en un BORRADOR en memoria (`draft`): todos los
+// controles lo tocan al instante, sin red, y solo el botón "Guardar" escribe
+// —una vez, en un único batch (ver UnitSheetRepository.save)—. Las fichas ya
+// abiertas se quedan además en una caché de sesión, así que volver a una es
+// inmediato. A cambio, hay que proteger lo no guardado: al cambiar de ficha o
+// de facción, al navegar fuera (useBlocker) y al cerrar la pestaña
+// (beforeunload) se pregunta qué hacer, con el mismo diálogo de tres vías que
+// ya usan Unidades y el constructor de listas.
 // ============================================================================
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useBlocker, useSearchParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { UnitRepository, type UnitSummary } from '@/data/repositories/unitRepository'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
-import { UnitSheetRepository, type SheetTarget } from '@/data/repositories/unitSheetRepository'
+import {
+  UnitSheetRepository,
+  type SheetImageChange,
+  type SheetTarget,
+} from '@/data/repositories/unitSheetRepository'
 import {
   MAX_SECTION_WIDTH,
   MIN_SECTION_WIDTH,
@@ -28,7 +49,13 @@ import {
   sectionWidth,
   type SheetSection,
 } from '@/domain/sheetSections'
-import { resizeImageFile } from '@/shared/image'
+import {
+  bytesToDataUrl,
+  compressImageFile,
+  formatBytes,
+  MAX_EMBLEM_BYTES,
+  MAX_ILLUSTRATION_BYTES,
+} from '@/shared/image'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
@@ -37,6 +64,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { FactionEmblem } from '@/shared/ui/FactionEmblem'
+import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 import {
   CheckCircleIcon,
   ContrastIcon,
@@ -61,6 +89,14 @@ import { exportSheetsToPng, type SheetToExport } from '@/features/fichas/exportP
 import { exportReferenceSheet, exportSheetsToWordImages, exportSheetsToWordText } from '@/features/fichas/exportWord'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
+
+/** Las tres clases de ficha comparten controles; solo cambia dónde se guardan. */
+function targetFromKey(key: string): SheetTarget {
+  return {
+    kind: key.startsWith('u:') ? 'unidad' : key.startsWith('m:') ? 'montura' : 'opcion',
+    id: Number(key.slice(2)),
+  }
+}
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return <p className="mb-1 text-xs font-medium text-ink-soft">{children}</p>
@@ -181,8 +217,13 @@ export function FichasPage() {
     [factionId],
   )
 
-  const { data: sheetMap, reload: reloadSheetMap } = useAsync(
-    () => (factionId ? UnitSheetRepository.getMapByFactionId(Number(factionId)) : Promise.resolve(new Map<number, UnitSheet>())),
+  // Marca de "completada" de todas las fichas de la facción. Es una consulta
+  // de dos columnas, SIN imágenes: lo único que el listado necesita saber de
+  // las fichas que no están abiertas (ver getCompletedKeys — antes esto
+  // descargaba todas las ilustraciones de la facción y era el grueso de la
+  // espera al entrar en la sección).
+  const { data: completedKeys, reload: reloadCompletedKeys } = useAsync(
+    () => (factionId ? UnitSheetRepository.getCompletedKeys(Number(factionId)) : Promise.resolve(new Set<string>())),
     [factionId],
   )
 
@@ -246,84 +287,206 @@ export function FichasPage() {
     })
   }
 
+  // =========================================================================
+  // Ficha abierta: borrador en memoria
+  // =========================================================================
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [selectedDetail, setSelectedDetail] = useState<UnitDetail | null>(null)
-  const [selectedSheet, setSelectedSheet] = useState<UnitSheet | null>(null)
+  /** Lo que se ve y se edita. NO está guardado hasta que se pulsa "Guardar". */
+  const [draft, setDraft] = useState<UnitSheet | null>(null)
+  /** Imágenes que han cambiado en este borrador y hay que subir al guardar. */
+  const [pendingImages, setPendingImages] = useState<SheetImageChange>({})
+  const [dirty, setDirtyState] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  // Las tres clases de ficha (unidad, montura y opción) tienen los mismos
-  // controles de presentación; estas banderas solo sirven para el aviso que
-  // explica de dónde salen los datos de cada una.
-  const isUpgradeSelected = selectedKey?.startsWith('o:') ?? false
-  const isMountSelected = selectedKey?.startsWith('m:') ?? false
 
   /**
-   * Destino de presentación de lo que está seleccionado. Las tres clases de
-   * ficha se editan igual (ilustración, escudo, alto, completada); lo único
-   * que cambia es dónde se guarda, y de eso ya se ocupa el repositorio.
+   * El mismo "hay cambios sin guardar", pero en una ref además del estado.
+   *
+   * No es duplicar por duplicar: `useBlocker` tiene que consultarlo en el
+   * mismo instante en que se lanza la navegación, y el estado de React todavía
+   * no se ha vuelto a pintar cuando se pulsa "Descartar y salir" y acto
+   * seguido se cambia de facción — con el estado a secas, el bloqueador seguía
+   * viendo `true` y el diálogo volvía a salir en bucle. La ref se actualiza en
+   * el acto.
    */
-  const sheetTarget: SheetTarget | null = selectedKey
-    ? {
-        kind: selectedKey.startsWith('u:') ? 'unidad' : selectedKey.startsWith('m:') ? 'montura' : 'opcion',
-        id: Number(selectedKey.slice(2)),
-      }
-    : null
+  const dirtyRef = useRef(false)
+  function setDirty(value: boolean) {
+    dirtyRef.current = value
+    setDirtyState(value)
+  }
 
+  /**
+   * Fichas ya cargadas en esta sesión, tal y como están GUARDADAS. Volver a
+   * una ficha ya visitada no vuelve a pedirla por red (que es lo que hacía
+   * que ir y venir entre hojas se sintiera lento, porque cada vuelta
+   * redescargaba su ilustración en base64). Se actualiza al guardar.
+   */
+  const sheetCache = useRef(new Map<string, UnitSheet>())
+  /** Lo mismo para el contenido de la unidad/montura/opción, que tampoco cambia mientras se está aquí. */
+  const detailCache = useRef(new Map<string, UnitDetail>())
+
+  // Al cambiar de facción se vacían las cachés: son de otra facción y el
+  // usuario puede haber editado unidades en Editor mientras tanto.
   useEffect(() => {
+    sheetCache.current.clear()
+    detailCache.current.clear()
     setSelectedKey(null)
     setSelectedDetail(null)
-    setSelectedSheet(null)
+    setDraft(null)
+    setPendingImages({})
+    setDirty(false)
   }, [factionId])
 
-  async function selectUnit(id: number) {
-    setSelectedKey(`u:${id}`)
+  const isUpgradeSelected = selectedKey?.startsWith('o:') ?? false
+  const isMountSelected = selectedKey?.startsWith('m:') ?? false
+  const sheetTarget: SheetTarget | null = selectedKey ? targetFromKey(selectedKey) : null
+
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  /** Aplica un cambio al borrador y lo marca como pendiente de guardar. */
+  function patchDraft(patch: Partial<UnitSheet>) {
+    setDraft((s) => (s ? { ...s, ...patch } : s))
+    setDirty(true)
+  }
+
+  async function buildDetail(key: string): Promise<UnitDetail | null> {
+    const cached = detailCache.current.get(key)
+    if (cached) return cached
+    const { kind, id } = targetFromKey(key)
+    let detail: UnitDetail | null = null
+    if (kind === 'unidad') {
+      detail = await UnitRepository.getDetailById(id)
+    } else if (kind === 'montura') {
+      const profile = (sheetMounts ?? []).find((p) => p.id === id)
+      if (profile) detail = mountAsUnitDetail(profile, await MountRepository.listSpecialRules(id), selectedFaction)
+    } else {
+      const upgrade = (sheetUpgrades ?? []).find((o) => o.id === id)
+      if (upgrade) detail = upgradeAsUnitDetail(upgrade, await UpgradeRepository.listSpecialRules(id), selectedFaction)
+    }
+    if (detail) detailCache.current.set(key, detail)
+    return detail
+  }
+
+  /** Abre una ficha. No comprueba cambios sin guardar: de eso se ocupa `guarded`. */
+  async function openSheet(key: string) {
+    setSelectedKey(key)
+    setError(null)
+    setPendingImages({})
+    setDirty(false)
+
+    // Si ya se visitó, se pinta al instante desde la caché y no hay espera.
+    const cachedSheet = sheetCache.current.get(key)
+    const cachedDetail = detailCache.current.get(key)
+    if (cachedSheet) setDraft(cachedSheet)
+    if (cachedDetail) setSelectedDetail(cachedDetail)
+    if (cachedSheet && cachedDetail) return
+
     setLoadingDetail(true)
     try {
-      const [detail, sheet] = await Promise.all([UnitRepository.getDetailById(id), UnitSheetRepository.getByUnitId(id)])
+      const [detail, sheet] = await Promise.all([
+        buildDetail(key),
+        cachedSheet ?? UnitSheetRepository.get(targetFromKey(key)),
+      ])
+      sheetCache.current.set(key, sheet)
       setSelectedDetail(detail)
-      setSelectedSheet(sheet)
+      setDraft(sheet)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoadingDetail(false)
     }
   }
 
-  async function selectUpgrade(upgradeId: number) {
-    const upgrade = (sheetUpgrades ?? []).find((o) => o.id === upgradeId)
-    if (!upgrade) return
-    setSelectedKey(`o:${upgradeId}`)
-    setLoadingDetail(true)
+  // -------------------------------------------------------------------------
+  // Protección de lo no guardado
+  // -------------------------------------------------------------------------
+  /** Acción aplazada mientras el usuario decide qué hacer con sus cambios. */
+  const [pendingAction, setPendingAction] = useState<{ run: () => void } | null>(null)
+
+  /** Ejecuta `action`, o pregunta antes si hay cambios sin guardar. */
+  function guarded(action: () => void) {
+    if (dirtyRef.current) setPendingAction({ run: action })
+    else action()
+  }
+
+  // Navegación dentro de la app (data router)…
+  const blocker = useBlocker(() => dirtyRef.current)
+  // …y cierre/recarga de la pestaña, que useBlocker no cubre.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (dirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [dirty])
+
+  const showUnsavedDialog = pendingAction !== null || blocker.state === 'blocked'
+
+  /** Escribe el borrador entero de una vez. Devuelve si salió bien. */
+  async function saveDraft(): Promise<boolean> {
+    if (!draft || !sheetTarget || !selectedKey) return true
+    setSaving(true)
+    setError(null)
     try {
-      const rules = await UpgradeRepository.listSpecialRules(upgradeId)
-      setSelectedDetail(upgradeAsUnitDetail(upgrade, rules, selectedFaction))
-      setSelectedSheet(await UnitSheetRepository.get({ kind: 'opcion', id: upgradeId }))
+      await UnitSheetRepository.save(sheetTarget, draft, pendingImages)
+      sheetCache.current.set(selectedKey, draft)
+      setPendingImages({})
+      setDirty(false)
+      reloadCompletedKeys()
+      return true
+    } catch (err) {
+      setError(
+        `No se pudieron guardar los cambios: ${err instanceof Error ? err.message : String(err)}. ` +
+          'Nada se ha perdido: siguen aquí, puedes volver a intentarlo.',
+      )
+      return false
     } finally {
-      setLoadingDetail(false)
+      setSaving(false)
     }
   }
 
-  async function selectMount(profileId: number) {
-    const profile = (sheetMounts ?? []).find((p) => p.id === profileId)
-    if (!profile) return
-    setSelectedKey(`m:${profileId}`)
-    setLoadingDetail(true)
-    try {
-      const rules = await MountRepository.listSpecialRules(profileId)
-      setSelectedDetail(mountAsUnitDetail(profile, rules, selectedFaction))
-      setSelectedSheet(await UnitSheetRepository.get({ kind: 'montura', id: profileId }))
-    } finally {
-      setLoadingDetail(false)
-    }
+  /** Tira el borrador y vuelve a lo último guardado. */
+  function discardDraft() {
+    if (!selectedKey) return
+    const saved = sheetCache.current.get(selectedKey)
+    if (saved) setDraft(saved)
+    setPendingImages({})
+    setDirty(false)
+    setError(null)
   }
 
-  async function refreshSelectedSheet() {
-    if (!sheetTarget) return
-    setSelectedSheet(await UnitSheetRepository.get(sheetTarget))
-    reloadSheetMap()
+  async function handleDialogSaveAndLeave() {
+    const ok = await saveDraft()
+    if (!ok) return
+    const action = pendingAction
+    setPendingAction(null)
+    if (action) action.run()
+    else if (blocker.state === 'blocked') blocker.proceed()
   }
 
+  function handleDialogDiscardAndLeave() {
+    discardDraft()
+    const action = pendingAction
+    setPendingAction(null)
+    if (action) action.run()
+    else if (blocker.state === 'blocked') blocker.proceed()
+  }
+
+  function handleDialogKeepEditing() {
+    setPendingAction(null)
+    if (blocker.state === 'blocked') blocker.reset()
+  }
+
+  // -------------------------------------------------------------------------
+  // Controles de presentación — todos tocan SOLO el borrador
+  // -------------------------------------------------------------------------
   const illuInputRef = useRef<HTMLInputElement>(null)
   const emblemInputRef = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function withBusy(fn: () => Promise<void>) {
     setBusy(true)
@@ -337,115 +500,90 @@ export function FichasPage() {
     }
   }
 
-  /**
-   * Guarda un ajuste de presentación que se aplica al instante en pantalla
-   * (deslizadores, arrastre, visibilidad…).
-   *
-   * Estos controles pintan el cambio antes de escribirlo, para que respondan
-   * sin esperar a la red. El riesgo es evidente: si la escritura falla, la
-   * pantalla se queda enseñando algo que no se guardó, y solo se descubre al
-   * recargar. Aquí se recoge ese fallo, se avisa y se recarga la hoja desde la
-   * base de datos para que lo que se ve vuelva a ser la verdad.
-   */
-  async function persist(fn: () => Promise<void>) {
-    try {
-      await fn()
-    } catch (err) {
-      setError(
-        `No se pudo guardar el cambio: ${err instanceof Error ? err.message : String(err)}. ` +
-          'Si la base de datos no tiene aún las columnas nuevas, hay que desplegar el Worker.',
-      )
-      await refreshSelectedSheet()
-    }
-  }
-
   async function handleIlluFile(file: File | undefined) {
-    if (!file || !sheetTarget) return
+    if (!file || !draft) return
     await withBusy(async () => {
-      // PNG, no JPEG: la ilustración se superpone flotando sobre la ficha,
-      // así que si el archivo original tiene fondo transparente (lo
-      // habitual en un recorte de personaje) tiene que seguir siéndolo —
-      // sin fondo, ni blanco ni negro, ver resizeImageFile en shared/image.ts.
-      const { bytes, mime } = await resizeImageFile(file, 1200, 0.85, 'image/png')
-      await UnitSheetRepository.setIllustration(sheetTarget, bytes, mime, file.name)
-      await refreshSelectedSheet()
+      // Se comprime AQUÍ, en el navegador, antes de que la imagen entre
+      // siquiera en el borrador: así el peso que se va a guardar está acotado
+      // desde el primer momento y una foto de 8 MB no puede reventar la
+      // escritura más tarde (ver compressImageFile en shared/image.ts).
+      const { bytes, mime } = await compressImageFile(file, {
+        maxSize: 1100,
+        maxBytes: MAX_ILLUSTRATION_BYTES,
+      })
+      // Subir una imagen nueva reinicia el encuadre, igual que en CodexMaker.
+      setDraft((s) =>
+        s
+          ? {
+              ...s,
+              illuUrl: bytesToDataUrl(bytes, mime),
+              illuOriginalName: file.name,
+              illuWidthPct: 34,
+              illuPosX: null,
+              illuPosY: null,
+              illuBrightness: 100,
+              illuFlipped: false,
+            }
+          : s,
+      )
+      setPendingImages((p) => ({ ...p, illu: { bytes, mime, originalName: file.name } }))
+      setDirty(true)
     })
     if (illuInputRef.current) illuInputRef.current.value = ''
   }
 
-  async function handleRemoveIllu() {
-    if (!sheetTarget) return
+  function handleRemoveIllu() {
+    if (!draft) return
     if (!confirm('¿Quitar la ilustración de esta ficha?')) return
-    await withBusy(async () => {
-      await UnitSheetRepository.removeIllustration(sheetTarget)
-      await refreshSelectedSheet()
-    })
+    setDraft((s) =>
+      s
+        ? {
+            ...s,
+            illuUrl: null,
+            illuOriginalName: null,
+            illuWidthPct: 34,
+            illuPosX: null,
+            illuPosY: null,
+            illuBrightness: 100,
+            illuFlipped: false,
+          }
+        : s,
+    )
+    setPendingImages((p) => ({ ...p, illu: null }))
+    setDirty(true)
   }
 
-  async function handleIlluWidthChange(pct: number) {
-    if (!sheetTarget) return
-    setSelectedSheet((s) => (s ? { ...s, illuWidthPct: pct } : s)) // feedback inmediato del slider
-    await persist(() => UnitSheetRepository.setIlluTransform(sheetTarget, { widthPct: pct }))
-    reloadSheetMap()
-  }
-
-  async function handleIlluBrightnessChange(pct: number) {
-    if (!sheetTarget) return
-    setSelectedSheet((s) => (s ? { ...s, illuBrightness: pct } : s))
-    await persist(() => UnitSheetRepository.setIlluTransform(sheetTarget, { brightness: pct }))
-  }
-
-  async function handleIlluFlip() {
-    if (!sheetTarget || !selectedSheet) return
-    await withBusy(async () => {
-      await UnitSheetRepository.setIlluTransform(sheetTarget, { flipped: !selectedSheet.illuFlipped })
-      await refreshSelectedSheet()
-    })
-  }
-
-  async function handleIlluResetFraming() {
-    if (!sheetTarget) return
-    await withBusy(async () => {
-      await UnitSheetRepository.resetIlluTransform(sheetTarget)
-      await refreshSelectedSheet()
-    })
-  }
-
-  async function handleIlluDragEnd(posX: number, posY: number) {
-    if (!sheetTarget) return
-    await persist(() => UnitSheetRepository.setIlluTransform(sheetTarget, { posX, posY }))
-    reloadSheetMap()
-  }
-
-  async function handleHeightChange(px: number) {
-    if (!sheetTarget) return
-    setSelectedSheet((s) => (s ? { ...s, cardMaxHeight: px } : s))
-    await persist(() => UnitSheetRepository.setCardMaxHeight(sheetTarget, px))
-  }
-
-  async function handleHeightReset() {
-    if (!sheetTarget) return
-    await handleHeightChange(800)
-    reloadSheetMap()
+  function handleIlluResetFraming() {
+    patchDraft({ illuWidthPct: 34, illuPosX: null, illuPosY: null, illuBrightness: 100, illuFlipped: false })
   }
 
   async function handleEmblemFile(file: File | undefined) {
-    if (!file || !sheetTarget) return
+    if (!file || !draft) return
     await withBusy(async () => {
-      // Igual que la ilustración: PNG para conservar la transparencia del
-      // escudo, no un JPEG con fondo blanco/negro forzado.
-      const { bytes, mime } = await resizeImageFile(file, 480, 0.82, 'image/png')
-      await UnitSheetRepository.setEmblemOverride(sheetTarget, bytes, mime)
-      await refreshSelectedSheet()
+      const { bytes, mime } = await compressImageFile(file, { maxSize: 480, maxBytes: MAX_EMBLEM_BYTES })
+      setDraft((s) => (s ? { ...s, emblemUrl: bytesToDataUrl(bytes, mime), hasCustomEmblem: true } : s))
+      setPendingImages((p) => ({ ...p, emblem: { bytes, mime } }))
+      setDirty(true)
     })
     if (emblemInputRef.current) emblemInputRef.current.value = ''
   }
 
-  async function handleEmblemRevert() {
-    if (!sheetTarget) return
-    await withBusy(async () => {
-      await UnitSheetRepository.clearEmblemOverride(sheetTarget)
-      await refreshSelectedSheet()
+  function handleEmblemRevert() {
+    setDraft((s) => (s ? { ...s, emblemUrl: null, hasCustomEmblem: false } : s))
+    setPendingImages((p) => ({ ...p, emblem: null }))
+    setDirty(true)
+  }
+
+  function handleSectionWidthsReset() {
+    patchDraft({ sectionWidths: {} })
+  }
+
+  function handleProfileVisibility(profileKey: string, visible: boolean) {
+    if (!draft) return
+    patchDraft({
+      hiddenProfiles: visible
+        ? draft.hiddenProfiles.filter((k) => k !== profileKey)
+        : [...new Set([...draft.hiddenProfiles, profileKey])],
     })
   }
 
@@ -474,41 +612,6 @@ export function FichasPage() {
    */
   const allProfileRows = selectedDetail ? unifiedProfileRows(selectedDetail) : []
 
-  async function handleProfileVisibility(profileKey: string, visible: boolean) {
-    if (!sheetTarget) return
-    setSelectedSheet((s) =>
-      s
-        ? {
-            ...s,
-            hiddenProfiles: visible ? s.hiddenProfiles.filter((k) => k !== profileKey) : [...s.hiddenProfiles, profileKey],
-          }
-        : s,
-    )
-    await persist(() => UnitSheetRepository.setProfileHidden(sheetTarget, profileKey, !visible))
-  }
-
-  async function handleSectionWidthChange(section: SheetSection, pct: number) {
-    if (!sheetTarget) return
-    // Respuesta inmediata del deslizador; la escritura va detrás.
-    setSelectedSheet((s) => (s ? { ...s, sectionWidths: { ...s.sectionWidths, [section]: pct } } : s))
-    await persist(() => UnitSheetRepository.setSectionWidth(sheetTarget, section, pct))
-  }
-
-  async function handleSectionWidthsReset() {
-    if (!sheetTarget) return
-    await withBusy(async () => {
-      await UnitSheetRepository.resetSectionWidths(sheetTarget)
-      await refreshSelectedSheet()
-    })
-  }
-
-  async function handleCompletedToggle(checked: boolean) {
-    if (!sheetTarget) return
-    setSelectedSheet((s) => (s ? { ...s, completed: checked } : s))
-    await persist(() => UnitSheetRepository.setCompleted(sheetTarget, checked))
-    reloadSheetMap()
-  }
-
   function toggleExportCheck(key: string) {
     setExportChecks((prev) => {
       const next = new Set(prev)
@@ -524,22 +627,36 @@ export function FichasPage() {
     grouped.set(key, [...(grouped.get(key) ?? []), unit])
   }
 
-  // Grupos de "Tus fichas": las categorías de unidades + un grupo final con las
-  // opciones de unidad marcadas "incluir en fichas".
+  /**
+   * ¿Está completada esta ficha? Lo que diga el borrador manda sobre lo
+   * guardado: si acabas de marcarla, el tick aparece al momento aunque
+   * todavía no hayas guardado.
+   */
+  function isCompleted(key: string): boolean {
+    if (key === selectedKey && draft) return draft.completed
+    return completedKeys?.has(key) ?? false
+  }
+
+  // Grupos de "Tus fichas": las categorías de unidades + un grupo con las
+  // opciones de unidad marcadas "incluir en fichas" + otro con monturas.
   const groups: Array<{ title: string; entries: Array<{ key: string; name: string; completed: boolean }> }> = [
     ...Array.from(grouped.entries()).map(([category, categoryUnits]) => ({
       title: category,
       entries: categoryUnits.map((u) => ({
         key: `u:${u.id}`,
         name: u.name,
-        completed: sheetMap?.get(u.id)?.completed ?? false,
+        completed: isCompleted(`u:${u.id}`),
       })),
     })),
     ...((sheetUpgrades ?? []).length > 0
       ? [
           {
             title: 'Opciones de unidad',
-            entries: (sheetUpgrades ?? []).map((o) => ({ key: `o:${o.id}`, name: o.name, completed: false })),
+            entries: (sheetUpgrades ?? []).map((o) => ({
+              key: `o:${o.id}`,
+              name: o.name,
+              completed: isCompleted(`o:${o.id}`),
+            })),
           },
         ]
       : []),
@@ -550,7 +667,7 @@ export function FichasPage() {
             entries: (sheetMounts ?? []).map((m) => ({
               key: `m:${m.id}`,
               name: m.name ?? 'Montura',
-              completed: false,
+              completed: isCompleted(`m:${m.id}`),
             })),
           },
         ]
@@ -579,36 +696,44 @@ export function FichasPage() {
   // desactivar solo el que está en marcha. ----------
   const [runningExport, setRunningExport] = useState<'png' | 'word-texto' | 'word-imagenes' | 'referencia' | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  // Unidades marcadas (Word con texto y Hoja de referencia solo trabajan con
-  // unidades reales) y opciones marcadas.
   const selectedIds = (units ?? []).filter((u) => exportChecks.has(`u:${u.id}`)).map((u) => u.id)
   const selectedUpgrades = (sheetUpgrades ?? []).filter((o) => exportChecks.has(`o:${o.id}`))
   const selectedMounts = (sheetMounts ?? []).filter((m) => exportChecks.has(`m:${m.id}`))
 
-  /** Carga las fichas marcadas (unidades + opciones) listas para exportar como imagen. */
+  /**
+   * Presentación de una ficha para exportar. Se prefiere el BORRADOR de la
+   * ficha abierta y, si no, la caché de sesión: "exportas lo que ves", que es
+   * la regla del programa original. Solo se va a la red por lo que no se ha
+   * abierto en esta sesión.
+   */
+  async function sheetForExport(key: string): Promise<UnitSheet> {
+    if (key === selectedKey && draft) return draft
+    const cached = sheetCache.current.get(key)
+    if (cached) return cached
+    const sheet = await UnitSheetRepository.get(targetFromKey(key))
+    sheetCache.current.set(key, sheet)
+    return sheet
+  }
+
+  /** Carga las fichas marcadas (unidades + opciones + monturas) listas para exportar como imagen. */
   async function buildExportItems(): Promise<SheetToExport[]> {
     const items: SheetToExport[] = []
     for (const id of selectedIds) {
-      const [unit, sheet] = await Promise.all([
-        UnitRepository.getDetailById(id),
-        UnitSheetRepository.getByUnitId(id),
-      ])
+      const [unit, sheet] = await Promise.all([UnitRepository.getDetailById(id), sheetForExport(`u:${id}`)])
       if (unit) items.push({ unit, sheet })
     }
     for (const upgrade of selectedUpgrades) {
       const rules = await UpgradeRepository.listSpecialRules(upgrade.id)
       items.push({
         unit: upgradeAsUnitDetail(upgrade, rules, selectedFaction),
-        // Su presentación guardada, no una en blanco: si no, lo exportado
-        // saldría sin la ilustración que se acaba de poner.
-        sheet: await UnitSheetRepository.get({ kind: 'opcion', id: upgrade.id }),
+        sheet: await sheetForExport(`o:${upgrade.id}`),
       })
     }
     for (const mount of selectedMounts) {
       const rules = await MountRepository.listSpecialRules(mount.id)
       items.push({
         unit: mountAsUnitDetail(mount, rules, selectedFaction),
-        sheet: await UnitSheetRepository.get({ kind: 'montura', id: mount.id }),
+        sheet: await sheetForExport(`m:${mount.id}`),
       })
     }
     return items
@@ -662,7 +787,10 @@ export function FichasPage() {
             <Select
               label="Facción"
               value={factionId ?? ''}
-              onChange={(e) => setSearchParams({ faccion: e.target.value })}
+              onChange={(e) => {
+                const next = e.target.value
+                guarded(() => setSearchParams({ faccion: next }))
+              }}
             >
               {factions.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -697,6 +825,25 @@ export function FichasPage() {
               <IconButton icon={<FrameIcon />} onClick={() => setShowFrame((v) => !v)}>
                 {showFrame ? 'Quitar marco' : 'Añadir marco'}
               </IconButton>
+
+              {/* Guardar vive en la barra superior, siempre a la vista: es la
+                  única acción que escribe y no debe quedar escondida al final
+                  de una columna que hay que desplazar. */}
+              {draft && (
+                <div className="ml-auto flex items-center gap-2">
+                  {dirty && (
+                    <span className="text-xs font-medium text-maroon">Cambios sin guardar</span>
+                  )}
+                  {dirty && (
+                    <Button variant="ghost" onClick={discardDraft} disabled={saving}>
+                      Descartar
+                    </Button>
+                  )}
+                  <Button variant="primary" onClick={saveDraft} disabled={!dirty || saving}>
+                    {saving ? 'Guardando…' : dirty ? 'Guardar' : 'Guardado'}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {error && <p className="text-sm text-danger">{error}</p>}
@@ -705,7 +852,7 @@ export function FichasPage() {
               <Panel title="Ficha">
                 {!selectedDetail ? (
                   <EmptyState title="Elige una ficha" description="Selecciónala en «Tus hojas» para editar su presentación." />
-                ) : loadingDetail || !selectedSheet ? (
+                ) : loadingDetail || !draft ? (
                   <Spinner />
                 ) : (
                   <div className="space-y-2">
@@ -731,67 +878,75 @@ export function FichasPage() {
                       open={isPanelOpen('imagen')}
                       onToggle={() => togglePanel('imagen')}
                     >
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        <IconButton icon={<ImageIcon />} onClick={() => illuInputRef.current?.click()} disabled={busy}>
-                          {selectedSheet.illuUrl ? 'Cambiar imagen' : 'Elegir imagen'}
-                        </IconButton>
-                        {selectedSheet.illuUrl && (
-                          <IconButton icon={<TrashIcon className="h-3.5 w-3.5" />} onClick={handleRemoveIllu} disabled={busy} danger>
-                            Quitar
+                      <div>
+                        <div className="flex flex-wrap gap-2">
+                          <IconButton icon={<ImageIcon />} onClick={() => illuInputRef.current?.click()} disabled={busy}>
+                            {busy ? 'Procesando…' : draft.illuUrl ? 'Cambiar imagen' : 'Elegir imagen'}
                           </IconButton>
+                          {draft.illuUrl && (
+                            <IconButton icon={<TrashIcon className="h-3.5 w-3.5" />} onClick={handleRemoveIllu} disabled={busy} danger>
+                              Quitar
+                            </IconButton>
+                          )}
+                        </div>
+                        <input
+                          ref={illuInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleIlluFile(e.target.files?.[0])}
+                        />
+                        <p className="mt-1.5 text-[10.5px] text-ink-soft">
+                          Vale cualquier tamaño: la imagen se reduce y se comprime aquí mismo (hasta{' '}
+                          {formatBytes(MAX_ILLUSTRATION_BYTES)}) conservando la transparencia.
+                        </p>
+
+                        {draft.illuUrl && (
+                          <div className="mt-3 space-y-3">
+                            <div>
+                              <FieldLabel>Tamaño: {draft.illuWidthPct}% del ancho de la ficha</FieldLabel>
+                              <input
+                                type="range"
+                                min={10}
+                                max={90}
+                                step={2}
+                                value={draft.illuWidthPct}
+                                onChange={(e) => patchDraft({ illuWidthPct: Number(e.target.value) })}
+                                className="w-full accent-bronze"
+                              />
+                            </div>
+                            <div>
+                              <FieldLabel>
+                                <span className="inline-flex items-center gap-1">
+                                  <SunIcon className="h-3.5 w-3.5" /> Brillo: {draft.illuBrightness}%
+                                </span>
+                              </FieldLabel>
+                              <input
+                                type="range"
+                                min={40}
+                                max={180}
+                                step={5}
+                                value={draft.illuBrightness}
+                                onChange={(e) => patchDraft({ illuBrightness: Number(e.target.value) })}
+                                className="w-full accent-bronze"
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <IconButton icon={<FlipHorizontalIcon />} onClick={() => patchDraft({ illuFlipped: !draft.illuFlipped })}>
+                                Voltear
+                              </IconButton>
+                              <IconButton icon={<UndoIcon />} onClick={handleIlluResetFraming}>
+                                Restablecer encuadre
+                              </IconButton>
+                            </div>
+                            <p className="text-[10.5px] text-ink-soft">
+                              Arrastra la imagen desde cualquier punto para colocarla donde quieras — puede salirse por
+                              los bordes. Con la imagen enfocada, las flechas del teclado la mueven píxel a píxel
+                              (Mayús, de 10 en 10).
+                            </p>
+                          </div>
                         )}
                       </div>
-                      <input
-                        ref={illuInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleIlluFile(e.target.files?.[0])}
-                      />
-
-                      {selectedSheet.illuUrl && (
-                        <div className="mt-3 space-y-3">
-                          <div>
-                            <FieldLabel>Tamaño: {selectedSheet.illuWidthPct}% del ancho de la ficha</FieldLabel>
-                            <input
-                              type="range"
-                              min={10}
-                              max={90}
-                              step={2}
-                              value={selectedSheet.illuWidthPct}
-                              onChange={(e) => handleIlluWidthChange(Number(e.target.value))}
-                              className="w-full accent-bronze"
-                            />
-                          </div>
-                          <div>
-                            <FieldLabel>
-                              <span className="inline-flex items-center gap-1">
-                                <SunIcon className="h-3.5 w-3.5" /> Brillo: {selectedSheet.illuBrightness}%
-                              </span>
-                            </FieldLabel>
-                            <input
-                              type="range"
-                              min={40}
-                              max={180}
-                              step={5}
-                              value={selectedSheet.illuBrightness}
-                              onChange={(e) => handleIlluBrightnessChange(Number(e.target.value))}
-                              className="w-full accent-bronze"
-                            />
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <IconButton icon={<FlipHorizontalIcon />} onClick={handleIlluFlip} disabled={busy}>
-                              Voltear
-                            </IconButton>
-                            <IconButton icon={<UndoIcon />} onClick={handleIlluResetFraming} disabled={busy}>
-                              Restablecer encuadre
-                            </IconButton>
-                          </div>
-                          <p className="text-[10.5px] text-ink-soft">Arrastra la imagen sobre la ficha para colocarla donde quieras.</p>
-                        </div>
-                      )}
-                    </div>
                     </CollapsibleSection>
 
                     <CollapsibleSection
@@ -799,76 +954,76 @@ export function FichasPage() {
                       open={isPanelOpen('tarjeta')}
                       onToggle={() => togglePanel('tarjeta')}
                     >
-                    <div>
-                      <FieldLabel>Alto máximo: {selectedSheet.cardMaxHeight} px</FieldLabel>
-                      <input
-                        type="range"
-                        min={300}
-                        max={800}
-                        step={10}
-                        value={selectedSheet.cardMaxHeight}
-                        onChange={(e) => handleHeightChange(Number(e.target.value))}
-                        className="w-full accent-bronze"
-                      />
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <IconButton icon={<UndoIcon />} onClick={handleHeightReset}>
-                          Restablecer
-                        </IconButton>
-                        {selectedSheet.cardMaxHeight <= 480 && (
-                          <span
-                            className="ficha-two-page-badge"
-                            title="480 px o menos es una altura orientativa para que dos hojas quepan cómodamente juntas en una misma página al exportar."
-                          >
-                            ✓ Ideal para 2 hojas por página
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Visibilidad de cada fila de la tabla de características.
-                        Vive aquí, en "Tarjeta", porque es una decisión sobre
-                        QUÉ enseña la tarjeta, igual que su alto.
-
-                        Ojo / ojo tachado en vez de casillas: aquí no se está
-                        marcando una lista, se está encendiendo y apagando lo
-                        que se ve, y el icono lo dice sin leer nada. Solo si hay
-                        más de una ficha — con una sola, ocultarla dejaría la
-                        tabla vacía. */}
-                    {allProfileRows.length > 1 && (
-                      <div className="border-t border-rule-dark/20 pt-3">
-                        <FieldLabel>Fichas de atributos</FieldLabel>
-                        <p className="mb-2 text-[10.5px] text-ink-soft">
-                          Qué filas de la tabla de características se ven en esta hoja.
-                        </p>
-                        <div className="space-y-1">
-                          {allProfileRows.map((row) => {
-                            const visible = !selectedSheet.hiddenProfiles.includes(row.key)
-                            return (
-                              <button
-                                key={row.key}
-                                type="button"
-                                onClick={() => handleProfileVisibility(row.key, !visible)}
-                                aria-pressed={visible}
-                                title={visible ? `Ocultar ${row.label}` : `Mostrar ${row.label}`}
-                                className={clsx(
-                                  'flex w-full items-center gap-2 rounded-sm border px-2 py-1 text-left text-xs transition-colors',
-                                  visible
-                                    ? 'border-rule-dark/30 text-ink hover:border-bronze hover:text-bronze'
-                                    : 'border-rule-dark/20 text-ink-soft/70 hover:text-ink-soft',
-                                )}
-                              >
-                                {visible ? (
-                                  <EyeIcon className="h-3.5 w-3.5 shrink-0" />
-                                ) : (
-                                  <EyeOffIcon className="h-3.5 w-3.5 shrink-0" />
-                                )}
-                                <span className={clsx('truncate', !visible && 'line-through')}>{row.label}</span>
-                              </button>
-                            )
-                          })}
+                      <div>
+                        <FieldLabel>Alto máximo: {draft.cardMaxHeight} px</FieldLabel>
+                        <input
+                          type="range"
+                          min={300}
+                          max={800}
+                          step={10}
+                          value={draft.cardMaxHeight}
+                          onChange={(e) => patchDraft({ cardMaxHeight: Number(e.target.value) })}
+                          className="w-full accent-bronze"
+                        />
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <IconButton icon={<UndoIcon />} onClick={() => patchDraft({ cardMaxHeight: 800 })}>
+                            Restablecer
+                          </IconButton>
+                          {draft.cardMaxHeight <= 480 && (
+                            <span
+                              className="ficha-two-page-badge"
+                              title="480 px o menos es una altura orientativa para que dos hojas quepan cómodamente juntas en una misma página al exportar."
+                            >
+                              ✓ Ideal para 2 hojas por página
+                            </span>
+                          )}
                         </div>
                       </div>
-                    )}
+
+                      {/* Visibilidad de cada fila de la tabla de características.
+                          Vive aquí, en "Tarjeta", porque es una decisión sobre
+                          QUÉ enseña la tarjeta, igual que su alto.
+
+                          Ojo / ojo tachado en vez de casillas: aquí no se está
+                          marcando una lista, se está encendiendo y apagando lo
+                          que se ve, y el icono lo dice sin leer nada. Solo si hay
+                          más de una ficha — con una sola, ocultarla dejaría la
+                          tabla vacía. */}
+                      {allProfileRows.length > 1 && (
+                        <div className="border-t border-rule-dark/20 pt-3">
+                          <FieldLabel>Fichas de atributos</FieldLabel>
+                          <p className="mb-2 text-[10.5px] text-ink-soft">
+                            Qué filas de la tabla de características se ven en esta hoja.
+                          </p>
+                          <div className="space-y-1">
+                            {allProfileRows.map((row) => {
+                              const visible = !draft.hiddenProfiles.includes(row.key)
+                              return (
+                                <button
+                                  key={row.key}
+                                  type="button"
+                                  onClick={() => handleProfileVisibility(row.key, !visible)}
+                                  aria-pressed={visible}
+                                  title={visible ? `Ocultar ${row.label}` : `Mostrar ${row.label}`}
+                                  className={clsx(
+                                    'flex w-full items-center gap-2 rounded-sm border px-2 py-1 text-left text-xs transition-colors',
+                                    visible
+                                      ? 'border-rule-dark/30 text-ink hover:border-bronze hover:text-bronze'
+                                      : 'border-rule-dark/20 text-ink-soft/70 hover:text-ink-soft',
+                                  )}
+                                >
+                                  {visible ? (
+                                    <EyeIcon className="h-3.5 w-3.5 shrink-0" />
+                                  ) : (
+                                    <EyeOffIcon className="h-3.5 w-3.5 shrink-0" />
+                                  )}
+                                  <span className={clsx('truncate', !visible && 'line-through')}>{row.label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </CollapsibleSection>
 
                     {/* Un ancho por apartado. Solo se ofrecen los que esta
@@ -879,39 +1034,43 @@ export function FichasPage() {
                       open={isPanelOpen('anchos')}
                       onToggle={() => togglePanel('anchos')}
                     >
-                    <div>
-                      <p className="mb-2 text-[10.5px] text-ink-soft">
-                        Estrecha un apartado para dejarle sitio a la ilustración. El texto salta de línea y se justifica
-                        con el ancho que le des.
-                      </p>
-                      <div className="space-y-2">
-                        {visibleSections.map((section) => {
-                          const pct = sectionWidth(selectedSheet.sectionWidths, section)
-                          return (
-                            <div key={section}>
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className="text-[10.5px] text-ink-soft">{SECTION_LABELS[section]}</span>
-                                <span className="text-[10.5px] text-ink-soft tabular-nums">{pct}%</span>
+                      <div>
+                        <p className="mb-2 text-[10.5px] text-ink-soft">
+                          Estrecha un apartado para dejarle sitio a la ilustración. El texto salta de línea y se justifica
+                          con el ancho que le des.
+                        </p>
+                        <div className="space-y-2">
+                          {visibleSections.map((section) => {
+                            const pct = sectionWidth(draft.sectionWidths, section)
+                            return (
+                              <div key={section}>
+                                <div className="flex items-baseline justify-between gap-2">
+                                  <span className="text-[10.5px] text-ink-soft">{SECTION_LABELS[section]}</span>
+                                  <span className="text-[10.5px] text-ink-soft tabular-nums">{pct}%</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={MIN_SECTION_WIDTH}
+                                  max={MAX_SECTION_WIDTH}
+                                  step={1}
+                                  value={pct}
+                                  onChange={(e) =>
+                                    patchDraft({
+                                      sectionWidths: { ...draft.sectionWidths, [section]: Number(e.target.value) },
+                                    })
+                                  }
+                                  className="w-full accent-bronze"
+                                />
                               </div>
-                              <input
-                                type="range"
-                                min={MIN_SECTION_WIDTH}
-                                max={MAX_SECTION_WIDTH}
-                                step={1}
-                                value={pct}
-                                onChange={(e) => handleSectionWidthChange(section, Number(e.target.value))}
-                                className="w-full accent-bronze"
-                              />
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
+                        <div className="mt-1.5">
+                          <IconButton icon={<UndoIcon />} onClick={handleSectionWidthsReset}>
+                            Restablecer anchos
+                          </IconButton>
+                        </div>
                       </div>
-                      <div className="mt-1.5">
-                        <IconButton icon={<UndoIcon />} onClick={handleSectionWidthsReset} disabled={busy}>
-                          Restablecer anchos
-                        </IconButton>
-                      </div>
-                    </div>
                     </CollapsibleSection>
 
                     <CollapsibleSection
@@ -919,25 +1078,25 @@ export function FichasPage() {
                       open={isPanelOpen('escudo')}
                       onToggle={() => togglePanel('escudo')}
                     >
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        <IconButton icon={<ShieldIcon />} onClick={() => emblemInputRef.current?.click()} disabled={busy}>
-                          {selectedSheet.hasCustomEmblem ? 'Cambiar escudo de esta ficha' : 'Usar otro escudo en esta ficha'}
-                        </IconButton>
-                        {selectedSheet.hasCustomEmblem && (
-                          <IconButton icon={<UndoIcon />} onClick={handleEmblemRevert} disabled={busy}>
-                            Volver al de la facción
+                      <div>
+                        <div className="flex flex-wrap gap-2">
+                          <IconButton icon={<ShieldIcon />} onClick={() => emblemInputRef.current?.click()} disabled={busy}>
+                            {draft.hasCustomEmblem ? 'Cambiar escudo de esta ficha' : 'Usar otro escudo en esta ficha'}
                           </IconButton>
-                        )}
+                          {draft.hasCustomEmblem && (
+                            <IconButton icon={<UndoIcon />} onClick={handleEmblemRevert} disabled={busy}>
+                              Volver al de la facción
+                            </IconButton>
+                          )}
+                        </div>
+                        <input
+                          ref={emblemInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleEmblemFile(e.target.files?.[0])}
+                        />
                       </div>
-                      <input
-                        ref={emblemInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleEmblemFile(e.target.files?.[0])}
-                      />
-                    </div>
                     </CollapsibleSection>
 
                     {/* Fuera de las secciones: es una sola línea y se consulta
@@ -945,27 +1104,26 @@ export function FichasPage() {
                     <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                       <input
                         type="checkbox"
-                        checked={selectedSheet.completed}
-                        onChange={(e) => handleCompletedToggle(e.target.checked)}
+                        checked={draft.completed}
+                        onChange={(e) => patchDraft({ completed: e.target.checked })}
                         className="accent-emerald-700"
                       />
-                      <CheckCircleIcon className={clsx('h-3.5 w-3.5', selectedSheet.completed && 'text-success')} />
-                      {selectedSheet.completed ? 'Ficha completada' : 'Marcar ficha como completada'}
+                      <CheckCircleIcon className={clsx('h-3.5 w-3.5', draft.completed && 'text-success')} />
+                      {draft.completed ? 'Ficha completada' : 'Marcar ficha como completada'}
                     </label>
                   </div>
                 )}
               </Panel>
 
               <div className="flex items-start justify-center overflow-auto">
-                {selectedDetail && selectedSheet ? (
+                {selectedDetail && draft ? (
                   <UnitSheetCard
                     unit={selectedDetail}
-                    sheet={selectedSheet}
+                    sheet={draft}
                     grayscale={grayscale}
                     showFrame={showFrame}
-                    // Una opción de unidad no tiene ilustración propia que arrastrar.
                     editable
-                    onIlluDragEnd={handleIlluDragEnd}
+                    onIlluDragEnd={(posX, posY) => patchDraft({ illuPosX: posX, illuPosY: posY })}
                   />
                 ) : (
                   <EmptyState title="Sin ficha seleccionada" description="La tarjeta aparecerá aquí." />
@@ -1009,10 +1167,8 @@ export function FichasPage() {
                               <div
                                 key={entry.key}
                                 onClick={() => {
-                                  const id = Number(entry.key.slice(2))
-                                  if (entry.key.startsWith('u:')) return selectUnit(id)
-                                  if (entry.key.startsWith('m:')) return selectMount(id)
-                                  return selectUpgrade(id)
+                                  if (entry.key === selectedKey) return
+                                  guarded(() => openSheet(entry.key))
                                 }}
                                 className={clsx(
                                   'flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1.5 text-xs transition-colors',
@@ -1030,6 +1186,11 @@ export function FichasPage() {
                                   title="Incluir esta hoja al exportar"
                                 />
                                 <span className="flex-1 truncate text-ink">{entry.name}</span>
+                                {entry.key === selectedKey && dirty && (
+                                  <span className="shrink-0 text-[10px] font-semibold text-maroon" title="Cambios sin guardar">
+                                    ●
+                                  </span>
+                                )}
                                 {entry.completed && <CheckCircleIcon className="h-3.5 w-3.5 shrink-0 text-success" />}
                               </div>
                             ))}
@@ -1081,6 +1242,15 @@ export function FichasPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showUnsavedDialog && (
+        <UnsavedChangesDialog
+          saving={saving}
+          onSaveAndLeave={handleDialogSaveAndLeave}
+          onDiscardAndLeave={handleDialogDiscardAndLeave}
+          onKeepEditing={handleDialogKeepEditing}
+        />
       )}
     </div>
   )

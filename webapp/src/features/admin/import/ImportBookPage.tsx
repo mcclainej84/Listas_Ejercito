@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { FactionRepository } from '@/data/repositories/factionRepository'
+import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
+import { sortFactionsFavoriteFirst } from '@/shared/session/sortFactionsFavoriteFirst'
 import { ImportRepository, ALL_FIELDS, type ImportDiffItem, type ImportFields } from '@/data/repositories/importRepository'
 import { parseArmyBook } from '@/features/admin/import/armyBookParser'
 import { extractTextFromFile } from '@/features/admin/import/extractText'
@@ -48,6 +50,8 @@ const FIELD_LABELS: Array<[keyof ImportFields, string]> = [
  */
 export function ImportBookPage() {
   const { data: factions, loading: loadingFactions } = useAsync(() => FactionRepository.listAll())
+  const favoriteFactionId = useFavoriteFactionId()
+  const sortedFactions = sortFactionsFavoriteFirst(factions ?? [], favoriteFactionId)
   const [factionId, setFactionId] = useState<number | null>(null)
   const [status, setStatus] = useState<'idle' | 'parsing' | 'ready' | 'applying'>('idle')
   const [fileName, setFileName] = useState<string | null>(null)
@@ -60,8 +64,12 @@ export function ImportBookPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (factionId == null && factions && factions.length > 0) setFactionId(factions[0].id)
-  }, [factions, factionId])
+    if (factionId == null && factions && factions.length > 0) {
+      // La favorita si existe; si no, la primera.
+      setFactionId(favoriteFactionId != null && factions.some((f) => f.id === favoriteFactionId) ? favoriteFactionId : factions[0].id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [factions, factionId, favoriteFactionId])
 
   /** Vuelve la pantalla a su estado inicial (como recién abierta). `keepFlash` conserva el aviso de "importado" tras aplicar. */
   function resetPreview(keepFlash = false) {
@@ -152,7 +160,7 @@ export function ImportBookPage() {
             }}
             disabled={status === 'parsing' || status === 'applying'}
           >
-            {(factions ?? []).map((f) => (
+            {sortedFactions.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
               </option>

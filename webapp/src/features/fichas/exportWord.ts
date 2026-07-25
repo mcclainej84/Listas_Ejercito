@@ -219,6 +219,34 @@ export interface ExportViewOptions {
   showFrame: boolean
 }
 
+/**
+ * Word solo entiende un puñado de formatos de imagen dentro de un documento
+ * HTML, y WebP no es uno de ellos. Las imágenes de las fichas se guardan
+ * comprimidas en WebP cuando el navegador puede (ver shared/image.ts), así
+ * que aquí se pasan a PNG antes de incrustarlas — si no, el documento se abre
+ * con un hueco vacío donde debería estar la ilustración.
+ *
+ * No hace falta tocar la exportación a PNG ni la de "Word con imágenes":
+ * esas capturan la tarjeta con html2canvas y ya salen en PNG/JPEG.
+ */
+async function toWordSafeDataUrl(dataUrl: string | null): Promise<string | null> {
+  if (!dataUrl || !dataUrl.startsWith('data:image/webp')) return dataUrl
+  const img = await new Promise<HTMLImageElement | null>((resolve) => {
+    const el = new Image()
+    el.onload = () => resolve(el)
+    el.onerror = () => resolve(null)
+    el.src = dataUrl
+  })
+  if (!img) return dataUrl
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth || 1
+  canvas.height = img.naturalHeight || 1
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return dataUrl
+  ctx.drawImage(img, 0, 0)
+  return canvas.toDataURL('image/png')
+}
+
 /** Ilustración+escudo ya "horneados" (volteo/brillo/blanco-y-negro sobre los píxeles) listos para incrustar tal cual en el documento. */
 async function bakeAssetsForWord(unit: UnitDetail, unitId: number, grayscale: boolean): Promise<BakedUnitAssets> {
   const sheet = await UnitSheetRepository.getByUnitId(unitId)
@@ -228,7 +256,7 @@ async function bakeAssetsForWord(unit: UnitDetail, unitId: number, grayscale: bo
     illuUrl = await grayscaleDataUrl(illuUrl)
     emblemUrl = await grayscaleDataUrl(emblemUrl)
   }
-  return { illuUrl, emblemUrl }
+  return { illuUrl: await toWordSafeDataUrl(illuUrl), emblemUrl: await toWordSafeDataUrl(emblemUrl) }
 }
 
 /** "Word con texto": párrafos y tablas de verdad (editable), igual que CodexMaker sin "libro existente" adjuntado. */

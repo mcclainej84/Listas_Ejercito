@@ -13,6 +13,74 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.43 — 25/07/2026 11:20
+
+**Corrección de una regresión de 0.42: «bytes.subarray is not a function».**
+Al abrir una ficha que ya tenía ilustración guardada (se vio en Bretonia) la
+sección reventaba.
+
+Causa: los bytes de un BLOB no llegan siempre en el mismo envase. El Worker
+convierte a `{__b64}` las columnas que D1 le devuelve como `ArrayBuffer` o
+`Uint8Array`, pero D1 devuelve algunas como un **array de números normal**, que
+no entra en ese caso y llega al navegador tal cual; y desde el catálogo local
+(sql.js) llegan como `Uint8Array` de verdad. El `bytesToDataUrl` anterior
+recorría los bytes por índice y toleraba las tres formas por accidente; el
+nuevo, más rápido, usa `subarray`, que solo existe en los arrays tipados.
+
+Ahora se normaliza el envase explícitamente (`ByteSource` + `byteLength` en
+`shared/image.ts`) en vez de dar por hecho el tipo, y se usa en los dos sitios
+que leen imágenes de la base: fichas y emblemas de facción.
+
+## 0.42 — 25/07/2026 10:40
+
+**Hojas de Unidad: arrastre, rendimiento y subida de imágenes.** Tres
+problemas que venían de la misma raíz — la sección escribía en la base de
+datos en cada gesto y guardaba las imágenes sin acotar su peso.
+
+**La imagen se agarra por cualquier punto.** Había dos fallos encadenados:
+
+- La ilustración se pinta en una capa por DEBAJO del texto (`z-index` 1 contra
+  2), así que el navegador entregaba el clic al párrafo que hubiera delante:
+  solo respondía al arrastre por los trozos de imagen que no pisaba ningún
+  texto, que en una ficha con la columna a la derecha son justo los menos.
+  Ahora hay una zona de agarre transparente por encima de todo, del tamaño
+  exacto de la imagen: el aspecto de la ficha no cambia y vale cualquier
+  punto, incluidas las zonas transparentes de un recorte.
+- La posición se acotaba a `0 … anchoÚtil - anchoImagen`. En cuanto la
+  ilustración ocupaba el ancho de la ficha (a partir de ~68% de zoom) ese
+  rango se quedaba en un único punto y la imagen **no se movía ni un píxel**,
+  sin explicación. Ahora puede salirse por los bordes tanto como se quiera; lo
+  único que se impide es perderla de vista del todo.
+- De propina: `preventDefault` en el gesto (antes el navegador lo interpretaba
+  a veces como «seleccionar texto» y el arrastre se soltaba a medias), captura
+  del puntero en el elemento correcto, y las flechas del teclado mueven la
+  imagen píxel a píxel (Mayús, de 10 en 10) con la zona de agarre enfocada.
+
+**Se edita en memoria y se guarda con un botón.** Antes cada control escribía
+por red al moverse: un deslizador disparaba una petición por paso. Ahora la
+ficha abierta vive en un borrador local —todos los controles responden al
+instante, sin red— y solo «Guardar» escribe, una vez y en un único batch. Con
+el mismo diálogo de tres vías que ya usan Unidades y las listas (guardar y
+salir / descartar y salir / seguir editando) al cambiar de ficha, de facción,
+al navegar fuera o al cerrar la pestaña. Las fichas ya visitadas se quedan en
+memoria, así que volver a una es inmediato.
+
+**Entrar en la sección ya no descarga todas las ilustraciones.** El listado
+«Tus hojas» pedía la fila COMPLETA de cada ficha de la facción —imágenes
+incluidas, varios MB en base64— para pintar un tick verde junto a unos
+nombres. Ahora pide dos columnas y ni un byte de imagen; la ficha completa se
+carga solo al seleccionarla. De paso, el tick de «completada» funciona también
+en monturas y opciones, que antes salían siempre sin marcar.
+
+**Las imágenes grandes vuelven a subir.** Se guardaban como PNG de 1200 px: 4-6
+MB que, al codificarse en base64 para el Worker, se convertían en ~8 MB de
+JSON y reventaban la escritura. Ahora se comprimen en el navegador a WebP con
+transparencia (o PNG/JPEG si el navegador no tiene WebP), bajando primero
+calidad y después tamaño hasta caber en 600 KB la ilustración y 120 KB el
+escudo. La decodificación usa `createImageBitmap`, que aguanta mucho mejor las
+fotos enormes. Las exportaciones a Word convierten a PNG antes de incrustar,
+porque Word no entiende WebP.
+
 ## 0.41 — 21/07/2026 19:55
 
 **Los ajustes de la hoja ya no fallan en silencio.** Los controles que se
