@@ -7,6 +7,21 @@ binding = "DB"
 database_name = "wharmy-db"
 database_id = "d4faba12-adf0-4ee9-bcb8-17584667ddaa"
 
+# Imágenes de las hojas de unidad (ilustración y emblema propio). Antes vivían
+# como BLOB dentro de la D1, lo que obligaba a mandarlas en base64 dentro del
+# JSON de cada consulta (+33% de peso) y hacía imposible que el navegador las
+# cachease: abrir dos veces la misma hoja la descargaba dos veces. Aquí son
+# archivos con su URL, que el navegador guarda en disco y pide en paralelo.
+#
+# ANTES DEL PRIMER DESPLIEGUE con este binding hay que:
+#   1. Habilitar R2 en el panel de Cloudflare (una sola vez, en la cuenta).
+#   2. Crear el bucket:  wrangler r2 bucket create wharmy-images
+# Si el bucket no existe, el despliegue falla. Si se despliega SIN este bloque,
+# la app sigue funcionando leyendo las imágenes de los BLOB de siempre.
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "wharmy-images"
+
 # GROUP_PASSWORD_HASH (secreto, NO va aquí): se fija con
 #   wrangler secret put GROUP_PASSWORD_HASH
 # Debe ser el SHA-256 en hex de la contraseña de grupo (la misma función

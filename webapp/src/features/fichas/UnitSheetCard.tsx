@@ -223,7 +223,9 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
       <div className="ficha-title">{unit.name}</div>
 
       <div className="ficha-subbar">
-        <div className="ficha-logo">{emblemUrl && <img className="emblem-img" src={emblemUrl} alt="" />}</div>
+        <div className="ficha-logo">
+          {emblemUrl && <img className="emblem-img" src={emblemUrl} crossOrigin="anonymous" alt="" />}
+        </div>
         <div className="ficha-uname">
           {unit.isUnique && unit.unitType !== 'personaje' && <span className="ficha-uname-unique">0-1 </span>}
           {unit.name}
@@ -311,6 +313,10 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
               <img
                 ref={imgRef}
                 src={sheet.illuUrl}
+                // Ver exportSheet.ts#loadImage: la tarjeta también se captura
+                // con html2canvas, así que la imagen tiene que venir con CORS
+                // o el canvas queda contaminado y la exportación falla.
+                crossOrigin="anonymous"
                 alt=""
                 draggable={false}
                 className="block w-full select-none"

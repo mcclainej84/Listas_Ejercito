@@ -47,14 +47,25 @@ import { SEED_STATEMENTS } from './seed-data'
 export interface Env {
   DB: D1Database
   GROUP_PASSWORD_HASH: string
+  /**
+   * Bucket R2 con las imágenes de las hojas (ilustración y emblema propio).
+   *
+   * Es OPCIONAL a propósito: mientras no esté configurado el binding, la app
+   * sigue funcionando leyendo las imágenes de los BLOB de D1 como siempre
+   * (ver el respaldo en unitSheetRepository.mapRow). Así el Worker se puede
+   * desplegar antes de habilitar R2 sin dejar la aplicación rota a medias.
+   */
+  IMAGES?: R2Bucket
 }
 
 const BOOKMARK_HEADER = 'X-D1-Bookmark'
+/** Cabecera con el hash SHA-256 de la contraseña de grupo, para las peticiones cuyo cuerpo NO es JSON (subida de imágenes). */
+const PASSWORD_HEADER = 'X-WHArmy-Password'
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}`,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}, ${PASSWORD_HEADER}`,
   'Access-Control-Expose-Headers': BOOKMARK_HEADER,
 }
 
@@ -154,6 +165,89 @@ async function checkPassword(env: Env, passwordHash: unknown): Promise<boolean> 
   return typeof passwordHash === 'string' && passwordHash.length > 0 && passwordHash === env.GROUP_PASSWORD_HASH
 }
 
+// ============================================================================
+// /image/<clave> — imágenes de las hojas en R2
+// ============================================================================
+//
+// POR QUÉ NO SIGUEN EN D1. Una ilustración guardada como BLOB tiene que
+// codificarse en base64 para caber en la respuesta JSON de /query (+33% de
+// peso), viaja en el mismo hueco que los datos de la hoja y el navegador NO
+// puede cachearla: abrir dos veces la misma hoja la descargaba dos veces. Con
+// una URL normal, el navegador la trata como cualquier imagen — la guarda en
+// su caché de disco, la pide en paralelo y no vuelve a molestar al Worker.
+//
+// Las claves llevan el hash del contenido (ver buildImageKey en el cliente),
+// así que un archivo dado NUNCA cambia: por eso se puede servir con
+// `immutable` y un año de caché sin miedo a que se quede una versión vieja
+// pegada. Cambiar la imagen de una hoja genera una clave distinta.
+//
+// Lectura pública (igual que /query), escritura y borrado con la contraseña
+// de grupo en la cabecera X-WHArmy-Password — no en el cuerpo, porque aquí el
+// cuerpo son los bytes crudos de la imagen, no JSON.
+const IMAGE_CACHE_CONTROL = 'public, max-age=31536000, immutable'
+/** Tope defensivo del lado del servidor: el cliente ya comprime a 600 KB (ver shared/image.ts). */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+/** Claves admitidas: letras, números, `-`, `_`, `.` y `/`. Sin `..` ni barras iniciales — nada de salirse del prefijo. */
+function isValidImageKey(key: string): boolean {
+  if (key.length === 0 || key.length > 300) return false
+  if (key.startsWith('/') || key.includes('..') || key.includes('//')) return false
+  return /^[A-Za-z0-9/._-]+$/.test(key)
+}
+
+async function onImage(request: Request, env: Env, url: URL): Promise<Response> {
+  const key = decodeURIComponent(url.pathname.slice('/image/'.length))
+  if (!isValidImageKey(key)) {
+    return jsonResponse({ error: 'Clave de imagen no válida.' }, 400)
+  }
+  if (!env.IMAGES) {
+    return jsonResponse(
+      { error: 'El almacén de imágenes (R2) no está configurado en este Worker.' },
+      503,
+    )
+  }
+
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const object = await env.IMAGES.get(key)
+    if (!object) return jsonResponse({ error: 'Imagen no encontrada.' }, 404)
+    return new Response(request.method === 'HEAD' ? null : object.body, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+        'Cache-Control': IMAGE_CACHE_CONTROL,
+        ETag: object.httpEtag,
+      },
+    })
+  }
+
+  if (request.method === 'PUT') {
+    if (!(await checkPassword(env, request.headers.get(PASSWORD_HEADER)))) {
+      return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
+    }
+    const contentType = request.headers.get('Content-Type') ?? ''
+    if (!contentType.startsWith('image/')) {
+      return jsonResponse({ error: 'El contenido debe ser una imagen.' }, 400)
+    }
+    const body = await request.arrayBuffer()
+    if (body.byteLength === 0) return jsonResponse({ error: 'Imagen vacía.' }, 400)
+    if (body.byteLength > MAX_IMAGE_BYTES) {
+      return jsonResponse({ error: 'La imagen supera el tamaño máximo permitido.' }, 413)
+    }
+    await env.IMAGES.put(key, body, { httpMetadata: { contentType, cacheControl: IMAGE_CACHE_CONTROL } })
+    return jsonResponse({ key }, 201)
+  }
+
+  if (request.method === 'DELETE') {
+    if (!(await checkPassword(env, request.headers.get(PASSWORD_HEADER)))) {
+      return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
+    }
+    await env.IMAGES.delete(key)
+    return jsonResponse({ deleted: key })
+  }
+
+  return jsonResponse({ error: 'Método no permitido.' }, 405)
+}
+
 interface QueryRequestBody {
   sql: string
   params: unknown[]
@@ -214,6 +308,9 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/admin/migrate') {
         return await onMigrate(request, env)
+      }
+      if (url.pathname.startsWith('/image/')) {
+        return await onImage(request, env, url)
       }
       return jsonResponse({ error: 'Not found' }, 404)
     } catch (err) {
@@ -419,6 +516,15 @@ const MIGRATIONS: string[] = [
       SET user_id = (SELECT id FROM users WHERE username = 'admin' COLLATE NOCASE)
     WHERE user_id IS NULL
       AND EXISTS (SELECT 1 FROM users WHERE username = 'admin' COLLATE NOCASE)`,
+  // Imágenes de las hojas en R2: la base pasa a guardar solo la CLAVE del
+  // objeto, no sus bytes. Las columnas *_data se conservan como respaldo hasta
+  // que la migración de imágenes las vacíe (ver "Migrar imágenes a R2" en
+  // Editor > Registro): mientras una fila tenga bytes y no tenga clave, se
+  // sigue leyendo de ahí, así que nada deja de verse a mitad de camino.
+  'ALTER TABLE unit_sheets ADD COLUMN illu_key TEXT',
+  'ALTER TABLE unit_sheets ADD COLUMN emblem_key TEXT',
+  'ALTER TABLE sheet_presentations ADD COLUMN illu_key TEXT',
+  'ALTER TABLE sheet_presentations ADD COLUMN emblem_key TEXT',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

@@ -11,6 +11,7 @@
 // catálogo (tamaño de las imágenes).
 // ============================================================================
 import { execBatch, query, queryOne, type BatchStatement } from '@/data/sqlite/client'
+import { deleteImageQuietly, imageUrl, uploadImage } from '@/data/network/images'
 import { byteLength, bytesToDataUrl, type ByteSource } from '@/shared/image'
 import { parseHiddenProfiles, parseSectionWidths } from '@/domain/sheetSections'
 import type { UnitSheet } from '@/domain/types'
@@ -26,11 +27,18 @@ export interface SheetImageChange {
   emblem?: { bytes: Uint8Array; mime: string } | null
 }
 
+/** Claves que ha dejado un guardado. `undefined` = esa imagen no se tocó; `null` = se quitó. */
+export interface SavedImageKeys {
+  illuKey?: string | null
+  emblemKey?: string | null
+}
+
 /** Valores por defecto de una unidad que todavía no tiene fila propia en unit_sheets (la inmensa mayoría). */
 function blank(unitId: number): UnitSheet {
   return {
     unitId,
     illuUrl: null,
+    illuKey: null,
     illuOriginalName: null,
     illuWidthPct: 34,
     illuPosX: null,
@@ -38,6 +46,7 @@ function blank(unitId: number): UnitSheet {
     illuBrightness: 100,
     illuFlipped: false,
     emblemUrl: null,
+    emblemKey: null,
     hasCustomEmblem: false,
     cardMaxHeight: 800,
     completed: false,
@@ -46,22 +55,45 @@ function blank(unitId: number): UnitSheet {
   }
 }
 
+/**
+ * URL de una imagen de hoja, con la transición a R2 contemplada:
+ *
+ *   1. Si hay CLAVE, es una imagen ya en R2 → una URL normal que el navegador
+ *      cachea. Este es el camino bueno.
+ *   2. Si no, pero quedan BYTES en la columna BLOB, es una hoja que la
+ *      migración todavía no ha tocado → se arma la data: URL de siempre.
+ *
+ * Ese respaldo es lo que permite migrar sin apagar nada: mientras el proceso
+ * avanza, unas hojas se sirven de una forma y otras de la otra, y por pantalla
+ * no se nota la diferencia.
+ */
+function resolveImageUrl(key: string | null, data: ByteSource | null, mime: string | null): string | null {
+  if (key) return imageUrl(key)
+  if (data && byteLength(data) > 0 && mime) return bytesToDataUrl(data, mime)
+  return null
+}
+
 function mapRow(row: Record<string, unknown>): UnitSheet {
+  const illuKey = (row.illu_key as string) ?? null
   const illuData = (row.illu_data as ByteSource | null) ?? null
   const illuMime = (row.illu_mime as string) ?? null
+  const emblemKey = (row.emblem_key as string) ?? null
   const emblemData = (row.emblem_data as ByteSource | null) ?? null
   const emblemMime = (row.emblem_mime as string) ?? null
+  const emblemUrl = resolveImageUrl(emblemKey, emblemData, emblemMime)
   return {
     unitId: (row.unit_id as number) ?? (row.ref_id as number),
-    illuUrl: illuData && byteLength(illuData) > 0 && illuMime ? bytesToDataUrl(illuData, illuMime) : null,
+    illuUrl: resolveImageUrl(illuKey, illuData, illuMime),
+    illuKey,
     illuOriginalName: (row.illu_original_name as string) ?? null,
     illuWidthPct: (row.illu_width_pct as number) ?? 34,
     illuPosX: (row.illu_pos_x as number) ?? null,
     illuPosY: (row.illu_pos_y as number) ?? null,
     illuBrightness: (row.illu_brightness as number) ?? 100,
     illuFlipped: Boolean(row.illu_flipped),
-    emblemUrl: emblemData && byteLength(emblemData) > 0 && emblemMime ? bytesToDataUrl(emblemData, emblemMime) : null,
-    hasCustomEmblem: byteLength(emblemData) > 0,
+    emblemUrl,
+    emblemKey,
+    hasCustomEmblem: emblemUrl !== null,
     cardMaxHeight: (row.card_max_height as number) ?? 800,
     completed: Boolean(row.completed),
     sectionWidths: parseSectionWidths(row.section_widths),
@@ -172,13 +204,35 @@ export const UnitSheetRepository = {
    * edición ocurre en memoria (ver FichasPage) y aquí llega una sola escritura
    * al pulsar "Guardar".
    *
-   * Los BLOBs van en sentencias aparte dentro del MISMO batch (una sola
-   * petición HTTP): así la sentencia con los campos normales sigue siendo
-   * pequeña, y solo se manda una imagen cuando de verdad ha cambiado — volver
-   * a subir la misma ilustración en cada guardado sería tirar ancho de banda.
+   * ORDEN DE LAS OPERACIONES con imágenes. Primero se suben a R2 y solo
+   * después se escribe la base, nunca al revés. Si el guardado se corta a
+   * medias, el peor caso es un archivo en el bucket al que no apunta nadie
+   * —unos KB desperdiciados—; al revés, la base apuntaría a una imagen que no
+   * existe y la hoja se vería rota.
+   *
+   * Las imágenes viejas se borran al final, cuando la base ya apunta a las
+   * nuevas y ya no hacen falta.
+   *
+   * Solo se sube lo que de verdad ha cambiado: repetir la subida de la misma
+   * ilustración en cada guardado sería tirar ancho de banda, y además la clave
+   * lleva el hash del contenido, así que subir dos veces lo mismo produciría
+   * exactamente el mismo archivo.
    */
-  async save(target: SheetTarget, sheet: UnitSheet, images: SheetImageChange = {}): Promise<void> {
+  async save(target: SheetTarget, sheet: UnitSheet, images: SheetImageChange = {}): Promise<SavedImageKeys> {
     const { table, where, whereParams, ensure } = sqlFor(target)
+
+    // --- 1. Subir a R2 lo que haya cambiado ---
+    let illuKey: string | null | undefined
+    if (images.illu !== undefined) {
+      illuKey = images.illu === null ? null : await uploadImage(target.kind, target.id, 'illu', images.illu.bytes, images.illu.mime)
+    }
+    let emblemKey: string | null | undefined
+    if (images.emblem !== undefined) {
+      emblemKey =
+        images.emblem === null ? null : await uploadImage(target.kind, target.id, 'emblem', images.emblem.bytes, images.emblem.mime)
+    }
+
+    // --- 2. Escribir la base en un único batch ---
     const statements: BatchStatement[] = [
       ensure,
       {
@@ -201,31 +255,37 @@ export const UnitSheetRepository = {
       },
     ]
 
+    // Al escribir una imagen nueva se vacía también su columna BLOB: si la
+    // hoja venía de antes de R2, sus bytes ya no pintan nada y solo harían
+    // engordar la base (y confundir al respaldo de mapRow).
     if (images.illu !== undefined) {
-      statements.push(
-        images.illu === null
-          ? {
-              sql: `UPDATE ${table} SET illu_data = NULL, illu_mime = NULL, illu_original_name = NULL WHERE ${where}`,
-              params: whereParams,
-            }
-          : {
-              sql: `UPDATE ${table} SET illu_data = ?, illu_mime = ?, illu_original_name = ? WHERE ${where}`,
-              params: [images.illu.bytes, images.illu.mime, images.illu.originalName, ...whereParams],
-            },
-      )
+      statements.push({
+        sql: `UPDATE ${table} SET illu_key = ?, illu_mime = ?, illu_original_name = ?, illu_data = NULL WHERE ${where}`,
+        params: [illuKey ?? null, images.illu?.mime ?? null, images.illu?.originalName ?? null, ...whereParams],
+      })
     }
 
     if (images.emblem !== undefined) {
-      statements.push(
-        images.emblem === null
-          ? { sql: `UPDATE ${table} SET emblem_data = NULL, emblem_mime = NULL WHERE ${where}`, params: whereParams }
-          : {
-              sql: `UPDATE ${table} SET emblem_data = ?, emblem_mime = ? WHERE ${where}`,
-              params: [images.emblem.bytes, images.emblem.mime, ...whereParams],
-            },
-      )
+      statements.push({
+        sql: `UPDATE ${table} SET emblem_key = ?, emblem_mime = ?, emblem_data = NULL WHERE ${where}`,
+        params: [emblemKey ?? null, images.emblem?.mime ?? null, ...whereParams],
+      })
     }
 
     await execBatch(statements)
+
+    // --- 3. Recoger lo que ha quedado atrás ---
+    if (images.illu !== undefined && sheet.illuKey && sheet.illuKey !== illuKey) {
+      await deleteImageQuietly(sheet.illuKey)
+    }
+    if (images.emblem !== undefined && sheet.emblemKey && sheet.emblemKey !== emblemKey) {
+      await deleteImageQuietly(sheet.emblemKey)
+    }
+
+    // Las claves vuelven a quien llamó para que actualice su copia en memoria
+    // sin tener que releer la fila. Importa para el borrado: si el borrador se
+    // quedase con la clave vieja, al cambiar otra vez la imagen se borraría el
+    // archivo equivocado.
+    return { illuKey, emblemKey }
   },
 }

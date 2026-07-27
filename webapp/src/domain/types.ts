@@ -242,8 +242,15 @@ import type { SectionWidths } from '@/domain/sheetSections'
  */
 export interface UnitSheet {
   unitId: number
-  /** Ya en data: URL lista para <img src>, o null si no tiene ilustración. */
+  /**
+   * URL lista para `<img src>`, o null si no tiene ilustración. Normalmente
+   * apunta a R2 (`/image/<clave>`, cacheable por el navegador); en las hojas
+   * que la migración a R2 todavía no ha tocado es una data: URL armada a
+   * partir del BLOB de siempre — ver resolveImageUrl en unitSheetRepository.
+   */
   illuUrl: string | null
+  /** Clave del objeto en R2, o null si la imagen todavía vive como BLOB en la base. Hace falta para poder borrar la anterior al reemplazarla. */
+  illuKey: string | null
   illuOriginalName: string | null
   /** % del ancho útil de la ficha (10-90). */
   illuWidthPct: number
@@ -253,8 +260,10 @@ export interface UnitSheet {
   /** % de brillo (40-180). */
   illuBrightness: number
   illuFlipped: boolean
-  /** Escudo propio de ESTA ficha (anula el emblema de la facción solo aquí); null = usa el de la facción. */
+  /** Emblema propio de ESTA hoja (anula el de la facción solo aquí); null = usa el de la facción. */
   emblemUrl: string | null
+  /** Clave del emblema propio en R2 (ver illuKey). */
+  emblemKey: string | null
   hasCustomEmblem: boolean
   /** Alto máximo de la ficha en px (300-800). */
   cardMaxHeight: number

@@ -39,7 +39,8 @@ import { applyLocalWrite, invalidateLocalCatalog } from '@/data/sqlite/localCata
 // data/network/auth.ts#onAuthChange) y vuelve a pedir la contraseña, en vez
 // de dejar que cada pantalla que escribe tenga que acordarse de hacerlo.
 
-function getApiBaseUrl(): string {
+/** URL base del Worker. Exportada porque las imágenes (data/network/images.ts) también cuelgan de ella. */
+export function getApiBaseUrl(): string {
   const url = import.meta.env.VITE_API_BASE_URL as string | undefined
   if (!url) {
     throw new Error(

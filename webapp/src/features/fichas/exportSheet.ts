@@ -89,6 +89,17 @@ const SCALE = 2 // igual que CodexMaker (html2canvas scale:2)
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image()
+    // IMPRESCINDIBLE desde que las imágenes viven en R2 y las sirve el Worker,
+    // que está en OTRO dominio que la app. Una imagen de otro origen dibujada
+    // en un canvas lo deja "contaminado", y a partir de ahí toDataURL/toBlob
+    // lanzan una excepción de seguridad: la exportación a PNG y a Word
+    // fallaría entera. Pedirla con CORS (el Worker responde
+    // Access-Control-Allow-Origin: *) evita esa contaminación.
+    //
+    // Va ANTES de asignar `src`, que es cuando el navegador decide cómo pedir
+    // la imagen; después ya no tendría efecto. Es inocuo para las data: y
+    // blob: URL que se siguen usando en otros sitios.
+    img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
     img.onerror = () => resolve(null)
     img.src = src

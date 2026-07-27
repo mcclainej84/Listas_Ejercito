@@ -13,6 +13,42 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.45 — 25/07/2026 19:10
+
+**Las imágenes de las hojas salen de la base de datos y pasan a R2.**
+
+El diagnóstico, con números de la base real: de los 31,5 MB de la D1, ~29 MB
+eran ilustraciones. Abrir una hoja de Bretonia descargaba la suya entera —de
+media 985 KB, que viajaban como ~1,3 MB porque un BLOB tiene que ir en base64
+dentro del JSON de la consulta— y volvía a descargarla en cada visita, porque
+el navegador no puede cachear algo incrustado en la respuesta de un POST.
+
+Ahora la base guarda solo la CLAVE del archivo y la imagen se pide por su URL
+como cualquier otra imagen de la web: el navegador la guarda en su caché de
+disco (volver a una hoja ya no cuesta red), la descarga en paralelo con el
+resto de la página y no vuelve a molestar al Worker. Las claves incluyen el
+hash del contenido, así que se sirven con caché de un año e `immutable` sin
+riesgo de quedarse con una versión vieja: cambiar la imagen genera otra clave.
+
+- Rutas nuevas en el Worker: `GET /image/<clave>` pública con caché larga,
+  `PUT` y `DELETE` con la contraseña de grupo (en cabecera, porque el cuerpo
+  son los bytes crudos de la imagen).
+- **La transición no rompe nada a medias:** mientras una hoja tenga bytes en la
+  base y no tenga clave, se sigue leyendo de ahí. Unas hojas se sirven de una
+  forma y otras de la otra sin que se note.
+- **Migración de las imágenes ya existentes** en Editor > Registro >
+  Mantenimiento: las procesa de una en una, recomprimiéndolas de paso (los PNG
+  de ~1 MB salen como WebP de ~110 KB). Es reanudable — si falla a mitad, se
+  vuelve a lanzar y sigue por donde iba.
+- Las exportaciones a PNG y Word piden las imágenes con CORS. Sin eso, una
+  imagen de otro dominio "contamina" el canvas y `toDataURL` lanza una
+  excepción de seguridad: habrían dejado de funcionar por completo.
+
+**Además, en Hojas de Unidad:** la marca de completada baja a debajo de la
+hoja y pasa a decir «Hoja completada» —es un juicio sobre la hoja que estás
+mirando, así que se decide con ella delante—, y la sección «Escudo» pasa a
+llamarse «Emblema».
+
 ## 0.44 — 25/07/2026 17:55
 
 La normalización de bytes que entró en 0.43 cubre además el caso de un

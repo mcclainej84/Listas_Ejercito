@@ -438,6 +438,12 @@ CREATE TABLE unit_command_options (
 -- ----------------------------------------------------------------------------
 CREATE TABLE unit_sheets (
     unit_id            INTEGER PRIMARY KEY REFERENCES units(id) ON DELETE CASCADE,
+    -- Las imágenes viven en R2 (ver /image en worker/src/index.ts): aquí solo
+    -- se guarda la CLAVE del objeto. Las columnas *_data se conservan porque
+    -- las bases creadas antes de esa migración todavía las usan y el cliente
+    -- lee de ellas si no hay clave (ver resolveImageUrl en
+    -- unitSheetRepository.ts); en una base nueva nacen y se quedan a NULL.
+    illu_key           TEXT,
     illu_data          BLOB,
     illu_mime          TEXT,
     illu_original_name TEXT,
@@ -446,6 +452,7 @@ CREATE TABLE unit_sheets (
     illu_pos_y         REAL,
     illu_brightness    INTEGER NOT NULL DEFAULT 100,
     illu_flipped       INTEGER NOT NULL DEFAULT 0,
+    emblem_key         TEXT,
     emblem_data        BLOB,
     emblem_mime        TEXT,
     card_max_height    INTEGER NOT NULL DEFAULT 800,
@@ -651,6 +658,12 @@ CREATE INDEX idx_change_log_created_at ON change_log (created_at DESC);
 CREATE TABLE sheet_presentations (
     kind               TEXT NOT NULL CHECK (kind IN ('montura', 'opcion')),
     ref_id             INTEGER NOT NULL,
+    -- Las imágenes viven en R2 (ver /image en worker/src/index.ts): aquí solo
+    -- se guarda la CLAVE del objeto. Las columnas *_data se conservan porque
+    -- las bases creadas antes de esa migración todavía las usan y el cliente
+    -- lee de ellas si no hay clave (ver resolveImageUrl en
+    -- unitSheetRepository.ts); en una base nueva nacen y se quedan a NULL.
+    illu_key           TEXT,
     illu_data          BLOB,
     illu_mime          TEXT,
     illu_original_name TEXT,
@@ -659,6 +672,7 @@ CREATE TABLE sheet_presentations (
     illu_pos_y         REAL,
     illu_brightness    INTEGER NOT NULL DEFAULT 100,
     illu_flipped       INTEGER NOT NULL DEFAULT 0,
+    emblem_key         TEXT,
     emblem_data        BLOB,
     emblem_mime        TEXT,
     card_max_height    INTEGER NOT NULL DEFAULT 800,

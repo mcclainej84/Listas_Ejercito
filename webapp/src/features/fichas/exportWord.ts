@@ -230,9 +230,17 @@ export interface ExportViewOptions {
  * esas capturan la tarjeta con html2canvas y ya salen en PNG/JPEG.
  */
 async function toWordSafeDataUrl(dataUrl: string | null): Promise<string | null> {
-  if (!dataUrl || !dataUrl.startsWith('data:image/webp')) return dataUrl
+  if (!dataUrl) return dataUrl
+  // Un documento Word no puede referenciar una URL del Worker: al abrirlo en
+  // otro ordenador (o sin conexión) saldrían huecos vacíos. Y tampoco entiende
+  // WebP. Así que todo lo que no sea ya una data: URL segura se rasteriza aquí
+  // a PNG y se incrusta dentro del propio documento.
+  if (dataUrl.startsWith('data:image/png') || dataUrl.startsWith('data:image/jpeg')) return dataUrl
   const img = await new Promise<HTMLImageElement | null>((resolve) => {
     const el = new Image()
+    // Ver exportSheet.ts#loadImage: sin CORS el canvas queda contaminado y el
+    // toDataURL de abajo lanzaría una excepción de seguridad.
+    el.crossOrigin = 'anonymous'
     el.onload = () => resolve(el)
     el.onerror = () => resolve(null)
     el.src = dataUrl

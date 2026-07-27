@@ -10,6 +10,10 @@
 function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
+    // Ver la nota extensa en exportSheet.ts#loadImage: las imágenes de las
+    // hojas llegan desde el Worker (otro dominio) y sin CORS contaminarían el
+    // canvas, haciendo fallar el `toDataURL` de aquí abajo. Antes de `src`.
+    img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
     img.onerror = () => reject(new Error('No se pudo procesar una imagen de la ficha.'))
     img.src = dataUrl

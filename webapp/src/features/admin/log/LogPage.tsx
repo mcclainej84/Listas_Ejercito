@@ -19,6 +19,7 @@ import {
   type ChangeLogEntity,
 } from '@/data/repositories/changeLogRepository'
 import { parseChangelog } from '@/features/admin/log/changelog'
+import { MigrateImagesPanel } from '@/features/admin/maintenance/MigrateImagesPanel'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Select } from '@/shared/ui/Select'
@@ -26,7 +27,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 
-type Tab = 'datos' | 'programa'
+type Tab = 'datos' | 'programa' | 'mantenimiento'
 
 const PAGE_SIZE = 200
 
@@ -106,6 +107,7 @@ export function LogPage() {
             [
               ['datos', 'Datos'],
               ['programa', 'Programa'],
+              ['mantenimiento', 'Mantenimiento'],
             ] as Array<[Tab, string]>
           ).map(([value, label]) => (
             <button
@@ -222,6 +224,16 @@ export function LogPage() {
               </ul>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === 'mantenimiento' && (
+        <div className="space-y-4">
+          <p className="text-xs text-ink-soft">
+            Operaciones de una sola vez sobre los datos. No se ejecutan solas al abrir la aplicación: mueven
+            información y conviene lanzarlas a conciencia.
+          </p>
+          <MigrateImagesPanel />
         </div>
       )}
     </div>

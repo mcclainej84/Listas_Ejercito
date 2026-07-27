@@ -41,6 +41,7 @@ export function blankUpgradeSheet(upgradeId: number): UnitSheet {
   return {
     unitId: -upgradeId,
     illuUrl: null,
+    illuKey: null,
     illuOriginalName: null,
     illuWidthPct: 34,
     illuPosX: null,
@@ -48,6 +49,7 @@ export function blankUpgradeSheet(upgradeId: number): UnitSheet {
     illuBrightness: 100,
     illuFlipped: false,
     emblemUrl: null,
+    emblemKey: null,
     hasCustomEmblem: false,
     cardMaxHeight: 800,
     completed: false,

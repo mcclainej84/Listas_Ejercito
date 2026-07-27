@@ -50,7 +50,6 @@ import {
   type SheetSection,
 } from '@/domain/sheetSections'
 import {
-  bytesToDataUrl,
   compressImageFile,
   formatBytes,
   MAX_EMBLEM_BYTES,
@@ -89,6 +88,21 @@ import { exportSheetsToPng, type SheetToExport } from '@/features/fichas/exportP
 import { exportReferenceSheet, exportSheetsToWordImages, exportSheetsToWordText } from '@/features/fichas/exportWord'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
+
+/**
+ * URL local para ver la imagen recién elegida ANTES de guardarla.
+ *
+ * Una `blob:` URL y no una `data:` URL: la imagen todavía no se ha subido a
+ * R2 (eso pasa al pulsar "Guardar"), y convertir medio mega a base64 solo para
+ * enseñarlo un momento en pantalla es trabajo tirado en el hilo principal. El
+ * navegador libera estas URLs solo al cerrar la pestaña, y aquí se crea una
+ * por imagen elegida, así que no hace falta revocarlas a mano.
+ */
+function previewUrl(bytes: Uint8Array, mime: string): string {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  return URL.createObjectURL(new Blob([buffer], { type: mime }))
+}
 
 /** Las tres clases de ficha comparten controles; solo cambia dónde se guardan. */
 function targetFromKey(key: string): SheetTarget {
@@ -433,8 +447,17 @@ export function FichasPage() {
     setSaving(true)
     setError(null)
     try {
-      await UnitSheetRepository.save(sheetTarget, draft, pendingImages)
-      sheetCache.current.set(selectedKey, draft)
+      const keys = await UnitSheetRepository.save(sheetTarget, draft, pendingImages)
+      // Las claves que devuelve el guardado se incorporan al borrador. Si no,
+      // el borrador se quedaría con la clave ANTERIOR y, al cambiar otra vez la
+      // imagen, se borraría de R2 el archivo equivocado.
+      const saved: UnitSheet = {
+        ...draft,
+        illuKey: keys.illuKey !== undefined ? keys.illuKey : draft.illuKey,
+        emblemKey: keys.emblemKey !== undefined ? keys.emblemKey : draft.emblemKey,
+      }
+      setDraft(saved)
+      sheetCache.current.set(selectedKey, saved)
       setPendingImages({})
       setDirty(false)
       reloadCompletedKeys()
@@ -516,7 +539,7 @@ export function FichasPage() {
         s
           ? {
               ...s,
-              illuUrl: bytesToDataUrl(bytes, mime),
+              illuUrl: previewUrl(bytes, mime),
               illuOriginalName: file.name,
               illuWidthPct: 34,
               illuPosX: null,
@@ -561,7 +584,7 @@ export function FichasPage() {
     if (!file || !draft) return
     await withBusy(async () => {
       const { bytes, mime } = await compressImageFile(file, { maxSize: 480, maxBytes: MAX_EMBLEM_BYTES })
-      setDraft((s) => (s ? { ...s, emblemUrl: bytesToDataUrl(bytes, mime), hasCustomEmblem: true } : s))
+      setDraft((s) => (s ? { ...s, emblemUrl: previewUrl(bytes, mime), hasCustomEmblem: true } : s))
       setPendingImages((p) => ({ ...p, emblem: { bytes, mime } }))
       setDirty(true)
     })
@@ -1073,15 +1096,19 @@ export function FichasPage() {
                       </div>
                     </CollapsibleSection>
 
+                    {/* El id del panel sigue siendo 'escudo' aunque el título
+                        diga "Emblema": es la clave con la que localStorage
+                        recuerda si está abierto, y cambiarla haría que a quien
+                        ya lo tenía abierto se le cerrase sin motivo. */}
                     <CollapsibleSection
-                      title="Escudo"
+                      title="Emblema"
                       open={isPanelOpen('escudo')}
                       onToggle={() => togglePanel('escudo')}
                     >
                       <div>
                         <div className="flex flex-wrap gap-2">
                           <IconButton icon={<ShieldIcon />} onClick={() => emblemInputRef.current?.click()} disabled={busy}>
-                            {draft.hasCustomEmblem ? 'Cambiar escudo de esta ficha' : 'Usar otro escudo en esta ficha'}
+                            {draft.hasCustomEmblem ? 'Cambiar emblema de esta hoja' : 'Usar otro emblema en esta hoja'}
                           </IconButton>
                           {draft.hasCustomEmblem && (
                             <IconButton icon={<UndoIcon />} onClick={handleEmblemRevert} disabled={busy}>
@@ -1098,10 +1125,34 @@ export function FichasPage() {
                         />
                       </div>
                     </CollapsibleSection>
+                  </div>
+                )}
+              </Panel>
 
-                    {/* Fuera de las secciones: es una sola línea y se consulta
-                        de un vistazo, plegarla no ahorraría nada. */}
-                    <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+              {/* La hoja, y justo debajo la marca de "completada": es un juicio
+                  sobre la hoja que se está mirando ("¿la doy por buena?"), así
+                  que se decide con ella delante y no en la columna de
+                  controles, donde quedaba perdida entre ajustes de
+                  presentación. */}
+              <div className="flex flex-col items-center gap-3 overflow-auto">
+                {selectedDetail && draft ? (
+                  <>
+                    <UnitSheetCard
+                      unit={selectedDetail}
+                      sheet={draft}
+                      grayscale={grayscale}
+                      showFrame={showFrame}
+                      editable
+                      onIlluDragEnd={(posX, posY) => patchDraft({ illuPosX: posX, illuPosY: posY })}
+                    />
+                    <label
+                      className={clsx(
+                        'flex cursor-pointer items-center gap-2 rounded-sm border px-3 py-2 text-xs transition-colors',
+                        draft.completed
+                          ? 'border-success/60 bg-success/10 text-ink'
+                          : 'border-rule-dark/40 bg-parchment/70 text-ink-soft hover:border-bronze',
+                      )}
+                    >
                       <input
                         type="checkbox"
                         checked={draft.completed}
@@ -1109,22 +1160,9 @@ export function FichasPage() {
                         className="accent-emerald-700"
                       />
                       <CheckCircleIcon className={clsx('h-3.5 w-3.5', draft.completed && 'text-success')} />
-                      {draft.completed ? 'Ficha completada' : 'Marcar ficha como completada'}
+                      {draft.completed ? 'Hoja completada' : 'Marcar hoja como completada'}
                     </label>
-                  </div>
-                )}
-              </Panel>
-
-              <div className="flex items-start justify-center overflow-auto">
-                {selectedDetail && draft ? (
-                  <UnitSheetCard
-                    unit={selectedDetail}
-                    sheet={draft}
-                    grayscale={grayscale}
-                    showFrame={showFrame}
-                    editable
-                    onIlluDragEnd={(posX, posY) => patchDraft({ illuPosX: posX, illuPosY: posY })}
-                  />
+                  </>
                 ) : (
                   <EmptyState title="Sin ficha seleccionada" description="La tarjeta aparecerá aquí." />
                 )}

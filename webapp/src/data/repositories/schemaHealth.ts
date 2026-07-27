@@ -38,6 +38,12 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Hojas de montura y de opción', probe: 'SELECT ref_id FROM sheet_presentations LIMIT 1' },
   { label: 'Ancho de los apartados', probe: 'SELECT section_widths FROM unit_sheets LIMIT 1' },
   { label: 'Mostrar u ocultar fichas de atributos', probe: 'SELECT hidden_profiles FROM unit_sheets LIMIT 1' },
+  // Imágenes de las hojas en R2. Sin estas columnas, guardar una hoja con
+  // imagen falla (el UPDATE toca illu_key/emblem_key) y la migración de
+  // Mantenimiento no arranca. Es justo el caso que este detector existe para
+  // delatar: frontend desplegado y Worker todavía no.
+  { label: 'Imágenes de las hojas en R2', probe: 'SELECT illu_key FROM unit_sheets LIMIT 1' },
+  { label: 'Imágenes de hojas de montura y opción en R2', probe: 'SELECT illu_key FROM sheet_presentations LIMIT 1' },
   { label: 'Facción favorita', probe: 'SELECT favorite_faction_id FROM users LIMIT 1' },
   { label: 'Reglas destacadas por facción', probe: 'SELECT rule_id FROM user_faction_rules LIMIT 1' },
 ]
