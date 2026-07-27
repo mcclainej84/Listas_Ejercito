@@ -230,7 +230,14 @@ export const ImportRepository = {
       }
 
       // 5) Grupo de mando: opciones + nombre y ficha del Campeón.
-      if (fields.command) {
+      //
+      // Solo en unidades de TROPA. Un personaje es una única miniatura y no
+      // puede llevar músico, portaestandarte ni campeón; si el libro trae por
+      // error una sección de "Grupo de mando" en la entrada de un personaje,
+      // se ignora en vez de crear datos imposibles que luego el Editor ni
+      // siquiera muestra (ver UnitDetailPage: el panel no existe para
+      // personajes).
+      if (fields.command && detail.unitType !== 'personaje') {
         await applyCommandGroup(unitId, p, detail, roleIdByCode)
       }
 

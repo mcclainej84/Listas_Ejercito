@@ -605,43 +605,84 @@ export function UnitDetailPage() {
             )}
           </Panel>
 
-          {/* El panel se muestra SIEMPRE, tenga o no opciones todavía. Antes
-              solo aparecía si la unidad ya traía alguna, así que en una unidad
-              creada desde cero no había manera de añadir grupo de mando: solo
-              llegaba importando de un libro o copiando otra unidad. */}
-          <Panel
-            title="Grupo de mando"
-            subtitle="Marca los puestos que puede llevar esta unidad e indica lo que cuesta cada uno. Se dan de alta al momento, sin esperar a «Guardar cambios»."
-          >
-            <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 border-b border-rule-dark/20 pb-3">
-              {(commandRoles ?? []).map((role) => (
-                <label key={role.id} className="flex items-center gap-2 text-xs text-ink">
-                  <input
-                    type="checkbox"
-                    className="accent-maroon"
-                    disabled={commandBusy}
-                    checked={commandOptions.some((o) => o.role.id === role.id)}
-                    onChange={(e) => toggleCommandRole(role, e.target.checked)}
-                  />
-                  {role.name}
-                </label>
-              ))}
-            </div>
+          {/* Solo en unidades de TROPA. Un personaje es una única miniatura:
+              no puede llevar músico, portaestandarte ni campeón, así que
+              ofrecerle esos puestos era invitar a crear datos imposibles.
+              Mismo criterio que los tamaños mínimo/máximo de más arriba.
 
-            {commandOptions.length === 0 ? (
-              <p className="text-xs text-ink-soft italic">Esta unidad no lleva grupo de mando.</p>
-            ) : (
-              <ul className="space-y-3 text-xs">
-                {commandOptions.map(({ role, cost, profile }) =>
-                  role.code === 'CAMPEON' ? (
-                    <li key={role.id}>
-                      <div className="flex items-center justify-between gap-3">
-                        <input
-                          value={draft.championNames[role.id] ?? DEFAULT_CHAMPION_NAME}
-                          onChange={(e) => setChampionName(role.id, e.target.value)}
-                          placeholder={DEFAULT_CHAMPION_NAME}
-                          className="min-w-0 flex-1 rounded-sm border border-rule-dark/40 bg-parchment/70 px-2 py-1 text-xs text-ink outline-none focus:border-bronze focus:ring-2 focus:ring-bronze/25"
-                        />
+              Dentro de la tropa el panel se muestra SIEMPRE, tenga o no
+              opciones todavía: antes solo aparecía si la unidad ya traía
+              alguna, y en una unidad creada desde cero no había forma de
+              añadir grupo de mando salvo importándola de un libro o copiando
+              otra. */}
+          {unit.unitType !== 'personaje' && (
+            <Panel
+              title="Grupo de mando"
+              subtitle="Marca los puestos que puede llevar esta unidad e indica lo que cuesta cada uno. Se dan de alta al momento, sin esperar a «Guardar cambios»."
+            >
+              <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 border-b border-rule-dark/20 pb-3">
+                {(commandRoles ?? []).map((role) => (
+                  <label key={role.id} className="flex items-center gap-2 text-xs text-ink">
+                    <input
+                      type="checkbox"
+                      className="accent-maroon"
+                      disabled={commandBusy}
+                      checked={commandOptions.some((o) => o.role.id === role.id)}
+                      onChange={(e) => toggleCommandRole(role, e.target.checked)}
+                    />
+                    {role.name}
+                  </label>
+                ))}
+              </div>
+
+              {commandOptions.length === 0 ? (
+                <p className="text-xs text-ink-soft italic">Esta unidad no lleva grupo de mando.</p>
+              ) : (
+                <ul className="space-y-3 text-xs">
+                  {commandOptions.map(({ role, cost, profile }) =>
+                    role.code === 'CAMPEON' ? (
+                      <li key={role.id}>
+                        <div className="flex items-center justify-between gap-3">
+                          <input
+                            value={draft.championNames[role.id] ?? DEFAULT_CHAMPION_NAME}
+                            onChange={(e) => setChampionName(role.id, e.target.value)}
+                            placeholder={DEFAULT_CHAMPION_NAME}
+                            className="min-w-0 flex-1 rounded-sm border border-rule-dark/40 bg-parchment/70 px-2 py-1 text-xs text-ink outline-none focus:border-bronze focus:ring-2 focus:ring-bronze/25"
+                          />
+                          <label className="flex shrink-0 items-center gap-1 text-ink-soft">
+                            +
+                            <input
+                              type="number"
+                              min={0}
+                              value={draft.commandCosts[role.id] ?? cost}
+                              onChange={(e) => setCommandCost(role.id, Number(e.target.value) || 0)}
+                              className="w-14 rounded-sm border border-rule-dark/40 bg-parchment/70 px-1.5 py-1 text-center text-xs text-ink outline-none focus:border-bronze focus:ring-2 focus:ring-bronze/25"
+                            />
+                            pts
+                          </label>
+                        </div>
+                        {profile ? (
+                          <div className="mt-2">
+                            <EditableAttributeTable
+                              value={draft.profileStats[profile.id] ?? extractProfileInput(profile)}
+                              onChange={(input) => setProfileStats(profile.id, input)}
+                            />
+                          </div>
+                        ) : (
+                          // Mismo caso que la ficha base: un Campeón recién
+                          // añadido no trae perfil, y sin este botón no había
+                          // forma de dárselo.
+                          <div className="mt-2 flex items-center gap-3">
+                            <p className="text-xs text-ink-soft italic">Sin ficha propia todavía.</p>
+                            <Button variant="ghost" onClick={() => createCommandProfileNow(role.id)}>
+                              + Crear ficha del campeón
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    ) : (
+                      <li key={role.id} className="flex items-center justify-between gap-3">
+                        <span className="text-ink-soft">{role.name}</span>
                         <label className="flex shrink-0 items-center gap-1 text-ink-soft">
                           +
                           <input
@@ -653,46 +694,13 @@ export function UnitDetailPage() {
                           />
                           pts
                         </label>
-                      </div>
-                      {profile ? (
-                        <div className="mt-2">
-                          <EditableAttributeTable
-                            value={draft.profileStats[profile.id] ?? extractProfileInput(profile)}
-                            onChange={(input) => setProfileStats(profile.id, input)}
-                          />
-                        </div>
-                      ) : (
-                        // Mismo caso que la ficha base: un Campeón recién
-                        // añadido no trae perfil, y sin este botón no había
-                        // forma de dárselo.
-                        <div className="mt-2 flex items-center gap-3">
-                          <p className="text-xs text-ink-soft italic">Sin ficha propia todavía.</p>
-                          <Button variant="ghost" onClick={() => createCommandProfileNow(role.id)}>
-                            + Crear ficha del campeón
-                          </Button>
-                        </div>
-                      )}
-                    </li>
-                  ) : (
-                    <li key={role.id} className="flex items-center justify-between gap-3">
-                      <span className="text-ink-soft">{role.name}</span>
-                      <label className="flex shrink-0 items-center gap-1 text-ink-soft">
-                        +
-                        <input
-                          type="number"
-                          min={0}
-                          value={draft.commandCosts[role.id] ?? cost}
-                          onChange={(e) => setCommandCost(role.id, Number(e.target.value) || 0)}
-                          className="w-14 rounded-sm border border-rule-dark/40 bg-parchment/70 px-1.5 py-1 text-center text-xs text-ink outline-none focus:border-bronze focus:ring-2 focus:ring-bronze/25"
-                        />
-                        pts
-                      </label>
-                    </li>
-                  ),
-                )}
-              </ul>
-            )}
-          </Panel>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
+            </Panel>
+          )}
 
           <Panel
             title="Montura/Dotación"

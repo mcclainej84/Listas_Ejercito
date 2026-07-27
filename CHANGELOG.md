@@ -13,6 +13,19 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.47 — 27/07/2026 10:05
+
+**Los personajes ya no tienen «Grupo de mando» en el Editor.** Un personaje es
+una única miniatura: no puede llevar músico, portaestandarte ni campeón, así
+que ofrecerle esos puestos era invitar a crear datos imposibles. El panel
+desaparece de su ficha, igual que ya pasaba con los tamaños mínimo/máximo. En
+las unidades de tropa sigue exactamente igual.
+
+También se ignora la sección de grupo de mando al **importar un libro** si la
+entrada es un personaje: si no, el libro podría volver a meter por detrás lo
+que el Editor ya no deja crear. (Comprobado en la base actual: ninguno de los
+32 personajes tenía opciones de mando, así que no hay nada que limpiar.)
+
 ## 0.46 — 27/07/2026 09:30
 
 **El aviso de «falta desplegar el Worker» acusaba en falso.** Salía justo
