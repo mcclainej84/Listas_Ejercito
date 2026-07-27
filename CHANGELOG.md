@@ -13,6 +13,25 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.46 — 27/07/2026 09:30
+
+**El aviso de «falta desplegar el Worker» acusaba en falso.** Salía justo
+después de desplegarlo, que es el peor momento posible para un mensaje que
+dice que no lo has hecho.
+
+Era una carrera: al arrancar, el aviso y las migraciones salen a la vez desde
+`DatabaseGate`. El aviso comprobaba el esquema mientras las migraciones seguían
+en vuelo, veía las columnas nuevas ausentes y acusaba. Y como solo comprobaba
+una vez, el mensaje se quedaba hasta recargar. Estaba ahí desde que existe el
+aviso; las columnas de R2 solo lo hicieron evidente.
+
+- Ahora espera a que las migraciones se hayan intentado antes de mirar (con un
+  tope de 8 segundos, por si no hay contraseña o el Worker no responde).
+- Y si encuentra algo pendiente, **insiste una vez pasados 3 segundos** antes
+  de decir nada: las lecturas de D1 pueden ir a una réplica que todavía no
+  tenga aplicado el `ALTER TABLE`, y ese retraso daba exactamente el mismo
+  falso positivo.
+
 ## 0.45 — 25/07/2026 19:10
 
 **Las imágenes de las hojas salen de la base de datos y pasan a R2.**

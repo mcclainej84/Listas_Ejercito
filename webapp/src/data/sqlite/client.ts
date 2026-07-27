@@ -263,17 +263,41 @@ export async function resetToSeed(): Promise<void> {
  * Requiere la contraseña de grupo; si no hay, no hace nada.
  */
 export async function runMigrations(): Promise<void> {
-  const passwordHash = await getStoredPasswordHash()
-  if (!passwordHash) return
-  const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/migrate', { passwordHash })
-  if (status === 401) {
-    clearPassword()
-    throw new AuthRequiredError()
-  }
-  if (status !== 200) {
-    throw new Error(data.error ?? `Error al migrar (${status}).`)
+  try {
+    const passwordHash = await getStoredPasswordHash()
+    if (!passwordHash) return
+    const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/migrate', { passwordHash })
+    if (status === 401) {
+      clearPassword()
+      throw new AuthRequiredError()
+    }
+    if (status !== 200) {
+      throw new Error(data.error ?? `Error al migrar (${status}).`)
+    }
+  } finally {
+    resolveMigrationsAttempted()
   }
 }
+
+// ----------------------------------------------------------------------------
+// Señal de "las migraciones ya se han intentado".
+//
+// Existe por un falso positivo con mala fama: al arrancar, el aviso de
+// "falta desplegar el Worker" (PendingMigrationsBanner) y las migraciones
+// salen A LA VEZ desde DatabaseGate. El aviso comprobaba el esquema antes de
+// que las migraciones hubieran terminado de aplicarse, veía las columnas
+// nuevas ausentes y acusaba de no haber desplegado el Worker... justo después
+// de desplegarlo. Y como solo comprobaba una vez, el mensaje se quedaba en
+// pantalla hasta recargar.
+//
+// Se resuelve pase lo que pase (de ahí el `finally`): si no hay contraseña o
+// el Worker falla, quien espera esta señal debe continuar igualmente y sacar
+// sus propias conclusiones, no quedarse colgado.
+// ----------------------------------------------------------------------------
+let resolveMigrationsAttempted: () => void = () => {}
+export const migrationsAttempted: Promise<void> = new Promise((resolve) => {
+  resolveMigrationsAttempted = resolve
+})
 
 /** Comprueba que la API esté disponible antes de renderizar el resto de la app — ver app/DatabaseGate.tsx. */
 export async function ensureReady(): Promise<void> {
