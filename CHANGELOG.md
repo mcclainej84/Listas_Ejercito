@@ -13,6 +13,35 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.48 — 27/07/2026 12:40
+
+**Seis mejoras en la sección Ejércitos.**
+
+- **El aviso de puntos dice cuánto sobra**, no solo que sobra: «Te pasas por 45
+  pts del límite». Con «supera el límite» había que ir a la calculadora para
+  saber si te pasabas por 5 puntos o por 300. Cuando cabe, dice lo que queda
+  libre; y si estás clavado en el límite, lo confirma.
+- **«Añadir unidad» y «Ficha» viven ahora en un marco plegable.** Ocupaban
+  permanentemente toda la parte de arriba y empujaban «Unidades en la lista»
+  fuera de la pantalla, justo cuando lo que quieres es mirar el ejército
+  entero. Plegado cabe de una vez, y al pinchar cualquier unidad de la lista se
+  despliega solo y lleva la vista hasta él.
+- **Duplicar listas**, para probar variaciones de un mismo ejército sin perder
+  el original. Copia todas las entradas con su equipo, opciones, montura y
+  grupo de mando, y numera el nombre («(copia)», «(copia 2)»…). Si la copia
+  falla a medias se deshace sola, para no dejar una lista vacía y huérfana.
+- **Resumen «Composición del ejército»** al pasar el ratón por el título
+  «Unidades en la lista»: en qué se han ido los puntos, por etiqueta y por
+  categoría, con su porcentaje. Son dos repartos independientes porque
+  responden a cosas distintas: de qué está hecho el ejército, y cómo se
+  reparte según las reglas de composición.
+- **Ordenar la lista** por coste, nombre, etiqueta, categoría o facción, en los
+  dos sentidos. Reordena la lista de verdad (es lo que sale en el PDF), así que
+  queda pendiente de guardar como cualquier otro cambio. Los criterios de
+  agrupación desempatan por coste dentro de cada grupo: al agrupar por
+  categoría, dentro de «Personajes» sale primero el caro.
+- **Botón «Limpiar»** para vaciar la lista, con confirmación.
+
 ## 0.47 — 27/07/2026 10:05
 
 **Los personajes ya no tienen «Grupo de mando» en el Editor.** Un personaje es

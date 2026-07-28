@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 
 interface PanelProps {
-  title: string
+  /** Normalmente texto, pero admite nodos para poder colgarle un tooltip o un icono (ver "Unidades en la lista" en el constructor de ejércitos). */
+  title: ReactNode
   /** Línea explicativa bajo el título. */
   subtitle?: string
   /** Contenido a la derecha del título, en la misma línea (badges, botones pequeños…). */

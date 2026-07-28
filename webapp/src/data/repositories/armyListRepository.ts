@@ -150,6 +150,65 @@ export const ArmyListRepository = {
     await exec('DELETE FROM army_lists WHERE id = ?', [id])
   },
 
+  /**
+   * Copia una lista entera —cabecera y todas sus entradas con su equipo,
+   * opciones, montura y grupo de mando— en una lista nueva. Para probar
+   * variaciones de un mismo ejército sin perder el original.
+   *
+   * La copia se hace LEYENDO Y REESCRIBIENDO, no con un `INSERT ... SELECT`.
+   * Es más código, pero cada entrada tiene tres tablas satélite colgando
+   * (equipo, opciones y su propia fila), y reutilizar `getDetailById` +
+   * `replaceAllEntries` garantiza que la copia pase por exactamente el mismo
+   * camino que un guardado normal: si mañana una entrada gana un campo nuevo,
+   * la duplicación lo hereda sola en vez de quedarse muda perdiendo ese dato.
+   */
+  async duplicate(id: number, newName: string, userId: number): Promise<number> {
+    const source = await ArmyListRepository.getDetailById(id)
+    if (!source) throw new Error('No se encontró la lista que se quiere copiar.')
+    // Los ejércitos son privados de cada usuario (ver listAll). La interfaz
+    // solo ofrece duplicar las propias, pero el repositorio no debe dar por
+    // hecho quién le llama: sin esta comprobación, bastaría pedir un id ajeno
+    // para llevarse la lista de otro.
+    if (source.userId != null && source.userId !== userId) {
+      throw new Error('Esa lista no es tuya.')
+    }
+
+    const newId = await ArmyListRepository.create({
+      factionId: source.factionId,
+      name: newName,
+      pointsLimit: source.pointsLimit,
+      userId,
+    })
+
+    if (source.entries.length === 0) return newId
+
+    try {
+      await ArmyListRepository.replaceAllEntries(
+        newId,
+        source.entries.map((e) => ({
+          unitId: e.unit.id,
+          quantity: e.quantity,
+          mountProfileId: e.mountProfileId,
+          chariotProfileId: e.chariotProfileId,
+          hasStandardBearer: e.hasStandardBearer,
+          hasMusician: e.hasMusician,
+          hasChampion: e.hasChampion,
+          championName: e.championName,
+          equipmentIds: e.equipmentIds,
+          upgradeIds: e.upgradeIds,
+        })),
+      )
+    } catch (err) {
+      // La cabecera ya está creada, pero las entradas no. Sin esto, un fallo
+      // de red dejaría al usuario con el mensaje de error Y una lista vacía
+      // llamada "X (copia)" en el listado, sin ninguna pista de que hay que
+      // borrarla a mano. Se deshace y se propaga el error original.
+      await ArmyListRepository.remove(newId).catch(() => undefined)
+      throw err
+    }
+    return newId
+  },
+
   async getDetailById(id: number): Promise<ArmyListDetail | null> {
     // La query de filas de entradas solo necesita `id` (ya conocido), no el
     // resultado de `list`, así que se lanza en paralelo con ella en vez de

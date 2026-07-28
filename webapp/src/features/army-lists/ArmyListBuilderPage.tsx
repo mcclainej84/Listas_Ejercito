@@ -43,6 +43,8 @@ import {
 } from '@/shared/ui/icons'
 import { AttributeTable } from '@/shared/ui/AttributeTable'
 import { ArmyListSettingsModal } from '@/features/army-lists/ArmyListSettingsModal'
+import { CompositionSummary } from '@/features/army-lists/CompositionSummary'
+import { SORT_LABELS, sortEntries, type SortCriterion } from '@/features/army-lists/sorting'
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
@@ -162,6 +164,8 @@ const EMPTY_DRAFT: EntryDraft = {
   chariotProfileId: null,
 }
 
+const EDITOR_OPEN_KEY = 'wharmy_ejercitos_editor_abierto'
+
 /**
  * Constructor de listas. Modelo "borrador en memoria": mientras se añaden,
  * editan, quitan o reordenan unidades NO se toca la red — todo vive en el
@@ -230,6 +234,34 @@ export function ArmyListBuilderPage() {
   // una condición (regla de los Hooks de React).
   const dragEntryId = useRef<number | null>(null)
   const [dragOverEntryId, setDragOverEntryId] = useState<number | null>(null)
+  /** Para llevar la vista al editor cuando se despliega solo (ver startEditEntry). */
+  const editorRef = useRef<HTMLElement>(null)
+
+  // Criterio con el que se ordenó por última vez, solo para recordar qué
+  // enseñar en el selector: la lista ya quedó reordenada de verdad, esto no la
+  // reordena al pintar.
+  const [sortCriterion, setSortCriterion] = useState<SortCriterion | ''>('')
+  const [sortDescending, setSortDescending] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+
+  // El editor (añadir unidad + ficha) se puede plegar para ver el ejército
+  // entero sin desplazarse. Se recuerda entre visitas, misma convención que el
+  // resto de acordeones de la app.
+  const [editorOpen, setEditorOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(EDITOR_OPEN_KEY) !== '0'
+    } catch {
+      return true
+    }
+  })
+  function toggleEditor(open: boolean) {
+    setEditorOpen(open)
+    try {
+      localStorage.setItem(EDITOR_OPEN_KEY, open ? '1' : '0')
+    } catch {
+      // Sin localStorage se pierde la preferencia, pero funciona igual.
+    }
+  }
 
   /**
    * Entradas que el catálogo ha dejado tocadas al abrir la lista (opciones
@@ -413,7 +445,36 @@ export function ArmyListBuilderPage() {
     setEntryIssues([])
   }
 
+  /** Ordena la lista de verdad y la deja pendiente de guardar. */
+  function applySort(criterion: SortCriterion, descending: boolean) {
+    setSortCriterion(criterion)
+    setSortDescending(descending)
+    setEntries(sortEntries(currentEntries, criterion, descending))
+    setDirty(true)
+  }
+
+  /** Vacía la lista entera (solo el borrador; se confirma antes y se persiste al guardar). */
+  function handleClearEntries() {
+    setEntries([])
+    cancelEdit()
+    setConfirmClear(false)
+    setDirty(true)
+  }
+
   function startEditEntry(entry: ArmyListEntry) {
+    // Al pinchar una unidad de la lista se despliega el editor solo: si está
+    // plegado y no se abriera, el clic parecería no hacer nada.
+    //
+    // `setEditorOpen` y NO `toggleEditor`: esto es una apertura circunstancial,
+    // no una decisión del usuario sobre cómo quiere la pantalla. Guardarla
+    // haría que quien pliega el editor a propósito y luego pincha UNA fila se
+    // encontrase el editor desplegado para siempre, también en visitas futuras.
+    setEditorOpen(true)
+    // Y se lleva la vista al editor: está por ENCIMA de la lista, así que al
+    // desplegarse empuja la tabla hacia abajo y el formulario recién abierto
+    // podría quedar fuera de pantalla — con el mismo efecto de "no ha pasado
+    // nada" que se quería evitar.
+    requestAnimationFrame(() => editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     setSelectedUnit(entry.unit)
     setDraft({
       editingEntryId: entry.id,
@@ -506,6 +567,9 @@ export function ArmyListBuilderPage() {
       const next = currentEntries.slice()
       next.splice(insertIndex, 0, entryObj)
       setEntries(next)
+      // La entrada nueva se coloca junto a las de su categoría, no según el
+      // criterio elegido: el orden deja de ser el que anuncia el selector.
+      setSortCriterion('')
     }
     setDirty(true)
     cancelEdit()
@@ -534,6 +598,9 @@ export function ArmyListBuilderPage() {
     next.splice(to, 0, moved)
     setEntries(next)
     setDirty(true)
+    // El orden ya no es el que dice el selector: mover una fila a mano lo
+    // rompe. Dejarlo marcando "Coste" sería mentir sobre cómo está la lista.
+    setSortCriterion('')
   }
 
   /** Persiste TODO el borrador de una vez (botón "Guardar ejército"). Devuelve true si se guardó bien. */
@@ -869,9 +936,24 @@ export function ArmyListBuilderPage() {
           <span className="font-display text-lg font-semibold text-maroon">{total}</span>{' '}
           <span className="text-ink-soft">pts{pointsLimit != null && <> / {pointsLimit}</>}</span>
         </p>
-        {overPoints && (
-          <span className="text-xs font-medium text-danger">Supera el límite de puntos de la lista.</span>
-        )}
+        {/* Decir CUÁNTO sobra, no solo que sobra: con "supera el límite" hay
+            que ir a la calculadora para saber si te pasas por 5 puntos o por
+            300, que son dos problemas muy distintos. Cuando cabe, se dice
+            también lo que queda libre, que es la otra mitad de la pregunta. */}
+        {pointsLimit != null &&
+          (overPoints ? (
+            <span className="text-xs font-medium text-danger">
+              Te pasas por <b>{total - pointsLimit}</b> pts del límite.
+            </span>
+          ) : total === pointsLimit ? (
+            // El caso "clavado en el límite" merece decirse: es justo el que
+            // se quiere confirmar de un vistazo, y antes no mostraba nada.
+            <span className="text-xs font-medium text-success">Justo en el límite.</span>
+          ) : (
+            <span className="text-xs text-ink-soft">
+              Te quedan <b className="text-ink">{pointsLimit - total}</b> pts.
+            </span>
+          ))}
       </div>
 
       {saveError && (
@@ -933,9 +1015,37 @@ export function ArmyListBuilderPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+      {/* "Añadir unidad" y "Ficha" viven ahora dentro de un mismo marco que se
+          puede plegar. Antes ocupaban toda la parte de arriba de forma
+          permanente y empujaban "Unidades en la lista" fuera de la pantalla:
+          para ver el ejército montado había que desplazarse, justo cuando lo
+          que quieres es mirarlo entero. Plegado, el ejército cabe de una vez;
+          y al pinchar cualquier unidad de la lista se despliega solo. */}
+      <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment/70">
+        <button
+          type="button"
+          onClick={() => toggleEditor(!editorOpen)}
+          aria-expanded={editorOpen}
+          className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-parchment-dark/50"
+        >
+          <span className="font-display text-lg font-semibold leading-tight text-ink">
+            {draft.editingEntryId ? 'Editar entrada' : 'Añadir unidad'}
+            {selectedUnit && <span className="ml-2 text-sm font-normal text-ink-soft">· {selectedUnit.name}</span>}
+          </span>
+          <span className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+            {editorOpen ? 'Minimizar' : 'Desplegar'}
+            <span className={clsx('text-sm transition-transform', editorOpen && 'rotate-90')}>›</span>
+          </span>
+        </button>
+
+        {editorOpen && (
+      <div className="grid grid-cols-1 gap-6 border-t border-rule-dark/25 p-4 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <Panel title={draft.editingEntryId ? 'Editar entrada' : 'Añadir unidad'}>
+          {/* El título contextual ("Añadir unidad"/"Editar entrada") ya lo
+              lleva la cabecera plegable de arriba; repetirlo aquí dejaba el
+              mismo texto dos veces seguidas y con el mismo tamaño. Este panel
+              se queda con lo que de verdad contiene. */}
+          <Panel title="Unidad y opciones">
             {draft.editingEntryId ? (
               <div>
                 <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
@@ -1187,9 +1297,65 @@ export function ArmyListBuilderPage() {
           </Panel>
         </div>
       </div>
+        )}
+      </section>
 
       <div className="mt-6">
-        <Panel title="Unidades en la lista">
+        <Panel
+          title={
+            <Tooltip
+              label={<CompositionSummary entries={currentEntries} total={total} />}
+              maxWidth="26rem"
+              className="inline-flex cursor-help items-center gap-1.5 border-b border-dotted border-ink-soft/50"
+            >
+              Unidades en la lista
+            </Tooltip>
+          }
+          headerRight={
+            currentEntries.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Ordenar REESCRIBE el orden de la lista (es lo que se pidió),
+                    así que queda pendiente de guardar como cualquier otro
+                    cambio y sale así en el PDF. */}
+                <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+                  Ordenar por
+                  <select
+                    value={sortCriterion}
+                    onChange={(e) => {
+                      const value = e.target.value as SortCriterion | ''
+                      if (value) applySort(value, sortDescending)
+                      else setSortCriterion('')
+                    }}
+                    className="rounded-sm border border-rule-dark/40 bg-parchment px-1.5 py-1 text-xs text-ink outline-none focus:border-bronze"
+                  >
+                    <option value="">Orden manual</option>
+                    {(Object.keys(SORT_LABELS) as SortCriterion[]).map((key) => (
+                      <option key={key} value={key}>
+                        {SORT_LABELS[key]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => sortCriterion && applySort(sortCriterion, !sortDescending)}
+                  disabled={!sortCriterion}
+                  title={sortDescending ? 'Orden descendente' : 'Orden ascendente'}
+                  className="rounded-sm border border-rule-dark/40 px-2 py-1 text-xs text-ink-soft hover:border-bronze hover:text-bronze disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {sortDescending ? '↓' : '↑'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="rounded-sm border border-maroon/30 px-2.5 py-1 text-xs font-medium text-maroon hover:bg-maroon/10"
+                >
+                  Limpiar
+                </button>
+              </div>
+            ) : undefined
+          }
+        >
           {currentEntries.length === 0 ? (
             <p className="text-xs italic text-ink-soft">Todavía no has añadido ninguna unidad.</p>
           ) : (
@@ -1358,6 +1524,20 @@ export function ArmyListBuilderPage() {
           confirmLabel="Quitar"
           onCancel={() => setDeletingEntry(null)}
           onConfirm={() => handleRemoveEntry(deletingEntry)}
+        />
+      )}
+
+      {/* Vaciar la lista se confirma siempre: es el único botón que puede
+          tirar horas de trabajo de un clic. No se guarda al momento, así que
+          todavía se puede salir sin guardar para recuperarla — pero eso no es
+          evidente, y confiar en ello sería confiar en que el usuario lo sepa. */}
+      {confirmClear && (
+        <ConfirmDialog
+          title="Limpiar la lista"
+          message={`Se quitarán las ${currentEntries.length} entradas de "${name}". El cambio no se guarda hasta que pulses "Guardar ejército", así que si te arrepientes puedes salir sin guardar.`}
+          confirmLabel="Quitar todas"
+          onCancel={() => setConfirmClear(false)}
+          onConfirm={handleClearEntries}
         />
       )}
 

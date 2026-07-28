@@ -7,6 +7,13 @@ interface TooltipProps {
   children: ReactNode
   /** Clases del envoltorio. Por defecto `inline-flex`, para no romper la maquetación de un icono. */
   className?: string
+  /**
+   * Ancho máximo del globo. Por defecto 18rem, que es lo justo para una frase.
+   * Se puede ampliar para contenido con estructura — p.ej. el resumen de
+   * "Composición del ejército", que es una tabla y a 18rem se rompía en
+   * columnas de una palabra.
+   */
+  maxWidth?: string
 }
 
 /**
@@ -26,7 +33,7 @@ interface TooltipProps {
  * - Lleva `touch-action: manipulation` y responde al toque, para que en móvil
  *   se pueda consultar tocando el icono.
  */
-export function Tooltip({ label, children, className = 'inline-flex' }: TooltipProps) {
+export function Tooltip({ label, children, className = 'inline-flex', maxWidth = '18rem' }: TooltipProps) {
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null)
   const anchorRef = useRef<HTMLSpanElement>(null)
 
@@ -61,7 +68,7 @@ export function Tooltip({ label, children, className = 'inline-flex' }: TooltipP
           <span
             role="tooltip"
             className="pointer-events-none fixed z-[100] -translate-x-1/2 -translate-y-full rounded-sm border border-rule-dark/50 bg-ink px-2 py-1 text-mini leading-snug text-parchment shadow-lg"
-            style={{ left: coords.x, top: coords.y - 6, maxWidth: '18rem' }}
+            style={{ left: coords.x, top: coords.y - 6, maxWidth }}
           >
             {label}
           </span>,

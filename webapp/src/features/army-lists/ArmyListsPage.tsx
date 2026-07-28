@@ -42,6 +42,37 @@ export function ArmyListsPage() {
   const favoriteFactionId = useFavoriteFactionId()
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<ArmyListSummary | null>(null)
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
+
+  /**
+   * Copia una lista con todas sus entradas y se queda en el listado (no abre
+   * la copia): duplicar suele ser el paso previo a comparar variantes, y
+   * saltar a una de ellas te sacaría de la vista donde estás decidiendo.
+   *
+   * El nombre lleva un contador —"(copia)", "(copia 2)"…— para no acabar con
+   * tres listas llamadas igual, que es exactamente el lío que esta función
+   * pretende evitar.
+   */
+  async function handleDuplicate(list: ArmyListSummary) {
+    if (!user) return
+    setDuplicatingId(list.id)
+    setDuplicateError(null)
+    try {
+      const existing = new Set((lists ?? []).map((l) => l.name))
+      let name = `${list.name} (copia)`
+      for (let n = 2; existing.has(name); n++) name = `${list.name} (copia ${n})`
+      await ArmyListRepository.duplicate(list.id, name, user.id)
+      // `reload()` solo pide la recarga (devuelve void, no espera al fetch),
+      // así que la copia aparece en el listado un instante después de que el
+      // botón deje de decir "Copiando…". Es un parpadeo, no un fallo.
+      reload()
+    } catch (err) {
+      setDuplicateError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setDuplicatingId(null)
+    }
+  }
 
   return (
     <div>
@@ -57,6 +88,7 @@ export function ArmyListsPage() {
 
       {loading && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
+      {duplicateError && <p className="mb-3 text-sm text-danger">No se pudo duplicar la lista: {duplicateError}</p>}
 
       {!loading && (lists ?? []).length === 0 && (
         <EmptyState
@@ -81,14 +113,25 @@ export function ArmyListsPage() {
                   {list.pointsLimit != null && <> · límite {list.pointsLimit} pts</>}
                 </p>
               </button>
-              <button
-                className="shrink-0 rounded-sm px-1.5 py-0.5 text-ink-soft opacity-0 transition-opacity hover:bg-maroon/10 hover:text-danger group-hover:opacity-100"
-                onClick={() => setDeleting(list)}
-                aria-label={`Borrar ${list.name}`}
-                title="Borrar"
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze disabled:cursor-wait disabled:opacity-50"
+                  onClick={() => handleDuplicate(list)}
+                  disabled={duplicatingId === list.id}
+                  aria-label={`Duplicar ${list.name}`}
+                  title="Duplicar esta lista"
+                >
+                  {duplicatingId === list.id ? 'Copiando…' : 'Duplicar'}
+                </button>
+                <button
+                  className="rounded-sm px-1.5 py-0.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                  onClick={() => setDeleting(list)}
+                  aria-label={`Borrar ${list.name}`}
+                  title="Borrar"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
