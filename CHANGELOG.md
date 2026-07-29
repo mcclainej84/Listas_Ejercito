@@ -13,6 +13,37 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.58 — 29/07/2026 18:05
+
+**Arreglado: no se podía guardar una unidad.** Al añadir `is_wizard` en 0.57,
+el UPDATE de la ficha pasó a pedir trece valores pero se le seguían pasando
+doce. El id de la unidad caía en la columna equivocada y el `WHERE` se quedaba
+sin nada, así que guardar fallaba siempre.
+
+La causa de fondo era que ese UPDATE estaba **escrito por duplicado** —en
+`updateScalarFields` y dentro de `saveUnitDetail`—: se actualizó la sentencia
+en los dos sitios y la lista de parámetros solo en uno. Ahora hay una única
+definición, así que ese fallo concreto no puede repetirse. Y el detector de
+migraciones pendientes vigila también `is_wizard`, las sendas por entrada y la
+selección de puntos.
+
+**Rehecha la distribución de «Datos generales».** Pasa a una rejilla de doce
+columnas con anchos **proporcionales al dato**: un nombre de unidad necesita
+sitio, un tamaño son dos dígitos y una T.S. es uno solo. Antes todos los campos
+ocupaban lo mismo o el ancho entero.
+
+Las filas se cierran siempre completas, y el reparto cambia según el tipo:
+
+- **Tropa** — Nombre · Categoría · Etiqueta / Coste · mín · máx · def · T.S. /
+  Equipo · Unidad única (0-1).
+- **Personaje** — Nombre · Categoría · Etiqueta / Coste · T.S. · **Hechicero** /
+  Equipo.
+
+Un personaje no tiene tamaños, así que ese hueco lo ocupa «Hechicero» en vez de
+caer en una línea suelta con media fila vacía al lado. El 0-1 hace lo mismo
+junto a Equipo, y su etiqueta se acorta a «Unidad única (0-1)» con la
+explicación en el título emergente.
+
 ## 0.57 — 29/07/2026 17:15
 
 **Hechiceros y sus sendas.**

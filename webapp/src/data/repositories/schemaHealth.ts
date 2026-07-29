@@ -42,6 +42,11 @@ const CHECKS: SchemaCheck[] = [
   // imagen falla (el UPDATE toca illu_key/emblem_key) y la migración de
   // Mantenimiento no arranca. Es justo el caso que este detector existe para
   // delatar: frontend desplegado y Worker todavía no.
+  // Sin esta columna, GUARDAR una unidad falla entero: el UPDATE de la ficha
+  // la toca siempre. Es justo el caso que este detector existe para delatar.
+  { label: 'Hechiceros', probe: 'SELECT is_wizard FROM units LIMIT 1' },
+  { label: 'Sendas de magia por entrada de lista', probe: 'SELECT path_id FROM army_list_entry_magic_paths LIMIT 1' },
+  { label: 'Selección de puntos', probe: 'SELECT kind FROM category_composition_rules LIMIT 1' },
   { label: 'Imágenes de las hojas en R2', probe: 'SELECT illu_key FROM unit_sheets LIMIT 1' },
   { label: 'Imágenes de hojas de montura y opción en R2', probe: 'SELECT illu_key FROM sheet_presentations LIMIT 1' },
   { label: 'Facción favorita', probe: 'SELECT favorite_faction_id FROM users LIMIT 1' },

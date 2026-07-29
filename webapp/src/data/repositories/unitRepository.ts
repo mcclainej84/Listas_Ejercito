@@ -161,6 +161,40 @@ export interface UnitBatchSaveInput {
   profileStats: Record<number, AttributeProfileInput>
 }
 
+/**
+ * El UPDATE de los campos escalares de una unidad, en UN solo sitio.
+ *
+ * Estaba escrito por duplicado —en `updateScalarFields` y dentro de
+ * `saveUnitDetail`— y al añadir `is_wizard` se actualizó la sentencia de los
+ * dos pero la lista de parámetros de uno solo: trece interrogantes y doce
+ * valores, con lo que el id se colaba en `is_wizard`, el WHERE se quedaba
+ * vacío y guardar dejó de funcionar. Con una única definición ese fallo no
+ * puede repetirse.
+ */
+function scalarUpdateStatement(unitId: number, scalar: UnitScalarInput): BatchStatement {
+  return {
+    sql: `UPDATE units
+             SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?,
+                 default_size = ?, is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
+           WHERE id = ?`,
+    params: [
+      scalar.name,
+      scalar.categoryId,
+      scalar.typeTagId,
+      scalar.baseCost,
+      scalar.minSize,
+      scalar.maxSize,
+      scalar.defaultSize,
+      scalar.isUnique ? 1 : 0,
+      scalar.equipmentText,
+      scalar.armorSave,
+      scalar.notes,
+      scalar.isWizard ? 1 : 0,
+      unitId,
+    ],
+  }
+}
+
 export const UnitRepository = {
   async listByFaction(factionId: number): Promise<UnitSummary[]> {
     return queryLocal(
@@ -315,7 +349,11 @@ export const UnitRepository = {
          WHERE uco.unit_id = ? ORDER BY cr.id`,
         [id],
         (row) => ({
-          role: { id: row.role_id as number, code: row.role_code as CommandRole['code'], name: row.role_name as string },
+          role: {
+            id: row.role_id as number,
+            code: row.role_code as CommandRole['code'],
+            name: row.role_name as string,
+          },
           cost: row.cost as number,
           customName: (row.custom_name as string) ?? null,
           profile: row.profile_id != null ? mapAttributeProfileRow(row) : null,
@@ -329,28 +367,20 @@ export const UnitRepository = {
     const [faction, category, typeTag] = await Promise.all([
       FactionRepository.getById(unit.factionId),
       unit.categoryId
-        ? queryLocalOne<UnitCategory>(
-            'SELECT * FROM unit_categories WHERE id = ?',
-            [unit.categoryId],
-            (row) => ({
-              id: row.id as number,
-              code: row.code as string,
-              name: row.name as string,
-              sortOrder: row.sort_order as number,
-            }),
-          )
+        ? queryLocalOne<UnitCategory>('SELECT * FROM unit_categories WHERE id = ?', [unit.categoryId], (row) => ({
+            id: row.id as number,
+            code: row.code as string,
+            name: row.name as string,
+            sortOrder: row.sort_order as number,
+          }))
         : Promise.resolve(null),
       unit.typeTagId
-        ? queryLocalOne<UnitTypeTag>(
-            'SELECT * FROM unit_type_tags WHERE id = ?',
-            [unit.typeTagId],
-            (row) => ({
-              id: row.id as number,
-              code: row.code as string,
-              name: row.name as string,
-              sortOrder: row.sort_order as number,
-            }),
-          )
+        ? queryLocalOne<UnitTypeTag>('SELECT * FROM unit_type_tags WHERE id = ?', [unit.typeTagId], (row) => ({
+            id: row.id as number,
+            code: row.code as string,
+            name: row.name as string,
+            sortOrder: row.sort_order as number,
+          }))
         : Promise.resolve(null),
     ])
     if (!faction) return null
@@ -602,27 +632,8 @@ export const UnitRepository = {
   },
 
   async updateScalarFields(id: number, input: UnitScalarInput): Promise<void> {
-    await execCatalog(
-      `UPDATE units
-       SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?, default_size = ?,
-           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
-       WHERE id = ?`,
-      [
-        input.name,
-        input.categoryId,
-        input.typeTagId,
-        input.baseCost,
-        input.minSize,
-        input.maxSize,
-        input.defaultSize,
-        input.isUnique ? 1 : 0,
-        input.equipmentText,
-        input.armorSave,
-        input.notes,
-        input.isWizard ? 1 : 0,
-        id,
-      ],
-    )
+    const { sql, params } = scalarUpdateStatement(id, input)
+    await execCatalog(sql, params)
   },
 
   /** Edita las 9 características de un perfil de atributos ya existente (p.ej. la ficha propia del Campeón). */
@@ -671,7 +682,10 @@ export const UnitRepository = {
       (row) => (row.profile_id as number) ?? null,
     )
     const statements: BatchStatement[] = [
-      { sql: 'DELETE FROM unit_command_options WHERE unit_id = ? AND command_role_id = ?', params: [unitId, commandRoleId] },
+      {
+        sql: 'DELETE FROM unit_command_options WHERE unit_id = ? AND command_role_id = ?',
+        params: [unitId, commandRoleId],
+      },
     ]
     if (profileId) {
       statements.push({ sql: 'DELETE FROM attribute_profiles WHERE id = ?', params: [profileId] })
@@ -712,7 +726,12 @@ export const UnitRepository = {
   },
 
   /** Añade o quita un perfil de atributos (montura/carro) de una unidad. El perfil 'base' no se gestiona aquí. */
-  async toggleProfile(unitId: number, profileId: number, role: Exclude<UnitProfileRole, 'base'>, enabled: boolean): Promise<void> {
+  async toggleProfile(
+    unitId: number,
+    profileId: number,
+    role: Exclude<UnitProfileRole, 'base'>,
+    enabled: boolean,
+  ): Promise<void> {
     if (enabled) {
       await execCatalogBatch([
         {
@@ -722,7 +741,10 @@ export const UnitRepository = {
       ])
     } else {
       await execCatalogBatch([
-        { sql: 'DELETE FROM unit_profiles WHERE unit_id = ? AND profile_id = ? AND role = ?', params: [unitId, profileId, role] },
+        {
+          sql: 'DELETE FROM unit_profiles WHERE unit_id = ? AND profile_id = ? AND role = ?',
+          params: [unitId, profileId, role],
+        },
       ])
     }
   },
@@ -739,26 +761,7 @@ export const UnitRepository = {
   async saveUnitDetail(unitId: number, input: UnitBatchSaveInput): Promise<void> {
     const statements: BatchStatement[] = []
 
-    statements.push({
-      sql: `UPDATE units
-       SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?, default_size = ?,
-           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
-       WHERE id = ?`,
-      params: [
-        input.scalar.name,
-        input.scalar.categoryId,
-        input.scalar.typeTagId,
-        input.scalar.baseCost,
-        input.scalar.minSize,
-        input.scalar.maxSize,
-        input.scalar.defaultSize,
-        input.scalar.isUnique ? 1 : 0,
-        input.scalar.equipmentText,
-        input.scalar.armorSave,
-        input.scalar.notes,
-        unitId,
-      ],
-    })
+    statements.push(scalarUpdateStatement(unitId, input.scalar))
 
     const relationSets: [UnitRelationKind, number[]][] = [
       ['specialRule', input.specialRuleIds],
