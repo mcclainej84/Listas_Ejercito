@@ -13,6 +13,61 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.54 — 29/07/2026 14:45
+
+- **Los nombres propios son solo para personajes.** Una unidad de tropa son
+  veinte miniaturas iguales: «Jules el Bretón (Lanceros)» no significa nada, y
+  ofrecerlo solo invitaba a llenar la lista de nombres que no distinguen a
+  nadie. Si una tropa ya tuviera nombre puesto de antes, el botón sigue
+  apareciendo para poder quitárselo — si no, se quedaría clavado.
+- **Los carros pueden llevar reglas especiales**, igual que las monturas. Se
+  asignan desde Editor → Carros, y al elegir un carro en el constructor de
+  listas sus reglas se suman a las de la unidad, tanto en pantalla como en el
+  PDF. Solo las del carro **elegido**: las de uno que no se ha cogido no pintan
+  nada.
+
+  En las Hojas de Unidad no aparecen, por el mismo criterio que ya se aplicaba
+  a las monturas: son reglas del vehículo, no de quien lo lleva.
+
+## 0.53 — 29/07/2026 14:05
+
+**Fuera el apartado «Magia» de la ficha de unidad.** La ficha vuelve
+exactamente a como estaba antes de añadirlo: dos columnas, «Datos generales»
+arriba a la izquierda y el «Perfil base» arriba a la derecha. Se deshacen con
+él las remaquetaciones de 0.50 y 0.52, que existían solo para hacerle sitio.
+
+Se conservan los dos cambios de esa pantalla que se pidieron por separado y no
+tenían nada que ver con la magia: las cabeceras siguen sin sus descripciones, y
+se pueden seguir creando opciones de unidad desde el propio buscador.
+
+**Qué NO se ha borrado**, porque no se pidió: la sección **Sendas de magia**
+sigue en el Editor con sus 30 sendas y 213 hechizos, y las tablas de la base
+(`magic_paths`, `magic_spells`, `unit_magic_paths`, `units.magic_level`) siguen
+ahí con sus datos intactos. El nivel de mago deja de escribirse al guardar una
+unidad —ya no hay dónde editarlo— pero lo que hubiera guardado se conserva: la
+columna sale del `UPDATE`, no se vacía.
+
+## 0.52 — 29/07/2026 13:20
+
+**«Datos generales» pasa a ocupar todo el ancho de la ficha de unidad**, y se
+organiza por dentro en tres bandas horizontales separadas por filetes:
+
+1. **Identidad** — nombre, categoría y etiqueta.
+2. **Números y equipo** — coste, tamaños, T.S., el 0-1 y el equipo, todo en una
+   fila que se reparte a lo ancho.
+3. **Perfil base**, y debajo **Magia** (plegable, solo en personajes).
+
+El resto de apartados —reglas, opciones, grupo de mando, montura y carro—
+quedan debajo, en las dos columnas de siempre y con su separación restaurada.
+
+**Por qué en bandas y no en dos columnas:** el formulario es estrecho y alto
+(campos apilados) y la tabla de atributos es ancha y baja (nueve columnas de un
+carácter). Puestos uno al lado del otro, quedaba medio panel vacío bajo la
+tabla. En bandas cada cosa ocupa el ancho que pide: los campos se reparten en
+vez de amontonarse en media pantalla, el perfil se lee como la línea de
+atributos de un libro de ejército —que es lo que es— y las sendas caben en
+cinco columnas. La ficha además baja de altura en vez de crecer.
+
 ## 0.51 — 29/07/2026 12:50
 
 - **El resumen «Composición del ejército» respeta el orden del catálogo.** Antes

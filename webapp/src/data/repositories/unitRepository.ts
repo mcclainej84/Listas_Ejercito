@@ -99,8 +99,6 @@ export interface UnitScalarInput {
   equipmentText: string | null
   armorSave: number | null
   notes: string | null
-  /** Nivel de mago (1-4) o null si no lanza hechizos. Ver el apartado "Magia" en UnitDetailPage. */
-  magicLevel: number | null
 }
 
 /** Datos mínimos para dar de alta una unidad desde cero; el resto (equipo, reglas, perfil...) se completa luego en su ficha. */
@@ -365,7 +363,12 @@ export const UnitRepository = {
       montura: linkedProfiles
         .filter((p) => p.role === 'montura')
         .map((p) => ({ ...p.profile, cost: p.cost, specialRules: rulesByProfile.get(p.profile.id) ?? [] })),
-      carro: linkedProfiles.filter((p) => p.role === 'carro').map((p) => ({ ...p.profile, cost: p.cost })),
+      // El carro lleva sus propias reglas igual que la montura: son la misma
+      // tabla (profile_special_rules) y el mismo concepto — reglas del
+      // vehículo/bestia, no de quien lo tripula.
+      carro: linkedProfiles
+        .filter((p) => p.role === 'carro')
+        .map((p) => ({ ...p.profile, cost: p.cost, specialRules: rulesByProfile.get(p.profile.id) ?? [] })),
     }
 
     return {
@@ -600,7 +603,7 @@ export const UnitRepository = {
     await execCatalog(
       `UPDATE units
        SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?, default_size = ?,
-           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, magic_level = ?
+           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?
        WHERE id = ?`,
       [
         input.name,
@@ -614,7 +617,6 @@ export const UnitRepository = {
         input.equipmentText,
         input.armorSave,
         input.notes,
-        input.magicLevel,
         id,
       ],
     )

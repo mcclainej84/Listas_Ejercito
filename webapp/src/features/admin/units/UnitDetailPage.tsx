@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { clsx } from 'clsx'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { UnitRepository, type UnitScalarInput } from '@/data/repositories/unitRepository'
 import {
@@ -25,8 +24,6 @@ import { AttributeTable, EditableAttributeTable, extractProfileInput } from '@/s
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 import { EquipmentCreateModal } from '@/features/admin/units/EquipmentCreateModal'
 import { UpgradeCreateModal } from '@/features/admin/units/UpgradeCreateModal'
-import { MagicRepository } from '@/data/repositories/magicRepository'
-import { MAGIC_GROUPS, MAGIC_GROUP_LABELS, MAGIC_LEVELS } from '@/domain/magic'
 import type {
   AttributeProfile,
   AttributeProfileInput,
@@ -54,8 +51,6 @@ const EQUIPMENT_CATEGORY_LABELS: Record<NonNullable<EquipmentOption['category']>
 interface UnitDraft {
   scalar: UnitScalarInput
   specialRuleIds: Set<number>
-  /** Sendas de magia que conoce (ver el apartado "Magia"). Vacío en la inmensa mayoría de unidades. */
-  magicPathIds: Set<number>
   equipmentIds: Set<number>
   upgradeIds: Set<number>
   /** Subconjunto de equipmentIds/upgradeIds marcado "por defecto" (ver unit_equipment_options.is_default / unit_upgrade_options.is_default). */
@@ -85,7 +80,6 @@ function scalarFromUnit(unit: UnitDetail): UnitScalarInput {
     equipmentText: unit.equipmentText,
     armorSave: unit.armorSave,
     notes: unit.notes,
-    magicLevel: unit.magicLevel,
   }
 }
 
@@ -98,9 +92,6 @@ function draftFromUnit(unit: UnitDetail): UnitDraft {
   return {
     scalar: scalarFromUnit(unit),
     specialRuleIds: new Set(unit.specialRules.map((r) => r.id)),
-    // Se rellena aparte, en cuanto llegan de la base (ver el efecto de más
-    // abajo): draftFromUnit es síncrona y las sendas son otra consulta.
-    magicPathIds: new Set<number>(),
     equipmentIds: new Set(unit.equipmentOptions.map((e) => e.id)),
     upgradeIds: new Set(unit.upgradeOptions.map((u) => u.id)),
     defaultEquipmentIds: new Set(unit.equipmentOptions.filter((e) => e.isDefault).map((e) => e.id)),
@@ -129,7 +120,6 @@ export function UnitDetailPage() {
   const { data: typeTags } = useAsync(() => UnitTypeTagRepository.listAll())
   const { data: allRules } = useAsync(() => RuleRepository.listAll())
   const { data: commandRoles } = useAsync(() => CommandRoleRepository.listAll())
-  const { data: magicPaths } = useAsync(() => MagicRepository.listPaths())
   const { data: allEquipment, reload: reloadEquipment } = useAsync(() => EquipmentRepository.listAll())
   const { data: allUpgrades, reload: reloadUpgrades } = useAsync(() => UpgradeRepository.listAll())
   const { data: mountItems } = useAsync(
@@ -148,11 +138,6 @@ export function UnitDetailPage() {
   const [savedFlash, setSavedFlash] = useState(false)
   const [creatingEquipmentQuery, setCreatingEquipmentQuery] = useState<string | null>(null)
   const [creatingUpgradeQuery, setCreatingUpgradeQuery] = useState<string | null>(null)
-  // "Magia" nace PLEGADA: la mayoría de personajes no son magos, así que
-  // desplegada por defecto estiraba la ficha hacia abajo para no decir nada.
-  // No se recuerda entre visitas a propósito — si se recordase abierta, se
-  // abriría también en los personajes que no tienen magia.
-  const [magicOpen, setMagicOpen] = useState(false)
   // La unidad puede no tener todavía ficha base (unidad recién creada desde
   // cero): "Crear ficha base" escribe directamente (no hay nada que perder,
   // no existía ninguna edición previa sobre un perfil que no existía) pero
@@ -181,26 +166,6 @@ export function UnitDetailPage() {
     }
   }, [unit])
 
-  // Sendas que conoce la unidad. Van en su propia consulta (tabla de unión) y
-  // se inyectan en el borrador ya creado, sin marcarlo como sucio: es la carga
-  // inicial, no una edición del usuario.
-  useEffect(() => {
-    if (!unit) return
-    let cancelled = false
-    void MagicRepository.listPathIdsByUnit(unit.id)
-      .then((ids) => {
-        if (cancelled) return
-        setDraft((d) => (d ? { ...d, magicPathIds: new Set(ids) } : d))
-      })
-      // Si las tablas de magia todavía no existen (Worker sin desplegar), la
-      // ficha se abre igual y sin sendas marcadas, en vez de tirar un error no
-      // capturado a la consola.
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [unit])
-
   // Avisa de cambios sin guardar al navegar dentro de la app (data router).
   const blocker = useBlocker(dirty)
 
@@ -219,11 +184,6 @@ export function UnitDetailPage() {
   function updateDraft(updater: (d: UnitDraft) => UnitDraft) {
     setDraft((d) => (d ? updater(d) : d))
     setDirty(true)
-  }
-
-  /** Atajo para tocar un campo escalar suelto sin repetir el `{ ...d, scalar: { ...d.scalar } }`. */
-  function setScalar(values: Partial<UnitScalarInput>) {
-    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, ...values } }))
   }
 
   if (loading) {
@@ -277,26 +237,9 @@ export function UnitDetailPage() {
         commandCosts: draft.commandCosts,
         profileStats: draft.profileStats,
       })
-      // Las sendas van aparte de saveUnitDetail: viven en su propia tabla de
-      // unión y son un concepto distinto (ver domain/magic.ts). El nivel de
-      // mago sí viaja dentro de `scalar`, porque es una columna de units.
-      //
-      // Solo en PERSONAJES, que son los únicos que tienen el apartado Magia.
-      // Llamarlo siempre metía una escritura extra en cada guardado de
-      // cualquier unidad y ataba el guardado entero a que existieran ya las
-      // tablas de magia en la base.
-      if (unit?.unitType === 'personaje') {
-        await MagicRepository.setUnitPaths(unitId, [...draft.magicPathIds])
-      }
       setSavedFlash(true)
       setTimeout(() => setSavedFlash(false), 1500)
       reload()
-    } catch (err) {
-      // Sin este `catch`, un fallo al guardar las sendas dejaba la pantalla
-      // MUDA: no salía el "guardado", no se recargaba y tampoco se decía qué
-      // había pasado, así que parecía que no se había guardado nada cuando en
-      // realidad el resto de la ficha sí había entrado.
-      setIssues([err instanceof Error ? err.message : String(err)])
     } finally {
       setSaving(false)
     }
@@ -607,129 +550,6 @@ export function UnitDetailPage() {
                 }
               />
             </div>
-
-            {/* PERFIL BASE. Vive dentro de "Datos generales" y no en un panel
-                aparte: la tabla de atributos ES el dato general por excelencia
-                de una unidad, y tenerla en la otra columna obligaba a mirar a
-                dos sitios para leer lo mismo. */}
-            <div className="mt-5 border-t border-rule-dark/20 pt-4">
-              <p className="mb-2 text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">Perfil base</p>
-              {baseProfile ? (
-                <EditableAttributeTable
-                  value={draft.profileStats[baseProfile.id] ?? extractProfileInput(baseProfile)}
-                  onChange={(input) => setProfileStats(baseProfile.id, input)}
-                />
-              ) : (
-                <div>
-                  <p className="mb-2 text-xs text-ink-soft">Esta unidad todavía no tiene ficha de atributos.</p>
-                  <Button variant="ghost" onClick={createBaseProfileNow}>
-                    + Crear ficha base
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* MAGIA. Solo para PERSONAJES: una tropa no lanza hechizos, y
-                enseñarle el apartado sería ofrecer un dato que nunca se va a
-                usar — mismo criterio que el grupo de mando, que solo existe
-                para las tropas.
-
-                Plegado por defecto y dentro de "Datos generales": la mayoría
-                de personajes no son magos, así que desplegado permanentemente
-                estiraba la ficha hacia abajo para no decir nada. Aquí, a lo
-                ancho de la columna, las sendas caben en cuatro columnas en vez
-                de en dos. */}
-            {unit.unitType === 'personaje' && (
-              <div className="mt-4 overflow-hidden rounded-sm border border-rule-dark/30">
-                <button
-                  type="button"
-                  onClick={() => setMagicOpen((v) => !v)}
-                  aria-expanded={magicOpen}
-                  className="flex w-full items-center justify-between gap-2 bg-parchment-dark/40 px-2.5 py-1.5 text-left hover:bg-parchment-dark"
-                >
-                  <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
-                    Magia
-                    {draft.scalar.magicLevel != null && (
-                      <span className="ml-2 font-normal text-bronze">
-                        Nivel {draft.scalar.magicLevel} · {draft.magicPathIds.size}{' '}
-                        {draft.magicPathIds.size === 1 ? 'senda' : 'sendas'}
-                      </span>
-                    )}
-                  </span>
-                  <span className={clsx('text-sm text-ink-soft transition-transform', magicOpen && 'rotate-90')}>›</span>
-                </button>
-
-                {magicOpen && (
-                  <div className="space-y-3 p-2.5">
-                    <div className="w-48">
-                      <Select
-                        label="Nivel de mago"
-                        value={draft.scalar.magicLevel != null ? String(draft.scalar.magicLevel) : ''}
-                        onChange={(e) => setScalar({ magicLevel: e.target.value === '' ? null : Number(e.target.value) })}
-                      >
-                        <option value="">No es hechicero</option>
-                        {MAGIC_LEVELS.map((level) => (
-                          <option key={level} value={level}>
-                            Nivel {level}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-
-                    {draft.scalar.magicLevel == null ? (
-                      <p className="text-xs text-ink-soft italic">Elige un nivel de mago para poder asignarle sendas.</p>
-                    ) : (magicPaths ?? []).length === 0 ? (
-                      <p className="text-xs text-ink-soft italic">
-                        Todavía no hay ninguna senda en el catálogo. Créalas en Editor → Sendas de magia.
-                      </p>
-                    ) : (
-                      <div>
-                        <p className="mb-1.5 text-xs font-medium text-ink-soft">
-                          Sendas que conoce{' '}
-                          <span className="text-ink-soft/70">({draft.magicPathIds.size} marcadas)</span>
-                        </p>
-                        <div className="space-y-2 rounded-sm border border-rule-dark/30 p-2">
-                          {MAGIC_GROUPS.map((group) => {
-                            const groupPaths = (magicPaths ?? []).filter((p) => p.group === group)
-                            if (groupPaths.length === 0) return null
-                            return (
-                              <div key={group}>
-                                <p className="mb-1 text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
-                                  {MAGIC_GROUP_LABELS[group]}
-                                </p>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
-                                  {groupPaths.map((path) => (
-                                    <label
-                                      key={path.id}
-                                      className="flex cursor-pointer items-center gap-2 text-xs text-ink"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        className="accent-maroon"
-                                        checked={draft.magicPathIds.has(path.id)}
-                                        onChange={(e) =>
-                                          updateDraft((d) => {
-                                            const next = new Set(d.magicPathIds)
-                                            if (e.target.checked) next.add(path.id)
-                                            else next.delete(path.id)
-                                            return { ...d, magicPathIds: next }
-                                          })
-                                        }
-                                      />
-                                      <span className="truncate">{path.name}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
             {/* "Notas internas" se oculta de la ficha (se dejó de pedir mostrarla)
                 pero sigue viajando en draft.scalar.notes tal cual se cargó, así
                 que "Guardar cambios" no la borra de la base de datos. */}
@@ -773,6 +593,22 @@ export function UnitDetailPage() {
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          <Panel title="Perfil base">
+            {baseProfile ? (
+              <EditableAttributeTable
+                value={draft.profileStats[baseProfile.id] ?? extractProfileInput(baseProfile)}
+                onChange={(input) => setProfileStats(baseProfile.id, input)}
+              />
+            ) : (
+              <div>
+                <p className="mb-2 text-xs text-ink-soft">Esta unidad todavía no tiene ficha de atributos.</p>
+                <Button variant="ghost" onClick={createBaseProfileNow}>
+                  + Crear ficha base
+                </Button>
+              </div>
+            )}
+          </Panel>
+
           {/* Solo en unidades de TROPA. Un personaje es una única miniatura:
               no puede llevar músico, portaestandarte ni campeón, así que
               ofrecerle esos puestos era invitar a crear datos imposibles.
@@ -866,7 +702,6 @@ export function UnitDetailPage() {
               )}
             </Panel>
           )}
-
 
           <Panel title="Montura/Dotación">
             <RelationEditor

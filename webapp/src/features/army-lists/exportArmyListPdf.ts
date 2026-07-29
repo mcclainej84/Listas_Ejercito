@@ -221,7 +221,10 @@ function reglasDeLaEntrada(entry: ArmyListEntry): SpecialRule[] {
   const montura = entry.mountProfileId
     ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId)
     : null
-  return mergeSpecialRules(entry.unit.specialRules, montura?.specialRules ?? [])
+  const carro = entry.chariotProfileId
+    ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId)
+    : null
+  return mergeSpecialRules(entry.unit.specialRules, montura?.specialRules ?? [], carro?.specialRules ?? [])
 }
 
 export async function exportArmyListToPdf(list: ArmyListDetail, total: number): Promise<void> {

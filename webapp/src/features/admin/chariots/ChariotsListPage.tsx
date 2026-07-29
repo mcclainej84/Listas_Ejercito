@@ -5,9 +5,10 @@ export function ChariotsListPage() {
   return (
     <ProfileCatalogListPage
       title="Carros"
-      description="Hojas de carro reutilizables. Una unidad solo puede añadir a la suya los carros asociados a su propia facción."
+      description="Hojas de carro reutilizables. Una unidad solo puede añadir a la suya los carros asociados a su propia facción. Los carros pueden llevar además sus propias reglas especiales, que se suman a las de la unidad que los lleve."
       newLabel="Nuevo carro"
       repository={ChariotRepository}
+      showSpecialRules
     />
   )
 }

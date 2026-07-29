@@ -198,9 +198,6 @@ export const ImportRepository = {
         equipmentText: fields.equipText ? p.equipmentText : detail.equipmentText,
         armorSave: fields.equipText ? p.armorSave : detail.armorSave,
         notes: detail.notes,
-        // La magia no se importa de los libros: se asigna a mano desde la
-        // ficha. Se arrastra lo que ya tuviera para no borrarlo al reimportar.
-        magicLevel: detail.magicLevel,
       })
 
       // 2) Perfil de atributos base.

@@ -197,7 +197,8 @@ export interface UnitDetail extends Unit {
     base: AttributeProfile | null
     /** `specialRules`: las propias del monstruo/montura (ver profile_special_rules), no las del jinete. */
     montura: Array<AttributeProfile & { cost: number | null; specialRules: SpecialRule[] }>
-    carro: Array<AttributeProfile & { cost: number | null }>
+    /** `specialRules`: las propias del carro (ver profile_special_rules), no las de la unidad que lo lleva. */
+    carro: Array<AttributeProfile & { cost: number | null; specialRules: SpecialRule[] }>
   }
   /**
    * Las reglas propias de la unidad — EXACTAMENTE las filas de

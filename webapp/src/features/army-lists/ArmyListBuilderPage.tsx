@@ -717,10 +717,13 @@ export function ArmyListBuilderPage() {
   // las que aporta la montura ELEGIDA para esta entrada. Una montura no
   // seleccionada todavía no forma parte de la unidad, así que sus reglas no
   // deben aparecer — sería prometer un "Vuela" que la unidad no tiene.
+  // El carro entra igual que la montura: sus reglas son del vehículo y se
+  // suman a las de la unidad que lo lleva, pero SOLO las del carro elegido.
   const reglasBrutas = selectedUnit
     ? mergeSpecialRules(
         selectedUnit.specialRules,
         selectedUnit.profiles.montura.find((p) => p.id === draft.mountProfileId)?.specialRules ?? [],
+        selectedUnit.profiles.carro.find((p) => p.id === draft.chariotProfileId)?.specialRules ?? [],
       )
     : []
   // Las DESTACADAS por el usuario para esta facción van primero (conservando su
@@ -1502,21 +1505,33 @@ export function ArmyListBuilderPage() {
                           ) : (
                             entry.unit.name
                           )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setNamingEntry(entry)
-                            }}
-                            title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
-                            aria-label={entry.alias ? `Cambiar el nombre de ${entry.alias}` : `Poner nombre a ${entry.unit.name}`}
-                            className={clsx(
-                              'ml-1.5 inline-flex align-text-bottom transition-colors',
-                              entry.alias ? 'text-bronze hover:text-maroon' : 'text-ink-soft/40 hover:text-bronze',
-                            )}
-                          >
-                            <NameTagIcon className="h-3.5 w-3.5" />
-                          </button>
+                          {/* Bautizar es cosa de PERSONAJES. Una unidad de
+                              tropa son veinte miniaturas iguales: "Jules el
+                              Bretón (Lanceros)" no significa nada, y ofrecerlo
+                              solo invita a llenar la lista de nombres que no
+                              distinguen a nadie. */}
+                          {/* La segunda condición es una salida de emergencia:
+                              si una tropa ya tuviera nombre de antes, hay que
+                              poder quitárselo — si no, se quedaría clavado. */}
+                          {(entry.unit.unitType === 'personaje' || entry.alias) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setNamingEntry(entry)
+                              }}
+                              title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
+                              aria-label={
+                                entry.alias ? `Cambiar el nombre de ${entry.alias}` : `Poner nombre a ${entry.unit.name}`
+                              }
+                              className={clsx(
+                                'ml-1.5 inline-flex align-text-bottom transition-colors',
+                                entry.alias ? 'text-bronze hover:text-maroon' : 'text-ink-soft/40 hover:text-bronze',
+                              )}
+                            >
+                              <NameTagIcon className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {needsReviewIds.has(entry.id) && (
                             <Tooltip
                               label="Sus opciones se desmarcaron por un cambio en el catálogo: vuelve a elegirlas"
