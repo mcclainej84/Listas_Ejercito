@@ -11,12 +11,15 @@ import { queryLocal } from '@/data/sqlite/localCatalog'
 import { hasStoredPassword } from '@/data/network/auth'
 import { EQUIPMENT_ALIASES, UPGRADE_ALIASES, expandName } from '@/domain/catalogAliases'
 import { UnitRepository } from '@/data/repositories/unitRepository'
-import { UpgradeRepository } from '@/data/repositories/lookupRepositories'
+import { UpgradeRepository, UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
+import { seedMagicPaths } from '@/data/repositories/magicSeeding'
 import type { AttributeProfileInput } from '@/domain/types'
 
 const RENAME_KEY = 'wharmy_catalog_rename_v1'
 const RULE_MERGE_KEY = 'wharmy_rule_merge_v1'
 const MOUNT_SHEETS_KEY = 'wharmy_mount_sheets_v1'
+const MAGIC_SEED_KEY = 'wharmy_magic_seed_v1'
+const ETIQUETAS_MAGIA_KEY = 'wharmy_etiquetas_magia_v1'
 // La versión se sube cuando se añaden correcciones nuevas, para que vuelvan a
 // aplicarse en navegadores que ya ejecutaron las anteriores.
 const DATA_FIX_KEY = 'wharmy_data_fixes_v7'
@@ -511,6 +514,30 @@ export async function runCatalogMaintenance(): Promise<void> {
       // include_in_sheets. No se marca como hecha: se reintenta en la próxima
       // carga, cuando ya exista.
       console.warn('[WHArmy] No se pudo fijar qué monturas salen en Hojas de Unidad:', err)
+    }
+  }
+
+  if (!flagDone(MAGIC_SEED_KEY)) {
+    try {
+      // Solo crea las sendas que falten: si ya están, no toca nada. Ver
+      // magicSeeding.ts — la marca es un atajo, no la garantía.
+      await seedMagicPaths()
+      setDone(MAGIC_SEED_KEY)
+    } catch (err) {
+      // Lo esperable aquí es que falte desplegar el Worker con las tablas de
+      // magia. No se marca como hecha: se reintenta en la próxima carga.
+      console.warn('[WHArmy] No se pudo cargar el catálogo de sendas de magia:', err)
+    }
+  }
+
+  if (!flagDone(ETIQUETAS_MAGIA_KEY)) {
+    try {
+      // "Hechicero" y "Archimago" son etiquetas de tipo normales, como
+      // Infantería o Caballería (así lo pidió el usuario).
+      await UnitTypeTagRepository.ensureMagicTags()
+      setDone(ETIQUETAS_MAGIA_KEY)
+    } catch (err) {
+      console.warn('[WHArmy] No se pudieron crear las etiquetas Hechicero/Archimago:', err)
     }
   }
 

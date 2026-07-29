@@ -13,6 +13,92 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.51 — 29/07/2026 12:50
+
+- **El resumen «Composición del ejército» respeta el orden del catálogo.** Antes
+  ordenaba por puntos, y el efecto era que el resumen se reordenaba solo cada
+  vez que añadías una unidad: imposible comparar dos listas de un vistazo
+  porque las filas no estaban nunca en el mismo sitio. Ahora sigue el orden que
+  hayas dado en Editor → Categorías y Etiquetas, así que «Personajes, Básicas,
+  Especiales…» sale siempre igual. Lo que no tiene categoría o etiqueta va al
+  final.
+- Fuera los tres textos explicativos de **Categorías y Etiquetas**.
+
+## 0.50 — 29/07/2026 12:15
+
+**La ficha de unidad, más recogida.**
+
+- **El perfil base y la magia se mudan a «Datos generales».** El perfil de
+  atributos es el dato general por excelencia de una unidad y tenerlo en la
+  otra columna obligaba a mirar a dos sitios para leer lo mismo. La magia gana
+  además el ancho de la columna: las sendas pasan de dos columnas a cuatro, así
+  que el bloque crece a lo ancho en vez de a lo alto.
+- **«Magia» se pliega, y nace plegada.** La mayoría de personajes no son magos;
+  desplegada por defecto estiraba la ficha para no decir nada. La cabecera
+  resume lo que hay dentro («Nivel 2 · 3 sendas») para no tener que abrirla solo
+  para mirar. No se recuerda entre visitas a propósito: si se recordase
+  abierta, se abriría también en los personajes que no tienen magia.
+- **Fuera las descripciones bajo las cabeceras.** Reglas especiales, opciones
+  de equipo, opciones de unidad, grupo de mando, montura y carro se quedan solo
+  con su título.
+- **Crear opciones de unidad desde el propio buscador**, igual que ya se podía
+  con las de equipo: si la que buscas no existe, se da de alta sin salir de la
+  ficha. Pide nombre y coste; el perfil y las reglas propias, si los lleva, se
+  añaden luego desde Editor → Equipo y opciones.
+
+## 0.49 — 29/07/2026 11:30
+
+**Magia, taxonomías y nombres propios.**
+
+### Sendas de magia (Editor → Sendas de magia)
+
+Sección nueva con el catálogo de sendas y sus hechizos, cargado del fichero
+`Resumen_sendas_20250309.md`: **30 sendas y 213 hechizos** repartidos en cuatro
+grupos (Elementales, Místicas, Oscuras y Manuscritos). Se pueden crear, editar
+y borrar sendas y hechizos.
+
+**Sobre el número de hechizos por senda.** La instrucción decía 6, pero en el
+fichero no hay ni una sola senda con 6: 28 tienen **7** (dos de nivel 1, dos de
+nivel 2, dos de nivel 3 y uno de nivel 4), Pergaminos sagrados tiene 13 y
+Yunque rúnico 4. Manda el fichero: el tope se pone en 7 y se cargan las 213 tal
+cual. Las dos que se salen de la norma se marcan con un aviso ⚠ en vez de
+rechazarse — son datos reales, y hacerlos desaparecer para cumplir una regla
+habría sido peor que enseñar el aviso. El tope solo impide que una senda
+**crezca** por encima de 7; nunca rechaza lo que ya existe.
+
+### Magia en la ficha de unidad
+
+Apartado nuevo, **solo para personajes** (una tropa no lanza hechizos, mismo
+criterio que el grupo de mando, que solo existe para tropas): nivel de mago de
+1 a 4 y las sendas que conoce, que pueden ser varias. Mientras no se elija
+nivel no se ofrecen sendas: asignárselas a quien no puede lanzarlas no
+significa nada. Se crean además las etiquetas **Hechicero** y **Archimago**.
+
+### Categorías y Etiquetas (Editor)
+
+Pantalla nueva para las dos taxonomías, que se confunden con facilidad y por
+eso comparten pantalla pero no sección: la **categoría** es el hueco de
+organización del ejército (Personajes, Básicas…) y la **etiqueta** es qué es la
+unidad sobre la mesa (Infantería, Monstruo…). Se pueden crear, renombrar,
+borrar y **reordenar arrastrando** — y ese orden es el que manda al agrupar en
+Ejércitos. El código interno no se edita nunca: es la referencia con la que el
+programa reconoce cada categoría, y dejarlo cambiar convertiría un renombrado
+inocente en datos rotos. Al borrar algo en uso, las unidades se quedan sin ella
+pero no se borra ninguna unidad.
+
+### Ejércitos
+
+- **Nombres propios.** Un icono en cada fila permite bautizar a una miniatura:
+  la lista pasa a mostrar «Jules el Bretón (Paladín Bretoniano)». El tipo no se
+  pierde nunca, porque es lo que dice qué reglas se aplican. El nombre es de
+  esa miniatura en esa lista, no de la unidad del catálogo, y sale también en
+  el PDF, que es donde más falta hace.
+- Las reglas **de la facción** y las demás quedan separadas por un filete
+  rotulado, en vez de por una línea muda.
+- El marco que envuelve «Unidad y opciones» y «Ficha» pierde su fondo: los dos
+  paneles de dentro ya traen el suyo y apilar pergamino sobre pergamino
+  ensuciaba la pantalla.
+
 ## 0.48 — 27/07/2026 12:40
 
 **Seis mejoras en la sección Ejércitos.**

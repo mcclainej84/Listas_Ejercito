@@ -339,6 +339,16 @@ export function CategoryShield({ metal, className = 'h-4 w-4' }: { metal: Shield
 }
 
 /** Marca de verificación en círculo, para "completada". */
+/** Etiqueta con hilo — "ponerle un nombre propio" a una miniatura de la lista. */
+export function NameTagIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className} aria-hidden="true">
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" strokeLinejoin="round" />
+      <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 export function CheckCircleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">

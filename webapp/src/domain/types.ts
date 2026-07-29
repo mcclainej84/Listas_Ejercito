@@ -163,6 +163,12 @@ export interface Unit {
    * pase lo que pase en la base de datos (ver mapUnit en unitRepository).
    */
   isUnique: boolean
+  /**
+   * Nivel de mago (1 a 4), o `null` si la unidad no lanza hechizos — que es
+   * la inmensa mayoría. Las sendas que conoce viven aparte (unit_magic_paths)
+   * porque puede saber varias a la vez; ver domain/magic.ts.
+   */
+  magicLevel: number | null
   /** Equipo básico que la unidad siempre lleva (texto libre; sin dato de origen, se rellena desde Administración). */
   equipmentText: string | null
   /** Tirada de salvación por armadura (T.S.). Vacía por defecto; se rellena desde Administración. */
@@ -336,6 +342,13 @@ export interface ArmyListEntry {
   hasChampion: boolean
   /** null = usa el nombre ya definido en la ficha de la unidad (propio o "Campeón" genérico). */
   championName: string | null
+  /**
+   * Nombre propio de ESTA miniatura en ESTA lista ("Jules el Bretón"). No
+   * sustituye al nombre de la unidad: la lista muestra
+   * "Jules el Bretón (Paladín Bretoniano)", porque el tipo sigue haciendo
+   * falta para saber qué reglas se aplican. null = sin nombre propio.
+   */
+  alias: string | null
   sortOrder: number
   equipmentIds: number[]
   upgradeIds: number[]
@@ -356,6 +369,8 @@ export interface ArmyListEntryInput {
   hasMusician: boolean
   hasChampion: boolean
   championName: string | null
+  /** Nombre propio de la miniatura en la lista (ver ArmyListEntry.alias). */
+  alias: string | null
   equipmentIds: number[]
   upgradeIds: number[]
 }

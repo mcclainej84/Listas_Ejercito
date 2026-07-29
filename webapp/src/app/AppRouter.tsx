@@ -11,6 +11,8 @@ import { MountsListPage } from '@/features/admin/mounts/MountsListPage'
 import { ChariotsListPage } from '@/features/admin/chariots/ChariotsListPage'
 import { OptionsListPage } from '@/features/admin/equipment/OptionsListPage'
 import { ImportBookPage } from '@/features/admin/import/ImportBookPage'
+import { TaxonomyPage } from '@/features/admin/taxonomy/TaxonomyPage'
+import { MagicPathsPage } from '@/features/admin/magic/MagicPathsPage'
 import { LogPage } from '@/features/admin/log/LogPage'
 import { FichasPage } from '@/features/fichas/FichasPage'
 import { ArmyListsPage } from '@/features/army-lists/ArmyListsPage'
@@ -104,6 +106,22 @@ const router = createHashRouter([
         element: (
           <AdminRoute>
             <OptionsListPage />
+          </AdminRoute>
+        ),
+      },
+      {
+        path: '/admin/taxonomia',
+        element: (
+          <AdminRoute>
+            <TaxonomyPage />
+          </AdminRoute>
+        ),
+      },
+      {
+        path: '/admin/sendas',
+        element: (
+          <AdminRoute>
+            <MagicPathsPage />
           </AdminRoute>
         ),
       },

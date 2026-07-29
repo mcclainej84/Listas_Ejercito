@@ -268,7 +268,11 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
           .map((u) => u.name)
         return [
           String(entry.quantity),
-          entry.unit.name,
+          // Igual que en pantalla: si la miniatura tiene nombre propio manda
+          // el nombre y el tipo va entre paréntesis. El PDF es lo que se lleva
+          // a la partida, así que es justo donde más sentido tiene ver
+          // "Jules el Bretón (Paladín Bretoniano)".
+          entry.alias ? `${entry.alias} (${entry.unit.name})` : entry.unit.name,
           equipNames.join(', ') || '--',
           upgradeNames.join(', ') || '--',
           entry.hasStandardBearer ? 'X' : '',

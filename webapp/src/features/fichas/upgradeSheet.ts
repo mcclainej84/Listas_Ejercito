@@ -81,6 +81,8 @@ export function upgradeAsUnitDetail(
     maxSize: null,
     defaultSize: null,
     isUnique: false,
+    // Ni una opción de unidad ni una montura lanzan hechizos por sí mismas.
+    magicLevel: null,
     equipmentText: null,
     armorSave: null,
     notes: null,
@@ -134,6 +136,8 @@ export function mountAsUnitDetail(
     maxSize: null,
     defaultSize: null,
     isUnique: false,
+    // Ni una opción de unidad ni una montura lanzan hechizos por sí mismas.
+    magicLevel: null,
     equipmentText: null,
     armorSave: null,
     notes: null,

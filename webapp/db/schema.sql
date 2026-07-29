@@ -316,7 +316,12 @@ CREATE TABLE units (
     -- Unidad activa (1) o desactivada (0): las desactivadas siguen existiendo
     -- y editándose en Administración, pero NO se ofrecen al montar ejércitos.
     -- Por defecto todo activo.
-    active            INTEGER NOT NULL DEFAULT 1
+    active            INTEGER NOT NULL DEFAULT 1,
+
+    -- Nivel de mago (1 a 4). NULL = no es hechicera, que es lo normal. Las
+    -- sendas que conoce van aparte, en unit_magic_paths, porque puede saber
+    -- varias — ver domain/magic.ts.
+    magic_level       INTEGER
 );
 
 CREATE INDEX idx_units_faction ON units(faction_id);
@@ -436,6 +441,54 @@ CREATE TABLE unit_command_options (
 -- son un simple estado de UI de la página Fichas, igual que en el programa
 -- original (ver FichasPage.tsx), que se reinicia cada vez que se recarga.
 -- ----------------------------------------------------------------------------
+-- MAGIA
+--
+-- Una SENDA agrupa hechizos (Fuego, Nigromancia, Bestias…) y pertenece a uno
+-- de cuatro GRUPOS cerrados: ELEMENTALES, MISTICAS, OSCURAS y MANUSCRITOS.
+-- El grupo va como texto y no como tabla aparte porque son cuatro, fijos, y no
+-- se crean desde la interfaz — ver domain/magic.ts, que es donde vive esa
+-- lista y sus etiquetas para pantalla.
+--
+-- La estructura normal de una senda son 7 hechizos (2 de nivel 1, 2 de nivel
+-- 2, 2 de nivel 3 y 1 de nivel 4), pero NO se fuerza en el esquema: dos sendas
+-- del catálogo original vienen fuera de esa norma y son datos legítimos. El
+-- tope se aplica al editar (MAX_SPELLS_PER_PATH), no al guardar.
+-- ----------------------------------------------------------------------------
+CREATE TABLE magic_paths (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    code       TEXT NOT NULL UNIQUE,   -- FUEGO, NIGROMANCIA...
+    name       TEXT NOT NULL,          -- "Fuego", "Nigromancia"
+    group_code TEXT NOT NULL,          -- ELEMENTALES | MISTICAS | OSCURAS | MANUSCRITOS
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- `range_text` y no `range`: RANGE es palabra reservada de SQL.
+CREATE TABLE magic_spells (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    path_id      INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+    level        INTEGER NOT NULL,   -- 1 a 4
+    name         TEXT NOT NULL,
+    difficulty   TEXT,               -- "6+", "9+"
+    range_text   TEXT,               -- "60 cm.", "Sin límite"
+    hits         TEXT,               -- "1D6", "1xFila", "Plantilla"
+    damage       TEXT,               -- "F4", "Hiere 5+"
+    stays_active INTEGER NOT NULL DEFAULT 0,
+    cac          TEXT,               -- "Fuera del CaC", "En CaC", "Dentro o Fuera del CaC"
+    rules        TEXT,
+    sort_order   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_magic_spells_path ON magic_spells(path_id);
+
+-- Sendas que conoce una unidad. Tabla de unión y no una columna porque un
+-- hechicero puede conocer VARIAS sendas a la vez.
+CREATE TABLE unit_magic_paths (
+    unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    path_id INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+    PRIMARY KEY (unit_id, path_id)
+);
+
+-- ----------------------------------------------------------------------------
 CREATE TABLE unit_sheets (
     unit_id            INTEGER PRIMARY KEY REFERENCES units(id) ON DELETE CASCADE,
     -- Las imágenes viven en R2 (ver /image en worker/src/index.ts): aquí solo
@@ -533,6 +586,11 @@ CREATE TABLE army_list_entries (
     has_musician        INTEGER NOT NULL DEFAULT 0,
     has_champion        INTEGER NOT NULL DEFAULT 0,
     champion_name       TEXT,    -- NULL = usa el nombre propio/genérico ya definido en la ficha de la unidad
+    -- Nombre propio de ESTA miniatura en ESTA lista ("Jules el Bretón"). No
+    -- sustituye al nombre de la unidad, se añade: la lista muestra
+    -- "Jules el Bretón (Paladín Bretoniano)", porque el tipo sigue haciendo
+    -- falta para saber qué reglas se aplican. NULL = sin nombre propio.
+    alias               TEXT,
     sort_order          INTEGER NOT NULL DEFAULT 0
 );
 

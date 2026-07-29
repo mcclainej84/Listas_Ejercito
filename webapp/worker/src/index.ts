@@ -103,6 +103,12 @@ const SNAPSHOT_TABLES = [
   'unit_command_options',
   'faction_construction_rules',
   'import_meta',
+  // Magia: es catálogo puro (30 sendas, 213 hechizos, texto corto) y se
+  // consulta al pintar cualquier ficha de hechicero, así que viaja en el
+  // snapshot como el resto en vez de pedirse por red una y otra vez.
+  'magic_paths',
+  'magic_spells',
+  'unit_magic_paths',
 ] as const
 
 /** Representación serializable en JSON de un BLOB (ver shared/image.ts en el frontend: mismo esquema base64). */
@@ -525,6 +531,44 @@ const MIGRATIONS: string[] = [
   'ALTER TABLE unit_sheets ADD COLUMN emblem_key TEXT',
   'ALTER TABLE sheet_presentations ADD COLUMN illu_key TEXT',
   'ALTER TABLE sheet_presentations ADD COLUMN emblem_key TEXT',
+
+  // --------------------------------------------------------------------------
+  // MAGIA. Una senda es un conjunto de hechizos (Fuego, Nigromancia…) dentro de
+  // uno de cuatro grupos cerrados; un personaje hechicero tiene un nivel (1-4)
+  // y puede conocer VARIAS sendas, de ahí la tabla de unión.
+  // --------------------------------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS magic_paths (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     code       TEXT NOT NULL UNIQUE,
+     name       TEXT NOT NULL,
+     group_code TEXT NOT NULL,
+     sort_order INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS magic_spells (
+     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+     path_id       INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+     level         INTEGER NOT NULL,
+     name          TEXT NOT NULL,
+     difficulty    TEXT,
+     range_text    TEXT,
+     hits          TEXT,
+     damage        TEXT,
+     stays_active  INTEGER NOT NULL DEFAULT 0,
+     cac           TEXT,
+     rules         TEXT,
+     sort_order    INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS unit_magic_paths (
+     unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+     path_id INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+     PRIMARY KEY (unit_id, path_id)
+   )`,
+  // Nivel de mago. NULL = la unidad no es hechicera, que es la inmensa mayoría.
+  'ALTER TABLE units ADD COLUMN magic_level INTEGER',
+
+  // Nombre propio de una entrada de lista ("Jules el Bretón"), para poder
+  // bautizar a los personajes sin perder de qué tipo son.
+  'ALTER TABLE army_list_entries ADD COLUMN alias TEXT',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

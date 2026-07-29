@@ -39,11 +39,13 @@ import {
   CheckIcon,
   CategoryShield,
   WarningIcon,
+  NameTagIcon,
   type ShieldMetal,
 } from '@/shared/ui/icons'
 import { AttributeTable } from '@/shared/ui/AttributeTable'
 import { ArmyListSettingsModal } from '@/features/army-lists/ArmyListSettingsModal'
 import { CompositionSummary } from '@/features/army-lists/CompositionSummary'
+import { AliasModal } from '@/features/army-lists/AliasModal'
 import { SORT_LABELS, sortEntries, type SortCriterion } from '@/features/army-lists/sorting'
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 
@@ -243,6 +245,8 @@ export function ArmyListBuilderPage() {
   const [sortCriterion, setSortCriterion] = useState<SortCriterion | ''>('')
   const [sortDescending, setSortDescending] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  /** Entrada a la que se le está poniendo nombre propio (null = el diálogo está cerrado). */
+  const [namingEntry, setNamingEntry] = useState<ArmyListEntry | null>(null)
 
   // El editor (añadir unidad + ficha) se puede plegar para ver el ejército
   // entero sin desplazarse. Se recuerda entre visitas, misma convención que el
@@ -513,6 +517,11 @@ export function ArmyListBuilderPage() {
       // sobrescribir, así que siempre se guarda null (= "usa el nombre de
       // la ficha").
       championName: null,
+      // El alias es una decisión sobre la miniatura ya puesta en la lista, no
+      // sobre la unidad que se está añadiendo: se pone después, desde la
+      // propia fila (ver el icono de nombre en "Unidades en la lista"). Al
+      // EDITAR una entrada existente hay que conservar el que ya tuviera.
+      alias: currentEntries.find((e) => e.id === draft.editingEntryId)?.alias ?? null,
       equipmentIds: [...draft.equipmentIds],
       upgradeIds: [...draft.upgradeIds],
     }
@@ -543,6 +552,7 @@ export function ArmyListBuilderPage() {
       hasMusician: input.hasMusician,
       hasChampion: input.hasChampion,
       championName: null,
+      alias: input.alias,
       sortOrder: 0,
       equipmentIds: input.equipmentIds,
       upgradeIds: input.upgradeIds,
@@ -618,6 +628,7 @@ export function ArmyListBuilderPage() {
         hasMusician: e.hasMusician,
         hasChampion: e.hasChampion,
         championName: e.championName,
+        alias: e.alias,
         equipmentIds: e.equipmentIds,
         upgradeIds: e.upgradeIds,
       }))
@@ -1021,7 +1032,11 @@ export function ArmyListBuilderPage() {
           para ver el ejército montado había que desplazarse, justo cuando lo
           que quieres es mirarlo entero. Plegado, el ejército cabe de una vez;
           y al pinchar cualquier unidad de la lista se despliega solo. */}
-      <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment/70">
+      {/* Sin fondo propio: los dos paneles de dentro ("Unidad y opciones" y
+          "Ficha") ya traen el suyo, y apilar pergamino sobre pergamino
+          ensuciaba la pantalla. Solo queda el borde, que es lo que de verdad
+          hace falta para ver dónde empieza y acaba el marco plegable. */}
+      <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40">
         <button
           type="button"
           onClick={() => toggleEditor(!editorOpen)}
@@ -1282,8 +1297,27 @@ export function ArmyListBuilderPage() {
                       <ul className="mt-1.5 space-y-1.5">
                         {reglasVisibles.map((r, i) => (
                           <li key={r.id} className="text-xs">
+                            {/* Separador ROTULADO entre las reglas de la
+                                facción y las demás. Antes era un filete a
+                                secas: se veía que había dos bloques, pero no
+                                qué distinguía a uno del otro. */}
                             {i === destacadasCount && destacadasCount > 0 && (
-                              <span className="mb-1.5 block h-px bg-rule-dark/40" />
+                              <span className="mb-1.5 flex items-center gap-2 pt-1">
+                                <span className="h-px flex-1 bg-rule-dark/40" />
+                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70 uppercase">
+                                  Otras reglas
+                                </span>
+                                <span className="h-px flex-1 bg-rule-dark/40" />
+                              </span>
+                            )}
+                            {i === 0 && destacadasCount > 0 && (
+                              <span className="mb-1.5 flex items-center gap-2">
+                                <span className="h-px flex-1 bg-rule-dark/40" />
+                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70 uppercase">
+                                  De la facción
+                                </span>
+                                <span className="h-px flex-1 bg-rule-dark/40" />
+                              </span>
                             )}
                             <span className="font-semibold text-ink">{r.name}</span>
                             {r.description && <span className="text-ink-soft"> — {r.description}</span>}
@@ -1456,7 +1490,33 @@ export function ArmyListBuilderPage() {
                         </td>
                         <td className="py-1.5 text-center align-middle text-ink">{entry.quantity}</td>
                         <td className="py-1.5 align-middle text-ink">
-                          {entry.unit.name}
+                          {/* Con nombre propio manda el nombre y el tipo va
+                              entre paréntesis: "Jules el Bretón (Paladín
+                              Bretoniano)". El tipo NO se pierde nunca, porque
+                              es lo que dice qué reglas se aplican. */}
+                          {entry.alias ? (
+                            <>
+                              <span className="font-medium">{entry.alias}</span>{' '}
+                              <span className="text-ink-soft">({entry.unit.name})</span>
+                            </>
+                          ) : (
+                            entry.unit.name
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setNamingEntry(entry)
+                            }}
+                            title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
+                            aria-label={entry.alias ? `Cambiar el nombre de ${entry.alias}` : `Poner nombre a ${entry.unit.name}`}
+                            className={clsx(
+                              'ml-1.5 inline-flex align-text-bottom transition-colors',
+                              entry.alias ? 'text-bronze hover:text-maroon' : 'text-ink-soft/40 hover:text-bronze',
+                            )}
+                          >
+                            <NameTagIcon className="h-3.5 w-3.5" />
+                          </button>
                           {needsReviewIds.has(entry.id) && (
                             <Tooltip
                               label="Sus opciones se desmarcaron por un cambio en el catálogo: vuelve a elegirlas"
@@ -1531,6 +1591,18 @@ export function ArmyListBuilderPage() {
           tirar horas de trabajo de un clic. No se guarda al momento, así que
           todavía se puede salir sin guardar para recuperarla — pero eso no es
           evidente, y confiar en ello sería confiar en que el usuario lo sepa. */}
+      {namingEntry && (
+        <AliasModal
+          entry={namingEntry}
+          onClose={() => setNamingEntry(null)}
+          onSave={(alias) => {
+            setEntries(currentEntries.map((e) => (e.id === namingEntry.id ? { ...e, alias } : e)))
+            setDirty(true)
+            setNamingEntry(null)
+          }}
+        />
+      )}
+
       {confirmClear && (
         <ConfirmDialog
           title="Limpiar la lista"

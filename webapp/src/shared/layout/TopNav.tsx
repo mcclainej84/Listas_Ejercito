@@ -28,6 +28,8 @@ const EDITOR_ITEMS: NavItem[] = [
   { to: '/admin/opciones', label: 'Equipo y opciones' },
   { to: '/admin/monturas', label: 'Montura/Dotación' },
   { to: '/admin/carros', label: 'Carros' },
+  { to: '/admin/sendas', label: 'Sendas de magia' },
+  { to: '/admin/taxonomia', label: 'Categorías y Etiquetas' },
   { to: '/admin/importar', label: 'Importar desde Libro' },
   { to: '/admin/log', label: 'Log' },
 ]

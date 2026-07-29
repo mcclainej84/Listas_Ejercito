@@ -24,6 +24,18 @@ import type {
   UnitTypeTag,
 } from '@/domain/types'
 
+/** Convierte un nombre en un código estable en mayúsculas ("Máquina de guerra" → "MAQUINA_DE_GUERRA"). */
+export function toCatalogCode(name: string): string {
+  return (
+    name
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'SIN_NOMBRE'
+  )
+}
+
 export const UnitCategoryRepository = {
   async listAll(): Promise<UnitCategory[]> {
     return queryLocal(
@@ -35,6 +47,61 @@ export const UnitCategoryRepository = {
         name: row.name as string,
         sortOrder: row.sort_order as number,
       }),
+    )
+  },
+
+  /** Cuántas unidades usan cada categoría — para avisar antes de borrar. */
+  async usageByCategory(): Promise<Map<number, number>> {
+    const rows = await queryLocal(
+      'SELECT category_id AS id, COUNT(*) AS total FROM units WHERE category_id IS NOT NULL GROUP BY category_id',
+      [],
+      (row) => [row.id as number, row.total as number] as const,
+    )
+    return new Map(rows)
+  },
+
+  async create(name: string): Promise<number> {
+    const [{ next }] = await queryLocal(
+      'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM unit_categories',
+      [],
+      (row) => ({ next: row.next as number }),
+    )
+    return execCatalog('INSERT INTO unit_categories (code, name, sort_order) VALUES (?, ?, ?)', [
+      toCatalogCode(name),
+      name.trim(),
+      next,
+    ])
+  },
+
+  /** Solo cambia el NOMBRE visible: el código es la referencia estable y se deja quieto. */
+  async rename(id: number, name: string): Promise<void> {
+    await execCatalog('UPDATE unit_categories SET name = ? WHERE id = ?', [name.trim(), id])
+  },
+
+  /**
+   * Borra la categoría y deja SIN categoría a las unidades que la usaban.
+   *
+   * Las dos sentencias van en el mismo batch y en este orden a propósito:
+   * units.category_id es clave ajena sin `ON DELETE`, así que borrar la
+   * categoría con unidades apuntando a ella hace que D1 devuelva un
+   * "FOREIGN KEY constraint failed" en crudo — justo lo contrario de lo que
+   * promete el diálogo de confirmación ("esas unidades se quedarán sin ella").
+   */
+  async remove(id: number): Promise<void> {
+    await execCatalogBatch([
+      { sql: 'UPDATE units SET category_id = NULL WHERE category_id = ?', params: [id] },
+      { sql: 'DELETE FROM unit_categories WHERE id = ?', params: [id] },
+    ])
+  },
+
+  /** Guarda el orden completo tal y como ha quedado en pantalla. */
+  async reorder(orderedIds: number[]): Promise<void> {
+    if (orderedIds.length === 0) return
+    await execCatalogBatch(
+      orderedIds.map((id, index) => ({
+        sql: 'UPDATE unit_categories SET sort_order = ? WHERE id = ?',
+        params: [index + 1, id],
+      })),
     )
   },
 }
@@ -52,6 +119,67 @@ export const UnitTypeTagRepository = {
         sortOrder: row.sort_order as number,
       }),
     )
+  },
+
+  /** Cuántas unidades usan cada etiqueta — para avisar antes de borrar. */
+  async usageByTag(): Promise<Map<number, number>> {
+    const rows = await queryLocal(
+      'SELECT type_tag_id AS id, COUNT(*) AS total FROM units WHERE type_tag_id IS NOT NULL GROUP BY type_tag_id',
+      [],
+      (row) => [row.id as number, row.total as number] as const,
+    )
+    return new Map(rows)
+  },
+
+  async create(name: string): Promise<number> {
+    const [{ next }] = await queryLocal(
+      'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM unit_type_tags',
+      [],
+      (row) => ({ next: row.next as number }),
+    )
+    return execCatalog('INSERT INTO unit_type_tags (code, name, sort_order) VALUES (?, ?, ?)', [
+      toCatalogCode(name),
+      name.trim(),
+      next,
+    ])
+  },
+
+  async rename(id: number, name: string): Promise<void> {
+    await execCatalog('UPDATE unit_type_tags SET name = ? WHERE id = ?', [name.trim(), id])
+  },
+
+  /** Igual que en las categorías: primero se sueltan las unidades, luego se borra (ver UnitCategoryRepository.remove). */
+  async remove(id: number): Promise<void> {
+    await execCatalogBatch([
+      { sql: 'UPDATE units SET type_tag_id = NULL WHERE type_tag_id = ?', params: [id] },
+      { sql: 'DELETE FROM unit_type_tags WHERE id = ?', params: [id] },
+    ])
+  },
+
+  async reorder(orderedIds: number[]): Promise<void> {
+    if (orderedIds.length === 0) return
+    await execCatalogBatch(
+      orderedIds.map((id, index) => ({
+        sql: 'UPDATE unit_type_tags SET sort_order = ? WHERE id = ?',
+        params: [index + 1, id],
+      })),
+    )
+  },
+
+  /**
+   * Crea "Hechicero" y "Archimago" si no existen. Son etiquetas de tipo
+   * normales (el usuario lo pidió así): se asignan desde la ficha de la unidad
+   * como Infantería o Caballería, y se pueden renombrar o borrar desde
+   * Categorías y Etiquetas como cualquier otra.
+   */
+  async ensureMagicTags(): Promise<void> {
+    const existing = await queryLocal('SELECT code FROM unit_type_tags', [], (row) =>
+      (row.code as string).toUpperCase(),
+    )
+    const known = new Set(existing)
+    for (const name of ['Hechicero', 'Archimago']) {
+      if (!known.has(toCatalogCode(name))) await UnitTypeTagRepository.create(name)
+    }
   },
 }
 
