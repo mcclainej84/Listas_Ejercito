@@ -1,6 +1,10 @@
 // ============================================================================
 // Sendas de magia de una entrada de lista, cada una con su NIVEL.
 //
+// Los nombres van en MINÚSCULAS aquí (a petición del usuario): en el catálogo
+// son nombres propios ("Fuego", "Nigromancia") pero dentro de la lista se leen
+// como lo que lleva la miniatura, no como títulos.
+//
 // COMPOSICIÓN. Son 30 sendas en el catálogo y un hechicero lleva dos o tres.
 // Pintar las 30 con su casilla y su selector de nivel llenaría la pantalla de
 // controles apagados. Aquí solo se ven las ELEGIDAS —una línea por senda, con
@@ -52,14 +56,14 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-2 bg-parchment-dark/40 px-2.5 py-1.5 text-left hover:bg-parchment-dark"
       >
-        <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
-          Magia
+        <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft lowercase">
+          magia
           {/* El resumen en la cabecera evita tener que abrir la sección solo
               para comprobar qué lleva. */}
           {value.length > 0 && (
             <span className="ml-2 font-normal text-bronze">
               {value
-                .map((v) => `${pathById.get(v.pathId)?.name ?? '—'} ${v.level}`)
+                .map((v) => `${(pathById.get(v.pathId)?.name ?? '—').toLowerCase()} ${v.level}`)
                 .join(' · ')}
             </span>
           )}
@@ -76,10 +80,10 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
                 return (
                   <li key={chosen.pathId} className="flex items-center gap-2 px-2 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-xs text-ink">
-                      {path?.name ?? 'Senda borrada'}
+                      {(path?.name ?? 'senda borrada').toLowerCase()}
                       {path && (
                         <span className="ml-1.5 text-mini text-ink-soft/70">
-                          {MAGIC_GROUP_LABELS[path.group]}
+                          {MAGIC_GROUP_LABELS[path.group].toLowerCase()}
                         </span>
                       )}
                     </span>
@@ -129,15 +133,15 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
               }}
               className="w-full rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1.5 text-xs text-ink outline-none focus:border-bronze"
             >
-              <option value="">+ Añadir senda…</option>
+              <option value="">+ añadir senda…</option>
               {MAGIC_GROUPS.map((group) => {
                 const groupPaths = available.filter((p) => p.group === group)
                 if (groupPaths.length === 0) return null
                 return (
-                  <optgroup key={group} label={MAGIC_GROUP_LABELS[group]}>
+                  <optgroup key={group} label={MAGIC_GROUP_LABELS[group].toLowerCase()}>
                     {groupPaths.map((path) => (
                       <option key={path.id} value={path.id}>
-                        {path.name}
+                        {path.name.toLowerCase()}
                       </option>
                     ))}
                   </optgroup>

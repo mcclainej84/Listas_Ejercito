@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { clsx } from 'clsx'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { UnitRepository, type UnitScalarInput } from '@/data/repositories/unitRepository'
 import {
@@ -381,27 +380,38 @@ export function UnitDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
           {/* --------------------------------------------------------------
-              Rejilla de 12 columnas con anchos PROPORCIONALES AL DATO: un
-              nombre de unidad necesita sitio, un tamaño son dos dígitos y una
-              T.S. es uno solo. Antes todos los campos ocupaban lo mismo (o el
-              ancho entero), y los distintivos caían en una línea suelta con
-              media fila vacía a la derecha.
+              Rejilla de 12 columnas, con los campos repartidos como se leen:
 
-              Las filas se cierran siempre a 12, y el reparto cambia según el
-              tipo: un personaje no tiene tamaños, así que ese hueco lo ocupa
-              "Hechicero" en vez de quedarse en blanco.
+                fila 1 · Nombre · Coste · Categoría
+                fila 2 · Etiqueta · Equipo
+                fila 3 · tamaños · T.S. · 0-1   (solo en tropa)
+
+              Los anchos son PROPORCIONALES AL DATO: un nombre necesita sitio,
+              un coste son tres dígitos y un tamaño dos. Las filas se cierran
+              siempre completas, sin medias líneas vacías.
               -------------------------------------------------------------- */}
           <Panel title="Datos generales">
             <div className="grid grid-cols-12 gap-x-3 gap-y-4">
-              {/* Fila 1 — identidad */}
-              <div className="col-span-12 sm:col-span-5">
+              {/* Fila 1 */}
+              <div className="col-span-12 sm:col-span-6">
                 <TextField
                   label="Nombre"
                   value={draft.scalar.name}
                   onChange={(e) => updateDraft((d) => ({ ...d, scalar: { ...d.scalar, name: e.target.value } }))}
                 />
               </div>
-              <div className="col-span-6 sm:col-span-3">
+              <div className="col-span-4 sm:col-span-2">
+                <TextField
+                  label="Coste (pts)"
+                  type="number"
+                  max={999}
+                  value={draft.scalar.baseCost}
+                  onChange={(e) =>
+                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, baseCost: Number(e.target.value) } }))
+                  }
+                />
+              </div>
+              <div className="col-span-8 sm:col-span-4">
                 <Select
                   label="Categoría"
                   value={draft.scalar.categoryId ?? ''}
@@ -420,10 +430,13 @@ export function UnitDetailPage() {
                   ))}
                 </Select>
               </div>
-              <div className="col-span-6 sm:col-span-4">
+
+              {/* Fila 2. La ETIQUETA manda además en la magia: si es Hechicero
+                  o Archimago, al añadir el personaje a un ejército se le podrán
+                  elegir sendas (ver isWizardTag). */}
+              <div className="col-span-12 sm:col-span-4">
                 <Select
                   label="Etiqueta"
-                  title="Tipo de unidad (Infantería, Caballería, Monstruo...) — solo informativa, se muestra en la ficha del constructor de listas."
                   value={draft.scalar.typeTagId ?? ''}
                   onChange={(e) =>
                     updateDraft((d) => ({
@@ -440,22 +453,20 @@ export function UnitDetailPage() {
                   ))}
                 </Select>
               </div>
-
-              {/* Fila 2 — números. En tropa: coste, los tres tamaños y T.S.
-                  En personaje no hay tamaños (es una sola miniatura), y ese
-                  hueco lo ocupa la marca de Hechicero. */}
-              <div className="col-span-4 sm:col-span-3">
+              <div className="col-span-12 sm:col-span-8">
                 <TextField
-                  label="Coste (pts)"
-                  type="number"
-                  max={999}
-                  value={draft.scalar.baseCost}
+                  label="Equipo"
+                  placeholder="p.ej. Arma de mano, escudo"
+                  value={draft.scalar.equipmentText ?? ''}
                   onChange={(e) =>
-                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, baseCost: Number(e.target.value) } }))
+                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, equipmentText: e.target.value || null } }))
                   }
                 />
               </div>
 
+              {/* Fila 3 — solo tropa: un personaje es una sola miniatura, así
+                  que no tiene tamaños ni puede ser 0-1. Ahí esta fila
+                  desaparece entera en vez de quedarse a medias. */}
               {unit.unitType !== 'personaje' && (
                 <>
                   <div className="col-span-4 sm:col-span-2">
@@ -504,10 +515,10 @@ export function UnitDetailPage() {
                 </>
               )}
 
-              {/* T.S. como lista cerrada y no como número libre: los únicos
-                  valores legales son 0-6, y el 0 ("—") afirma que la unidad no
-                  tiene salvación, que es distinto de "todavía sin rellenar". */}
-              <div className="col-span-4 sm:col-span-3">
+              {/* T.S. como lista cerrada: los únicos valores legales son 0-6, y
+                  el 0 ("—") afirma que no tiene salvación, que es distinto de
+                  "todavía sin rellenar" (vacío). */}
+              <div className="col-span-4 sm:col-span-2">
                 <Select
                   label="T.S."
                   value={draft.scalar.armorSave ?? ''}
@@ -527,43 +538,10 @@ export function UnitDetailPage() {
                 </Select>
               </div>
 
-              {/* HECHICERO. Solo en personajes: una tropa no lanza hechizos.
-                  La marca dice únicamente SI lo es; qué sendas lleva y de qué
-                  nivel se elige al meterlo en un ejército. Ocupa el hueco que
-                  en la tropa llevan los tamaños. */}
-              {unit.unitType === 'personaje' && (
-                <div className="col-span-8 flex items-end pb-2 sm:col-span-6">
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
-                    <input
-                      type="checkbox"
-                      className="accent-maroon"
-                      checked={draft.scalar.isWizard}
-                      onChange={(e) =>
-                        updateDraft((d) => ({ ...d, scalar: { ...d.scalar, isWizard: e.target.checked } }))
-                      }
-                    />
-                    Hechicero
-                  </label>
-                </div>
-              )}
-
-              {/* Fila 3 — equipo, y a su derecha el 0-1 de la tropa, que sin
-                  compañía se quedaba solo en una línea entera. */}
-              <div className={clsx('col-span-12', unit.unitType !== 'personaje' && 'sm:col-span-8')}>
-                <TextField
-                  label="Equipo"
-                  placeholder="p.ej. Arma de mano, escudo"
-                  value={draft.scalar.equipmentText ?? ''}
-                  onChange={(e) =>
-                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, equipmentText: e.target.value || null } }))
-                  }
-                />
-              </div>
-
-              {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este
-                  tipo caben en el ejército, no cuántas miniaturas la forman. */}
+              {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este tipo
+                  caben en el ejército, no cuántas miniaturas la forman. */}
               {unit.unitType !== 'personaje' && (
-                <div className="col-span-12 flex items-end pb-2 sm:col-span-4">
+                <div className="col-span-8 flex items-end pb-2 sm:col-span-4">
                   <label
                     className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft"
                     title="Solo una unidad de este tipo en todo el ejército. No limita el número de miniaturas."
@@ -584,16 +562,6 @@ export function UnitDetailPage() {
             {/* "Notas internas" se oculta de la ficha (se dejó de pedir
                 mostrarla) pero sigue viajando en draft.scalar.notes tal cual se
                 cargó, así que "Guardar cambios" no la borra de la base. */}
-          </Panel>
-
-          <Panel title="Reglas especiales">
-            <RelationEditor
-              allItems={ruleItems}
-              selectedIds={draft.specialRuleIds}
-              onToggle={(otherId, enabled) => toggleDraft('specialRuleIds', otherId, enabled)}
-              addLabel="Añadir regla especial"
-              confirmRemove
-            />
           </Panel>
 
           <Panel title="Opciones de equipo">
@@ -619,6 +587,16 @@ export function UnitDetailPage() {
               createNewLabel="Crear opción de unidad"
               defaultIds={draft.defaultUpgradeIds}
               onToggleDefault={(otherId, isDefault) => toggleDraftDefault('defaultUpgradeIds', otherId, isDefault)}
+            />
+          </Panel>
+
+          <Panel title="Reglas especiales">
+            <RelationEditor
+              allItems={ruleItems}
+              selectedIds={draft.specialRuleIds}
+              onToggle={(otherId, enabled) => toggleDraft('specialRuleIds', otherId, enabled)}
+              addLabel="Añadir regla especial"
+              confirmRemove
             />
           </Panel>
         </div>

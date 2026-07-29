@@ -23,6 +23,20 @@ export function isMagicGroup(value: unknown): value is MagicGroup {
   return typeof value === 'string' && (MAGIC_GROUPS as readonly string[]).includes(value)
 }
 
+/**
+ * Etiquetas de tipo que convierten a un personaje en lanzador de hechizos.
+ *
+ * Se comparan por CÓDIGO y no por nombre: el código no cambia al renombrar la
+ * etiqueta desde Categorías y Etiquetas, así que "Hechicero" puede pasar a
+ * llamarse "Mago" sin que nadie deje de poder elegir sendas.
+ */
+export const WIZARD_TAG_CODES = ['HECHICERO', 'ARCHIMAGO'] as const
+
+/** ¿Esta etiqueta de tipo hace que el personaje pueda llevar sendas? */
+export function isWizardTag(code: string | null | undefined): boolean {
+  return code != null && (WIZARD_TAG_CODES as readonly string[]).includes(code)
+}
+
 /** Niveles de mago. El 0 no existe: una unidad sin magia simplemente no tiene nivel (null). */
 export const MAGIC_LEVELS = [1, 2, 3, 4] as const
 

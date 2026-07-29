@@ -13,6 +13,22 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.59 — 29/07/2026 18:45
+
+- **La magia depende ahora de la ETIQUETA.** Si un personaje tiene la etiqueta
+  «Hechicero» o «Archimago», al añadirlo a un ejército se le pueden elegir
+  sendas. Desaparece el tick «Hechicero» de la ficha, que hacía el mismo
+  trabajo por duplicado. La comprobación va por código de etiqueta, no por
+  nombre, así que renombrarla desde Categorías y Etiquetas no la rompe.
+- **Nueva distribución de «Datos generales»**: Nombre · Coste · Categoría en
+  una línea, Etiqueta · Equipo en la siguiente, y los tamaños, la T.S. y el 0-1
+  debajo. En un personaje esa tercera fila desaparece entera —no tiene tamaños
+  ni puede ser 0-1— en vez de quedarse a medias.
+- **Orden de los apartados**: Datos generales, Opciones de equipo, Opciones de
+  unidad y Reglas especiales.
+- En el constructor de ejércitos, «magia» y los nombres de las sendas van en
+  **minúsculas**.
+
 ## 0.58 — 29/07/2026 18:05
 
 **Arreglado: no se podía guardar una unidad.** Al añadir `is_wizard` en 0.57,

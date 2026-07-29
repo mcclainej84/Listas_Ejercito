@@ -8,6 +8,7 @@ import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRe
 import { MagicRepository } from '@/data/repositories/magicRepository'
 import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
+import { isWizardTag } from '@/domain/magic'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useSession } from '@/shared/session/useSession'
 import { UserRepository } from '@/data/repositories/userRepository'
@@ -558,7 +559,7 @@ export function ArmyListBuilderPage() {
       // Solo los hechiceros llevan sendas: si se desmarca "Hechicero" en el
       // catálogo, las que hubiera dejan de guardarse en vez de quedarse
       // colgando en una entrada que ya no puede lanzarlas.
-      magicPaths: selectedUnit.isWizard ? draft.magicPaths : [],
+      magicPaths: isWizardTag(selectedUnit.typeTag?.code) ? draft.magicPaths : [],
       equipmentIds: [...draft.equipmentIds],
       upgradeIds: [...draft.upgradeIds],
     }
@@ -887,7 +888,7 @@ export function ArmyListBuilderPage() {
       {/* Solo a los personajes marcados como HECHICERO en el Editor. Las
           sendas y su nivel son de esta miniatura en esta lista, no del
           catálogo. */}
-      {selectedUnit.isWizard && (
+      {isWizardTag(selectedUnit.typeTag?.code) && (
         <EntryMagicSection
           paths={magicPaths ?? []}
           value={draft.magicPaths}
