@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { TrashIcon } from '@/shared/ui/icons'
 import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
+import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
 
 /**
  * "Mis ejércitos": listado de listas guardadas, con crear/renombrar/borrar y
@@ -43,6 +44,7 @@ export function ArmyListsPage() {
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<ArmyListSummary | null>(null)
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null)
+  const [editingComposition, setEditingComposition] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
 
   /**
@@ -80,9 +82,16 @@ export function ArmyListsPage() {
         title="Ejércitos"
         description="Tus listas de ejército guardadas: crea una nueva, retómala donde la dejaste o expórtala a PDF para llevarla a la partida."
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            + Nueva lista
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Configuración COMÚN a todos los ejércitos, de ahí que viva en el
+                listado y no dentro de una lista concreta. */}
+            <Button variant="secondary" onClick={() => setEditingComposition(true)}>
+              Selección de puntos
+            </Button>
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              + Nueva lista
+            </Button>
+          </div>
         }
       />
 
@@ -154,6 +163,8 @@ export function ArmyListsPage() {
           }}
         />
       )}
+
+      {editingComposition && <CompositionRulesModal onClose={() => setEditingComposition(false)} />}
 
       {deleting && (
         <ConfirmDialog

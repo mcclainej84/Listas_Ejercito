@@ -306,9 +306,6 @@ export function MagicPathsPage() {
                       <li key={i}>{w}</li>
                     ))}
                   </ul>
-                  <p className="mt-1 text-mini text-ink-soft">
-                    Es solo un aviso: los datos vienen así del fichero original y se respetan tal cual.
-                  </p>
                 </div>
               )}
 

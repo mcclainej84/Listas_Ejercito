@@ -69,6 +69,7 @@ const CATALOG_TABLES = [
   'magic_paths',
   'magic_spells',
   'unit_magic_paths',
+  'category_composition_rules',
 ] as const
 
 type CatalogSnapshot = Partial<Record<(typeof CATALOG_TABLES)[number], Record<string, unknown>[]>>

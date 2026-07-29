@@ -45,17 +45,8 @@ export function MigrateImagesPanel() {
   const total = pending?.length ?? 0
 
   return (
-    <Panel
-      title="Mover las imágenes de las hojas a R2"
-      subtitle="Saca las ilustraciones y emblemas de la base de datos y los guarda como archivos, recomprimiéndolos por el camino."
-    >
+    <Panel title="Mover las imágenes de las hojas a R2">
       <div className="space-y-3 text-sm text-ink-soft">
-        <p>
-          Las imágenes guardadas dentro de la base viajan en base64 dentro de cada consulta (un 33% más de peso) y el
-          navegador no puede cachearlas: abrir dos veces la misma hoja la descargaba dos veces. Como archivos con su
-          URL, el navegador las guarda en disco y no vuelve a pedirlas.
-        </p>
-
         {loading ? (
           <Spinner />
         ) : total === 0 ? (
@@ -67,11 +58,6 @@ export function MigrateImagesPanel() {
             Quedan <b>{total}</b> {total === 1 ? 'imagen' : 'imágenes'} por migrar.
           </p>
         )}
-
-        <p className="text-xs">
-          Se puede interrumpir y volver a lanzar sin miedo: cada imagen se termina por completo antes de pasar a la
-          siguiente, así que al repetir el proceso continúa por donde se quedó.
-        </p>
 
         <Button variant="primary" onClick={handleRun} disabled={running || total === 0}>
           {running ? 'Migrando…' : 'Migrar imágenes ahora'}

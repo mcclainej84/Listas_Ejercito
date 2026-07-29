@@ -556,6 +556,27 @@ CREATE TABLE faction_construction_rules (
 -- ofrece más de una — si solo tiene una, se auto-selecciona (con o sin
 -- coste, según tenga o no `unit_profiles.cost`).
 -- ----------------------------------------------------------------------------
+-- Composición del ejército: cuántas unidades de cada categoría son
+-- OBLIGATORIAS (mínimo) o como mucho permitidas (máximo), según los puntos de
+-- la lista.
+--
+-- Configuración GLOBAL: una sola para todos los ejércitos, no por lista ni por
+-- facción. Una categoría sin fila aquí simplemente no tiene restricción.
+--
+-- No se guarda la tabla del reglamento fila a fila, sino la REGLA que la
+-- genera: valor base + cuánto sube por cada tramo de puntos (ver
+-- TIER_START_POINTS/TIER_SIZE_POINTS en domain/armyComposition.ts). Guardar
+-- filas obligaría a añadirlas a mano para 5.000, 6.000… y dejaría fuera
+-- cualquier categoría creada desde "Categorías y Etiquetas".
+-- ----------------------------------------------------------------------------
+CREATE TABLE category_composition_rules (
+    category_id INTEGER PRIMARY KEY REFERENCES unit_categories(id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL CHECK (kind IN ('min', 'max')),
+    base        INTEGER NOT NULL DEFAULT 0,   -- valor en el tramo más bajo
+    step        INTEGER NOT NULL DEFAULT 0    -- cuánto sube por cada tramo
+);
+
+-- ----------------------------------------------------------------------------
 CREATE TABLE army_lists (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     faction_id   INTEGER NOT NULL REFERENCES factions(id) ON DELETE CASCADE,

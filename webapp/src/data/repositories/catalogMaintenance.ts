@@ -13,12 +13,14 @@ import { EQUIPMENT_ALIASES, UPGRADE_ALIASES, expandName } from '@/domain/catalog
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { UpgradeRepository, UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
 import { seedMagicPaths } from '@/data/repositories/magicSeeding'
+import { seedDefaultCompositionRules } from '@/data/repositories/compositionRuleRepository'
 import type { AttributeProfileInput } from '@/domain/types'
 
 const RENAME_KEY = 'wharmy_catalog_rename_v1'
 const RULE_MERGE_KEY = 'wharmy_rule_merge_v1'
 const MOUNT_SHEETS_KEY = 'wharmy_mount_sheets_v1'
 const MAGIC_SEED_KEY = 'wharmy_magic_seed_v1'
+const COMPOSITION_SEED_KEY = 'wharmy_composicion_seed_v1'
 const ETIQUETAS_MAGIA_KEY = 'wharmy_etiquetas_magia_v1'
 // La versión se sube cuando se añaden correcciones nuevas, para que vuelvan a
 // aplicarse en navegadores que ya ejecutaron las anteriores.
@@ -538,6 +540,15 @@ export async function runCatalogMaintenance(): Promise<void> {
       setDone(ETIQUETAS_MAGIA_KEY)
     } catch (err) {
       console.warn('[WHArmy] No se pudieron crear las etiquetas Hechicero/Archimago:', err)
+    }
+  }
+
+  if (!flagDone(COMPOSITION_SEED_KEY)) {
+    try {
+      await seedDefaultCompositionRules()
+      setDone(COMPOSITION_SEED_KEY)
+    } catch (err) {
+      console.warn('[WHArmy] No se pudieron sembrar las reglas de composición:', err)
     }
   }
 

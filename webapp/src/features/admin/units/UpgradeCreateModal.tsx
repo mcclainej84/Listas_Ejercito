@@ -75,10 +75,6 @@ export function UpgradeCreateModal({ initialName, onClose, onCreated }: UpgradeC
           value={String(cost)}
           onChange={(e) => setCost(Number(e.target.value) || 0)}
         />
-        <p className="text-xs text-ink-soft">
-          Se crea en el catálogo global y se añade a esta unidad. Si además lleva ficha de atributos o reglas propias,
-          se le ponen desde Editor → Equipo y opciones.
-        </p>
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     </Modal>

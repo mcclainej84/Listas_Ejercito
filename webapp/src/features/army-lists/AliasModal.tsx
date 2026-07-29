@@ -70,9 +70,6 @@ export function AliasModal({
           </b>
           . El tipo no se pierde: es lo que dice qué reglas se aplican.
         </p>
-        <p className="text-mini text-ink-soft">
-          El nombre es de esta miniatura en esta lista, no de la unidad del catálogo. Se guarda con el ejército.
-        </p>
       </div>
     </Modal>
   )

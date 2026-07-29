@@ -109,6 +109,7 @@ const SNAPSHOT_TABLES = [
   'magic_paths',
   'magic_spells',
   'unit_magic_paths',
+  'category_composition_rules',
 ] as const
 
 /** Representación serializable en JSON de un BLOB (ver shared/image.ts en el frontend: mismo esquema base64). */
@@ -569,6 +570,17 @@ const MIGRATIONS: string[] = [
   // Nombre propio de una entrada de lista ("Jules el Bretón"), para poder
   // bautizar a los personajes sin perder de qué tipo son.
   'ALTER TABLE army_list_entries ADD COLUMN alias TEXT',
+
+  // Composición del ejército: cuántas unidades de cada categoría son
+  // obligatorias o como mucho permitidas, según los puntos de la lista. Es
+  // configuración GLOBAL (una sola para todos los ejércitos) — ver
+  // domain/armyComposition.ts.
+  `CREATE TABLE IF NOT EXISTS category_composition_rules (
+     category_id INTEGER PRIMARY KEY REFERENCES unit_categories(id) ON DELETE CASCADE,
+     kind        TEXT NOT NULL,
+     base        INTEGER NOT NULL DEFAULT 0,
+     step        INTEGER NOT NULL DEFAULT 0
+   )`,
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

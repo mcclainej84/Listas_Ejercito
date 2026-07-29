@@ -13,6 +13,55 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.56 — 29/07/2026 16:10
+
+**Fuera los textos que explican cómo funciona el programa.** Quien usa la
+aplicación ya lo sabe; esos párrafos solo ocupaban sitio y desplazaban hacia
+abajo lo que de verdad importa. Retirados de: Selección de puntos (los dos),
+Nueva opción de unidad, Nombre propio, Hojas de Unidad (subida de imagen y
+arrastre), Sendas de magia y el panel de migración de imágenes.
+
+Se conserva lo que **no** es explicación sino información: la vista previa del
+nombre según lo vas escribiendo, los avisos de una senda que se sale de la
+norma, y el motivo por el que un botón está desactivado.
+
+## 0.55 — 29/07/2026 15:40
+
+**«Selección de puntos»: cuántas unidades exige o permite el ejército.**
+
+Botón nuevo en la pantalla de Ejércitos. Es configuración **común a todos los
+ejércitos**, no de cada lista, así que vive en el listado y no dentro de una.
+
+Viene ya configurada con la tabla del reglamento:
+
+| Puntos | Básicas | Especiales | Singulares |
+|---|---|---|---|
+| < 2.000 | 2+ | 0-3 | 0-1 |
+| 2.000 - 2.999 | 3+ | 0-4 | 0-2 |
+| 3.000 - 3.999 | 4+ | 0-5 | 0-3 |
+
+**No se guarda esa tabla fila a fila, sino la regla que la genera**: por cada
+categoría, si es un mínimo obligatorio o un máximo permitido, su valor base y
+cuánto sube por cada 1.000 puntos. Así se extiende sola a 4.000, 5.000… sin
+tocar nada, y vale para cualquier categoría que crees en Categorías y
+Etiquetas, no solo para esas tres. La ventana enseña una vista previa de la
+tabla ya calculada, porque «base 2, +1» no dice nada por sí solo y «2+ / 3+ /
+4+» sí.
+
+El tramo lo marca el **límite de puntos de la lista**, no lo gastado: con lo
+gastado, los mínimos subirían mientras montas y una lista a medias siempre
+parecería incompleta.
+
+**Nunca da error.** Incumplir una regla no impide guardar ni exportar: sale un
+aviso —«Básicas: llevas 1 y hacen falta 2 como mínimo», «Especiales: llevas 4 y
+el máximo es 3»—. Además la barra de puntos enseña el estado en todo momento
+(«Básicas 2/2+ · Especiales 4/0-3», en rojo lo que no cumple), para verlo
+mientras montas y no descubrirlo al final.
+
+Ojo al sentido de cada regla, que es lo que más se confunde: **Básicas** es un
+mínimo y no tiene tope —llevar diez está bien—; **Especiales** y **Singulares**
+son un máximo y son opcionales —llevar cero está bien—.
+
 ## 0.54 — 29/07/2026 14:45
 
 - **Los nombres propios son solo para personajes.** Una unidad de tropa son

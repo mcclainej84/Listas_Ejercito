@@ -3,7 +3,9 @@ import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { ArmyListRepository } from '@/data/repositories/armyListRepository'
 import { UnitRepository } from '@/data/repositories/unitRepository'
-import { EquipmentRepository, UpgradeRepository } from '@/data/repositories/lookupRepositories'
+import { EquipmentRepository, UnitCategoryRepository, UpgradeRepository } from '@/data/repositories/lookupRepositories'
+import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRepository'
+import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useSession } from '@/shared/session/useSession'
 import { UserRepository } from '@/data/repositories/userRepository'
@@ -197,6 +199,8 @@ export function ArmyListBuilderPage() {
   const { user } = useSession()
   const { data: incompatiblePairs } = useAsync(() => EquipmentRepository.listIncompatibilities())
   const { data: upgradeIncompatiblePairs } = useAsync(() => UpgradeRepository.listIncompatibilities())
+  const { data: compositionRules } = useAsync(() => CompositionRuleRepository.listAll())
+  const { data: categories } = useAsync(() => UnitCategoryRepository.listAll())
 
   // --- Estado editable local (el "borrador") ---------------------------------
   // `entries` es la fuente de verdad de la pantalla mientras se edita; se
@@ -383,7 +387,25 @@ export function ArmyListBuilderPage() {
 
   const currentEntries = entries ?? list.entries
   const total = computeListTotal(currentEntries)
-  const listIssues = validateList(currentEntries, pointsLimit)
+
+  // Composición del ejército (Selección de puntos): cuántas unidades de cada
+  // categoría exige o permite el reglamento con estos puntos.
+  //
+  // Manda el LÍMITE de la lista, no lo gastado: con el gastado, los mínimos
+  // subirían solos mientras montas y una lista a medio hacer siempre parecería
+  // incompleta. Con el límite sabes desde el primer momento qué te van a pedir.
+  //
+  // Los incumplimientos son AVISOS, nunca errores: la lista se guarda igual.
+  const compositionChecks = checkComposition(
+    currentEntries,
+    compositionRules ?? [],
+    pointsLimit,
+    new Map((categories ?? []).map((c) => [c.id, c.name])),
+  )
+  const listIssues = [
+    ...validateList(currentEntries, pointsLimit),
+    ...compositionWarnings(compositionChecks).map((message) => ({ severity: 'warning' as const, message })),
+  ]
   const overPoints = pointsLimit != null && total > pointsLimit
 
   const effectiveFactionId = browseFactionId ?? list.factionId
@@ -968,6 +990,28 @@ export function ArmyListBuilderPage() {
               Te quedan <b className="text-ink">{pointsLimit - total}</b> pts.
             </span>
           ))}
+
+        {/* Estado de la composición SIEMPRE a la vista, no solo cuando falla:
+            así se ve lo que el reglamento pide con estos puntos mientras
+            montas, en vez de descubrirlo al final por un aviso. */}
+        {compositionChecks.length > 0 && (
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {compositionChecks.map((check) => (
+              <span
+                key={check.categoryId}
+                className={clsx('tabular-nums', check.ok ? 'text-ink-soft' : 'font-medium text-danger')}
+                title={
+                  check.kind === 'min'
+                    ? `${check.categoryName}: mínimo obligatorio con este límite de puntos`
+                    : `${check.categoryName}: máximo permitido con este límite de puntos`
+                }
+              >
+                {check.categoryName} <b className={check.ok ? 'text-ink' : undefined}>{check.count}</b>
+                <span className="text-ink-soft/70">/{formatRuleValue(check.kind, check.required)}</span>
+              </span>
+            ))}
+          </span>
+        )}
       </div>
 
       {saveError && (

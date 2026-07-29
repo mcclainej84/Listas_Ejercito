@@ -49,12 +49,7 @@ import {
   sectionWidth,
   type SheetSection,
 } from '@/domain/sheetSections'
-import {
-  compressImageFile,
-  formatBytes,
-  MAX_EMBLEM_BYTES,
-  MAX_ILLUSTRATION_BYTES,
-} from '@/shared/image'
+import { compressImageFile, MAX_EMBLEM_BYTES, MAX_ILLUSTRATION_BYTES } from '@/shared/image'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
@@ -919,10 +914,6 @@ export function FichasPage() {
                           className="hidden"
                           onChange={(e) => handleIlluFile(e.target.files?.[0])}
                         />
-                        <p className="mt-1.5 text-[10.5px] text-ink-soft">
-                          Vale cualquier tamaño: la imagen se reduce y se comprime aquí mismo (hasta{' '}
-                          {formatBytes(MAX_ILLUSTRATION_BYTES)}) conservando la transparencia.
-                        </p>
 
                         {draft.illuUrl && (
                           <div className="mt-3 space-y-3">
@@ -962,11 +953,6 @@ export function FichasPage() {
                                 Restablecer encuadre
                               </IconButton>
                             </div>
-                            <p className="text-[10.5px] text-ink-soft">
-                              Arrastra la imagen desde cualquier punto para colocarla donde quieras — puede salirse por
-                              los bordes. Con la imagen enfocada, las flechas del teclado la mueven píxel a píxel
-                              (Mayús, de 10 en 10).
-                            </p>
                           </div>
                         )}
                       </div>
