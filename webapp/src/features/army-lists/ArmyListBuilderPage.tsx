@@ -5,6 +5,8 @@ import { ArmyListRepository } from '@/data/repositories/armyListRepository'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { EquipmentRepository, UnitCategoryRepository, UpgradeRepository } from '@/data/repositories/lookupRepositories'
 import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRepository'
+import { MagicRepository } from '@/data/repositories/magicRepository'
+import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useSession } from '@/shared/session/useSession'
@@ -19,7 +21,7 @@ import {
   type EntryReconcileNote,
 } from '@/domain/armyValidation'
 import { formatArmorSave, mergeSpecialRules } from '@/domain/unitFormat'
-import type { ArmyListEntry, ArmyListEntryInput, UnitDetail } from '@/domain/types'
+import type { ArmyListEntry, ArmyListEntryInput, EntryMagicPath, UnitDetail } from '@/domain/types'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
@@ -153,6 +155,8 @@ interface EntryDraft {
   hasChampion: boolean
   mountProfileId: number | null
   chariotProfileId: number | null
+  /** Sendas con su nivel. Solo se rellena en hechiceros (ver unit.isWizard). */
+  magicPaths: EntryMagicPath[]
 }
 
 const EMPTY_DRAFT: EntryDraft = {
@@ -166,6 +170,7 @@ const EMPTY_DRAFT: EntryDraft = {
   hasChampion: false,
   mountProfileId: null,
   chariotProfileId: null,
+  magicPaths: [],
 }
 
 const EDITOR_OPEN_KEY = 'wharmy_ejercitos_editor_abierto'
@@ -201,6 +206,7 @@ export function ArmyListBuilderPage() {
   const { data: upgradeIncompatiblePairs } = useAsync(() => UpgradeRepository.listIncompatibilities())
   const { data: compositionRules } = useAsync(() => CompositionRuleRepository.listAll())
   const { data: categories } = useAsync(() => UnitCategoryRepository.listAll())
+  const { data: magicPaths } = useAsync(() => MagicRepository.listPaths())
 
   // --- Estado editable local (el "borrador") ---------------------------------
   // `entries` es la fuente de verdad de la pantalla mientras se edita; se
@@ -251,6 +257,9 @@ export function ArmyListBuilderPage() {
   const [confirmClear, setConfirmClear] = useState(false)
   /** Entrada a la que se le está poniendo nombre propio (null = el diálogo está cerrado). */
   const [namingEntry, setNamingEntry] = useState<ArmyListEntry | null>(null)
+  // La sección de magia nace PLEGADA: la mayoría de entradas no son
+  // hechiceros y, de las que lo son, casi nunca se toca la magia al editarlas.
+  const [entryMagicOpen, setEntryMagicOpen] = useState(false)
 
   // El editor (añadir unidad + ficha) se puede plegar para ver el ejército
   // entero sin desplazarse. Se recuerda entre visitas, misma convención que el
@@ -467,6 +476,7 @@ export function ArmyListBuilderPage() {
         detail.profiles.carro.length === 1 && !hasCost(detail.profiles.carro[0])
           ? detail.profiles.carro[0].id
           : null,
+      magicPaths: [],
     })
     setEntryIssues([])
   }
@@ -513,6 +523,7 @@ export function ArmyListBuilderPage() {
       hasChampion: entry.hasChampion,
       mountProfileId: entry.mountProfileId,
       chariotProfileId: entry.chariotProfileId,
+      magicPaths: entry.magicPaths,
     })
     setEntryIssues([])
   }
@@ -544,6 +555,10 @@ export function ArmyListBuilderPage() {
       // propia fila (ver el icono de nombre en "Unidades en la lista"). Al
       // EDITAR una entrada existente hay que conservar el que ya tuviera.
       alias: currentEntries.find((e) => e.id === draft.editingEntryId)?.alias ?? null,
+      // Solo los hechiceros llevan sendas: si se desmarca "Hechicero" en el
+      // catálogo, las que hubiera dejan de guardarse en vez de quedarse
+      // colgando en una entrada que ya no puede lanzarlas.
+      magicPaths: selectedUnit.isWizard ? draft.magicPaths : [],
       equipmentIds: [...draft.equipmentIds],
       upgradeIds: [...draft.upgradeIds],
     }
@@ -575,6 +590,7 @@ export function ArmyListBuilderPage() {
       hasChampion: input.hasChampion,
       championName: null,
       alias: input.alias,
+      magicPaths: input.magicPaths,
       sortOrder: 0,
       equipmentIds: input.equipmentIds,
       upgradeIds: input.upgradeIds,
@@ -651,6 +667,7 @@ export function ArmyListBuilderPage() {
         hasChampion: e.hasChampion,
         championName: e.championName,
         alias: e.alias,
+        magicPaths: e.magicPaths,
         equipmentIds: e.equipmentIds,
         upgradeIds: e.upgradeIds,
       }))
@@ -865,6 +882,19 @@ export function ArmyListBuilderPage() {
             </option>
           ))}
         </Select>
+      )}
+
+      {/* Solo a los personajes marcados como HECHICERO en el Editor. Las
+          sendas y su nivel son de esta miniatura en esta lista, no del
+          catálogo. */}
+      {selectedUnit.isWizard && (
+        <EntryMagicSection
+          paths={magicPaths ?? []}
+          value={draft.magicPaths}
+          onChange={(next) => setDraft((d) => ({ ...d, magicPaths: next }))}
+          open={entryMagicOpen}
+          onToggle={() => setEntryMagicOpen((v) => !v)}
+        />
       )}
 
       {(commandRoleAvailable.portaestandarte || commandRoleAvailable.musico || commandRoleAvailable.campeon) && (

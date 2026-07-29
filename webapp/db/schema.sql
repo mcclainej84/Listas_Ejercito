@@ -318,9 +318,14 @@ CREATE TABLE units (
     -- Por defecto todo activo.
     active            INTEGER NOT NULL DEFAULT 1,
 
-    -- Nivel de mago (1 a 4). NULL = no es hechicera, que es lo normal. Las
-    -- sendas que conoce van aparte, en unit_magic_paths, porque puede saber
-    -- varias — ver domain/magic.ts.
+    -- Marca de HECHICERO. Solo dice si la unidad lanza hechizos; qué sendas
+    -- lleva y de qué nivel se decide al meterla en un ejército
+    -- (army_list_entry_magic_paths), no aquí: dos Videntes Grises de dos
+    -- listas distintas pueden llevar sendas distintas.
+    is_wizard         INTEGER NOT NULL DEFAULT 0,
+
+    -- Resto de una versión anterior en la que el nivel era de la unidad. Ya no
+    -- se escribe desde ningún sitio; se conserva para no perder lo guardado.
     magic_level       INTEGER
 );
 
@@ -616,6 +621,19 @@ CREATE TABLE army_list_entries (
 );
 
 CREATE INDEX idx_army_list_entries_list ON army_list_entries(army_list_id);
+
+-- Sendas de magia de una entrada de lista, cada una con su NIVEL.
+--
+-- El nivel vive aquí y no en la unidad porque puede ser distinto por senda: un
+-- mismo hechicero puede llevar Fuego a nivel 2 y Bestias a nivel 1. Y vive en
+-- la ENTRADA y no en el catálogo porque es una decisión de esta lista: el
+-- mismo personaje en otro ejército puede llevar otras sendas.
+CREATE TABLE army_list_entry_magic_paths (
+    entry_id INTEGER NOT NULL REFERENCES army_list_entries(id) ON DELETE CASCADE,
+    path_id  INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+    level    INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (entry_id, path_id)
+);
 
 -- Piezas de equipo elegidas para esta entrada (N:M) — a diferencia del "Hoja
 -- de Ejército" original (un único desplegable de equipo por fila), aquí se

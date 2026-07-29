@@ -198,6 +198,8 @@ export const ImportRepository = {
         equipmentText: fields.equipText ? p.equipmentText : detail.equipmentText,
         armorSave: fields.equipText ? p.armorSave : detail.armorSave,
         notes: detail.notes,
+        // La magia no se importa de los libros: se marca a mano en la ficha.
+        isWizard: detail.isWizard,
       })
 
       // 2) Perfil de atributos base.

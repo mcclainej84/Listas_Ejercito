@@ -164,11 +164,11 @@ export interface Unit {
    */
   isUnique: boolean
   /**
-   * Nivel de mago (1 a 4), o `null` si la unidad no lanza hechizos — que es
-   * la inmensa mayoría. Las sendas que conoce viven aparte (unit_magic_paths)
-   * porque puede saber varias a la vez; ver domain/magic.ts.
+   * Si la unidad lanza hechizos. Solo eso: QUÉ sendas lleva y de qué nivel se
+   * decide al meterla en un ejército (ver ArmyListEntry.magicPaths), no aquí —
+   * el mismo personaje puede llevar sendas distintas en dos listas.
    */
-  magicLevel: number | null
+  isWizard: boolean
   /** Equipo básico que la unidad siempre lleva (texto libre; sin dato de origen, se rellena desde Administración). */
   equipmentText: string | null
   /** Tirada de salvación por armadura (T.S.). Vacía por defecto; se rellena desde Administración. */
@@ -350,9 +350,22 @@ export interface ArmyListEntry {
    * falta para saber qué reglas se aplican. null = sin nombre propio.
    */
   alias: string | null
+  /**
+   * Sendas de magia de ESTA miniatura en ESTA lista, cada una con su nivel.
+   *
+   * El nivel es por senda y no del personaje: puede llevar Fuego a nivel 2 y
+   * Bestias a nivel 1. Solo tiene sentido si `unit.isWizard`.
+   */
+  magicPaths: EntryMagicPath[]
   sortOrder: number
   equipmentIds: number[]
   upgradeIds: number[]
+}
+
+/** Una senda conocida por una entrada de lista, con el nivel al que la lanza. */
+export interface EntryMagicPath {
+  pathId: number
+  level: number
 }
 
 export interface ArmyListDetail extends ArmyList {
@@ -372,6 +385,8 @@ export interface ArmyListEntryInput {
   championName: string | null
   /** Nombre propio de la miniatura en la lista (ver ArmyListEntry.alias). */
   alias: string | null
+  /** Sendas de magia con su nivel (ver ArmyListEntry.magicPaths). */
+  magicPaths: EntryMagicPath[]
   equipmentIds: number[]
   upgradeIds: number[]
 }

@@ -76,9 +76,9 @@ function mapUnit(row: Record<string, unknown>): Unit {
     // La columna `active` puede no venir todavía si la D1 no se ha migrado
     // (ver worker MIGRATIONS): en ese caso se asume activa.
     active: row.active == null ? true : Boolean(row.active),
-    // Nivel de mago (1-4) o null si no es hechicera, que es lo normal. Las
-    // sendas que conoce se cargan aparte, en getDetailById.
-    magicLevel: (row.magic_level as number) ?? null,
+    // Marca de hechicero. La columna puede no existir todavía si la D1 no se
+    // ha migrado: en ese caso, no es hechicera.
+    isWizard: Boolean(row.is_wizard),
   }
 }
 
@@ -99,6 +99,8 @@ export interface UnitScalarInput {
   equipmentText: string | null
   armorSave: number | null
   notes: string | null
+  /** Si lanza hechizos. Solo se ofrece en personajes (ver UnitDetailPage). */
+  isWizard: boolean
 }
 
 /** Datos mínimos para dar de alta una unidad desde cero; el resto (equipo, reglas, perfil...) se completa luego en su ficha. */
@@ -603,7 +605,7 @@ export const UnitRepository = {
     await execCatalog(
       `UPDATE units
        SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?, default_size = ?,
-           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?
+           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
        WHERE id = ?`,
       [
         input.name,
@@ -617,6 +619,7 @@ export const UnitRepository = {
         input.equipmentText,
         input.armorSave,
         input.notes,
+        input.isWizard ? 1 : 0,
         id,
       ],
     )
@@ -739,7 +742,7 @@ export const UnitRepository = {
     statements.push({
       sql: `UPDATE units
        SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?, default_size = ?,
-           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?
+           is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
        WHERE id = ?`,
       params: [
         input.scalar.name,

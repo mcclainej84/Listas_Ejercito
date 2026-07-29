@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.57 — 29/07/2026 17:15
+
+**Hechiceros y sus sendas.**
+
+- **Tick «Hechicero»** en la ficha de unidad, solo para personajes. Dice
+  únicamente si lanza hechizos.
+- **Sección «Magia» al añadir un personaje a un ejército**, solo si está
+  marcado como hechicero. Se le añaden varias sendas y **cada una con su
+  propio nivel** (1 a 4), porque puede llevar Fuego a 2 y Bestias a 1. Plegable
+  y plegada por defecto; la cabecera resume lo que lleva («Fuego 2 · Bestias
+  1») para no tener que abrirla.
+
+Las sendas y niveles son de **esa miniatura en esa lista**, no del catálogo: el
+mismo Vidente Gris puede llevar sendas distintas en dos ejércitos. Se guardan
+con la lista y se copian al duplicarla.
+
+Sobre la composición de la sección: son 30 sendas en el catálogo y un hechicero
+lleva dos o tres. Pintar las 30 con su casilla y su selector llenaría la
+pantalla de controles apagados, así que solo se ven las elegidas —una línea con
+su nivel y su papelera— más un desplegable para añadir la siguiente. El nivel
+va en cuatro botones en vez de un desplegable: son cuatro valores y así se ve
+sin desplegar nada.
+
 ## 0.56 — 29/07/2026 16:10
 
 **Fuera los textos que explican cómo funciona el programa.** Quien usa la

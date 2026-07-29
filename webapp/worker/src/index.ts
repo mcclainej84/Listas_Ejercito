@@ -581,6 +581,20 @@ const MIGRATIONS: string[] = [
      base        INTEGER NOT NULL DEFAULT 0,
      step        INTEGER NOT NULL DEFAULT 0
    )`,
+
+  // Marca de hechicero. Solo dice SI la unidad lanza hechizos; qué sendas y de
+  // qué nivel se decide al meterla en un ejército, no en el catálogo.
+  'ALTER TABLE units ADD COLUMN is_wizard INTEGER NOT NULL DEFAULT 0',
+
+  // Sendas de una entrada de lista, con su NIVEL propio: un mismo hechicero
+  // puede llevar Fuego nivel 2 y Bestias nivel 1 a la vez, de ahí que el nivel
+  // viva en esta tabla y no en la unidad.
+  `CREATE TABLE IF NOT EXISTS army_list_entry_magic_paths (
+     entry_id INTEGER NOT NULL REFERENCES army_list_entries(id) ON DELETE CASCADE,
+     path_id  INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
+     level    INTEGER NOT NULL DEFAULT 1,
+     PRIMARY KEY (entry_id, path_id)
+   )`,
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

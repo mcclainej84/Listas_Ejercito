@@ -11,7 +11,7 @@ import { queryLocal } from '@/data/sqlite/localCatalog'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { computeCategoryInsertIndex } from '@/domain/armyValidation'
-import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput } from '@/domain/types'
+import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput, EntryMagicPath } from '@/domain/types'
 
 function mapArmyList(row: Record<string, unknown>): ArmyList {
   return {
@@ -42,7 +42,7 @@ async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry
   // Las tres consultas son independientes entre sí (ninguna depende del
   // resultado de otra: unit_id y row.id ya se conocen desde el principio),
   // así que se lanzan en paralelo en vez de una detrás de otra.
-  const [unit, equipmentIds, upgradeIds] = await Promise.all([
+  const [unit, equipmentIds, upgradeIds, magicPaths] = await Promise.all([
     UnitRepository.getDetailById(row.unit_id as number),
     query<number>(
       'SELECT equipment_id FROM army_list_entry_equipment WHERE entry_id = ?',
@@ -54,6 +54,13 @@ async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry
       [row.id as number],
       (r) => r.upgrade_id as number,
     ),
+    // Las sendas viven en su propia tabla porque cada una lleva su NIVEL:
+    // un hechicero puede tener Fuego a 2 y Bestias a 1 en la misma entrada.
+    query<EntryMagicPath>(
+      'SELECT path_id, level FROM army_list_entry_magic_paths WHERE entry_id = ?',
+      [row.id as number],
+      (r) => ({ pathId: r.path_id as number, level: (r.level as number) ?? 1 }),
+    ).catch(() => [] as EntryMagicPath[]),
   ])
   if (!unit) return null // unidad borrada después de añadirla a la lista: se omite en vez de romper la carga
 
@@ -69,6 +76,7 @@ async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry
     hasChampion: Boolean(row.has_champion),
     championName: (row.champion_name as string) ?? null,
     alias: (row.alias as string) ?? null,
+    magicPaths,
     sortOrder: row.sort_order as number,
     equipmentIds,
     upgradeIds,
@@ -83,6 +91,7 @@ async function replaceEntryRelations(
   entryId: number,
   equipmentIds: number[],
   upgradeIds: number[],
+  magicPaths: EntryMagicPath[] = [],
 ): Promise<void> {
   const statements: BatchStatement[] = [
     { sql: 'DELETE FROM army_list_entry_equipment WHERE entry_id = ?', params: [entryId] },
@@ -94,6 +103,11 @@ async function replaceEntryRelations(
     ...upgradeIds.map((upgradeId) => ({
       sql: 'INSERT OR IGNORE INTO army_list_entry_upgrades (entry_id, upgrade_id) VALUES (?, ?)',
       params: [entryId, upgradeId],
+    })),
+    { sql: 'DELETE FROM army_list_entry_magic_paths WHERE entry_id = ?', params: [entryId] },
+    ...magicPaths.map((path) => ({
+      sql: 'INSERT OR IGNORE INTO army_list_entry_magic_paths (entry_id, path_id, level) VALUES (?, ?, ?)',
+      params: [entryId, path.pathId, path.level],
     })),
   ]
   await execBatch(statements)
@@ -196,6 +210,7 @@ export const ArmyListRepository = {
           hasChampion: e.hasChampion,
           championName: e.championName,
           alias: e.alias,
+          magicPaths: e.magicPaths,
           equipmentIds: e.equipmentIds,
           upgradeIds: e.upgradeIds,
         })),
@@ -300,7 +315,7 @@ export const ArmyListRepository = {
         existingRows.length, // provisional (al final); se corrige justo debajo
       ],
     )
-    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds)
+    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds, input.magicPaths)
 
     const orderedIds = existingRows.map((r) => r.id)
     orderedIds.splice(insertIndex, 0, entryId)
@@ -348,7 +363,7 @@ export const ArmyListRepository = {
         entryId,
       ],
     )
-    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds)
+    await replaceEntryRelations(entryId, input.equipmentIds, input.upgradeIds, input.magicPaths)
     await touchList(armyListId)
   },
 
@@ -419,6 +434,12 @@ export const ArmyListRepository = {
         statements.push({
           sql: 'INSERT OR IGNORE INTO army_list_entry_upgrades (entry_id, upgrade_id) VALUES (?, ?)',
           params: [entryId, upgradeId],
+        })
+      }
+      for (const path of entry.magicPaths) {
+        statements.push({
+          sql: 'INSERT OR IGNORE INTO army_list_entry_magic_paths (entry_id, path_id, level) VALUES (?, ?, ?)',
+          params: [entryId, path.pathId, path.level],
         })
       }
     })

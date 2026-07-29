@@ -80,6 +80,7 @@ function scalarFromUnit(unit: UnitDetail): UnitScalarInput {
     equipmentText: unit.equipmentText,
     armorSave: unit.armorSave,
     notes: unit.notes,
+    isWizard: unit.isWizard,
   }
 }
 
@@ -518,6 +519,24 @@ export function UnitDetailPage() {
                 </Select>
               </div>
             </div>
+
+            {/* HECHICERO. Solo en personajes: una tropa no lanza hechizos. La
+                marca dice únicamente SI lo es; qué sendas lleva y de qué nivel
+                se elige al meterlo en un ejército, porque el mismo personaje
+                puede llevar sendas distintas en dos listas. */}
+            {unit.unitType === 'personaje' && (
+              <div className="mt-4">
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    className="accent-maroon"
+                    checked={draft.scalar.isWizard}
+                    onChange={(e) => updateDraft((d) => ({ ...d, scalar: { ...d.scalar, isWizard: e.target.checked } }))}
+                  />
+                  Hechicero
+                </label>
+              </div>
+            )}
 
             {/* "0-1" solo tiene sentido en unidades de tropa: un personaje es
                 siempre una sola miniatura, así que ni se muestra ni se puede
