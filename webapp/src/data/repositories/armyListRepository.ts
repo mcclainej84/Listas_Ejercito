@@ -28,6 +28,13 @@ function mapArmyList(row: Record<string, unknown>): ArmyList {
 export interface ArmyListSummary extends ArmyList {
   factionName: string
   entryCount: number
+  /**
+   * La lista es de OTRO y la estás viendo porque te la han compartido. Solo se
+   * puede mirar y exportar.
+   */
+  shared: boolean
+  /** Quién te la compartió; null si es tuya. */
+  ownerName: string | null
 }
 
 export interface ArmyListCreateInput {
@@ -124,20 +131,91 @@ export const ArmyListRepository = {
    * una corrección de datos, en vez de mostrarse a todo el mundo.
    */
   async listAll(userId: number): Promise<ArmyListSummary[]> {
-    return query(
-      `SELECT al.*, f.name AS faction_name,
-              (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count
+    // Dos orígenes en una sola consulta: las TUYAS y las que te han
+    // COMPARTIDO. Las tuyas primero (`es_mia` primero en el ORDER BY) porque
+    // son con las que se trabaja; las compartidas son de consulta.
+    //
+    // Si la tabla de compartidos todavía no existe (Worker sin desplegar), la
+    // consulta entera fallaría y te quedarías sin ver ni tus propias listas.
+    // Por eso se intenta primero la completa y, si falla, se cae a la de
+    // siempre.
+    const conCompartidas = `
+       SELECT al.*, f.name AS faction_name,
+              (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count,
+              CASE WHEN al.user_id = ?1 THEN 1 ELSE 0 END AS es_mia,
+              (SELECT u.username FROM users u WHERE u.id = al.user_id) AS owner_name
        FROM army_lists al
        JOIN factions f ON f.id = al.faction_id
-       WHERE al.user_id = ?
-       ORDER BY al.updated_at DESC`,
-      [userId],
-      (row) => ({
+       WHERE al.user_id = ?1
+          OR EXISTS (SELECT 1 FROM army_list_shares s WHERE s.army_list_id = al.id AND s.user_id = ?1)
+       ORDER BY es_mia DESC, al.updated_at DESC`
+
+    const mapear = (row: Record<string, unknown>): ArmyListSummary => {
+      const mia = (row.es_mia as number) !== 0
+      return {
         ...mapArmyList(row),
         factionName: row.faction_name as string,
         entryCount: row.entry_count as number,
-      }),
-    )
+        shared: !mia,
+        ownerName: mia ? null : ((row.owner_name as string) ?? null),
+      }
+    }
+
+    try {
+      return await query(conCompartidas, [userId], mapear)
+    } catch {
+      return await query(
+        `SELECT al.*, f.name AS faction_name,
+                (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count,
+                1 AS es_mia, NULL AS owner_name
+         FROM army_lists al
+         JOIN factions f ON f.id = al.faction_id
+         WHERE al.user_id = ?
+         ORDER BY al.updated_at DESC`,
+        [userId],
+        mapear,
+      )
+    }
+  },
+
+  // ---- Compartir --------------------------------------------------------
+
+  /** Usuarios con los que está compartida una lista. */
+  async getShareUserIds(armyListId: number): Promise<number[]> {
+    try {
+      return await query<number>(
+        'SELECT user_id FROM army_list_shares WHERE army_list_id = ?',
+        [armyListId],
+        (r) => r.user_id as number,
+      )
+    } catch {
+      return []
+    }
+  },
+
+  /** Sustituye entera la lista de destinatarios. */
+  async setShareUserIds(armyListId: number, userIds: number[]): Promise<void> {
+    await execBatch([
+      { sql: 'DELETE FROM army_list_shares WHERE army_list_id = ?', params: [armyListId] },
+      ...userIds.map((userId) => ({
+        sql: 'INSERT OR IGNORE INTO army_list_shares (army_list_id, user_id) VALUES (?, ?)',
+        params: [armyListId, userId],
+      })),
+    ])
+  },
+
+  /** ¿Le han compartido esta lista a este usuario? Decide si puede abrirla (en solo lectura). */
+  async isSharedWith(armyListId: number, userId: number): Promise<boolean> {
+    try {
+      const filas = await query<number>(
+        'SELECT user_id FROM army_list_shares WHERE army_list_id = ? AND user_id = ?',
+        [armyListId, userId],
+        (r) => r.user_id as number,
+      )
+      return filas.length > 0
+    } catch {
+      return false
+    }
   },
 
   async create(input: ArmyListCreateInput): Promise<number> {

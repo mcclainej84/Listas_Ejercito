@@ -11,9 +11,11 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { TrashIcon } from '@/shared/ui/icons'
+import { TrashIcon, LockIcon } from '@/shared/ui/icons'
+import { Tooltip } from '@/shared/ui/Tooltip'
 import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
 import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
+import { ShareArmyListModal } from '@/features/army-lists/ShareArmyListModal'
 
 /**
  * "Mis ejércitos": listado de listas guardadas, con crear/renombrar/borrar y
@@ -46,6 +48,7 @@ export function ArmyListsPage() {
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null)
   const [editingComposition, setEditingComposition] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const [sharing, setSharing] = useState<ArmyListSummary | null>(null)
 
   /**
    * Copia una lista con todas sus entradas y se queda en el listado (no abre
@@ -116,31 +119,55 @@ export function ArmyListsPage() {
           {(lists ?? []).map((list) => (
             <div key={list.id} className="group flex items-center justify-between gap-4 px-4 py-3">
               <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
-                <p className="font-display text-lg font-semibold text-maroon">{list.name}</p>
+                <p className="flex items-center gap-1.5 font-display text-lg font-semibold text-maroon">
+                  {list.name}
+                  {/* El candado, aquí y en la propia lista al abrirla: hay que
+                      poder distinguir de un vistazo cuáles son tuyas antes de
+                      entrar, no descubrirlo al intentar cambiar algo. */}
+                  {list.shared && (
+                    <Tooltip label="Compartida contigo: solo lectura" className="inline-flex text-ink-soft">
+                      <LockIcon className="h-4 w-4" />
+                    </Tooltip>
+                  )}
+                </p>
                 <p className="mt-0.5 text-xs text-ink-soft">
                   {list.factionName} · {list.entryCount} {list.entryCount === 1 ? 'entrada' : 'entradas'}
                   {list.pointsLimit != null && <> · límite {list.pointsLimit} pts</>}
+                  {list.shared && list.ownerName && <> · de {list.ownerName}</>}
                 </p>
               </button>
-              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze disabled:cursor-wait disabled:opacity-50"
-                  onClick={() => handleDuplicate(list)}
-                  disabled={duplicatingId === list.id}
-                  aria-label={`Duplicar ${list.name}`}
-                  title="Duplicar esta lista"
-                >
-                  {duplicatingId === list.id ? 'Copiando…' : 'Duplicar'}
-                </button>
-                <button
-                  className="rounded-sm px-1.5 py-0.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
-                  onClick={() => setDeleting(list)}
-                  aria-label={`Borrar ${list.name}`}
-                  title="Borrar"
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {/* Duplicar, compartir y borrar son cosa del dueño. En una lista
+                  compartida contigo no salen: no es que fallen, es que no
+                  existen. */}
+              {!list.shared && (
+                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze"
+                    onClick={() => setSharing(list)}
+                    aria-label={`Compartir ${list.name}`}
+                    title="Compartir esta lista con otros usuarios"
+                  >
+                    Compartir
+                  </button>
+                  <button
+                    className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze disabled:cursor-wait disabled:opacity-50"
+                    onClick={() => handleDuplicate(list)}
+                    disabled={duplicatingId === list.id}
+                    aria-label={`Duplicar ${list.name}`}
+                    title="Duplicar esta lista"
+                  >
+                    {duplicatingId === list.id ? 'Copiando…' : 'Duplicar'}
+                  </button>
+                  <button
+                    className="rounded-sm px-1.5 py-0.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                    onClick={() => setDeleting(list)}
+                    aria-label={`Borrar ${list.name}`}
+                    title="Borrar"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -161,6 +188,16 @@ export function ArmyListsPage() {
             setCreating(false)
             navigate(`/ejercitos/${id}`)
           }}
+        />
+      )}
+
+      {sharing && user && (
+        <ShareArmyListModal
+          armyListId={sharing.id}
+          listName={sharing.name}
+          ownerId={user.id}
+          onClose={() => setSharing(null)}
+          onSaved={() => setSharing(null)}
         />
       )}
 

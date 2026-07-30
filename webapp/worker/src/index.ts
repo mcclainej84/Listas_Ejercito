@@ -616,6 +616,14 @@ const MIGRATIONS: string[] = [
   // el cálculo. Se distingue a propósito de 0, que es un coste válido
   // ("gratis") y no lo mismo que "sin retocar".
   'ALTER TABLE army_list_entries ADD COLUMN cost_override INTEGER',
+  // Ejércitos COMPARTIDOS: una fila por lista y usuario con quien se comparte.
+  // El destinatario la ve, pero no la puede tocar; quien manda sigue siendo
+  // army_lists.user_id.
+  `CREATE TABLE IF NOT EXISTS army_list_shares (
+     army_list_id INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     PRIMARY KEY (army_list_id, user_id)
+   )`,
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

@@ -367,3 +367,14 @@ export function PencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
     </svg>
   )
 }
+
+/** Candado — marca un ejército compartido por otro usuario: se puede mirar, no tocar. */
+export function LockIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+      <rect x="4.5" y="8.5" width="11" height="7.5" rx="1.2" />
+      <path d="M7 8.5V6.6a3 3 0 0 1 6 0v1.9" strokeLinecap="round" />
+      <circle cx="10" cy="12.2" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

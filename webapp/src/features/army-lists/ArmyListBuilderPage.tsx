@@ -49,6 +49,7 @@ import {
   WarningIcon,
   PencilIcon,
   NameTagIcon,
+  LockIcon,
   type ShieldMetal,
 } from '@/shared/ui/icons'
 import { AttributeTable } from '@/shared/ui/AttributeTable'
@@ -367,6 +368,16 @@ export function ArmyListBuilderPage() {
   // (carga/privacidad/error) a propósito — los Hooks de React deben correr en
   // el mismo orden en TODOS los renders, y esos `return` solo se alcanzan
   // después de que la lista termine de cargar.
+  // ¿Me han compartido esta lista? Solo se pregunta si no es mía; el resultado
+  // decide entre "solo lectura" y "no puedes abrirla".
+  const esDeOtro = list != null && list.userId != null && user != null && list.userId !== user.id
+  const { data: compartidaConmigo, loading: cargandoComparticion } = useAsync(
+    () => (esDeOtro && list && user ? ArmyListRepository.isSharedWith(list.id, user.id) : Promise.resolve(false)),
+    [esDeOtro, list?.id, user?.id],
+  )
+  /** Compartida contigo: se mira y se exporta, no se toca. */
+  const soloLectura = esDeOtro && compartidaConmigo === true
+
   const selectedFactionId = selectedUnit?.faction.id
   useEffect(() => {
     if (selectedFactionId == null) {
@@ -382,11 +393,12 @@ export function ArmyListBuilderPage() {
     }
   }, [selectedFactionId])
 
-  if (loading) return <Spinner />
+  if (loading || cargandoComparticion) return <Spinner />
 
-  // Los ejércitos son privados: si la lista tiene dueño y no eres tú, no se
-  // abre aunque llegues por un enlace directo.
-  if (list && list.userId != null && user && list.userId !== user.id) {
+  // Los ejércitos son privados: si la lista es de otro y NO te la ha
+  // compartido, no se abre aunque llegues por un enlace directo. Si te la ha
+  // compartido, se abre en solo lectura (ver `soloLectura`).
+  if (esDeOtro && !soloLectura) {
     return (
       <div>
         <button onClick={() => navigate('/ejercitos')} className="mb-3 text-sm text-ink-soft hover:text-ink">
@@ -394,7 +406,7 @@ export function ArmyListBuilderPage() {
         </button>
         <div className="rounded-sm border border-rule-dark/40 bg-parchment/70 px-4 py-3">
           <p className="text-sm text-ink">Este ejército es de otro usuario.</p>
-          <p className="mt-1 text-xs text-ink-soft">Cada usuario solo puede abrir sus propias listas.</p>
+          <p className="mt-1 text-xs text-ink-soft">Solo puedes abrir las tuyas y las que te hayan compartido.</p>
         </div>
       </div>
     )
@@ -1089,10 +1101,24 @@ export function ArmyListBuilderPage() {
         description={`Facción principal: ${list.faction.name}${pointsLimit != null ? ` · límite ${pointsLimit} pts` : ' · sin límite de puntos'}`}
         actions={
           <div className="flex items-center gap-3">
+            {/* Compartida contigo: se puede mirar y exportar, nada más. El
+                candado va en la cabecera, junto a los botones que SÍ funcionan,
+                para que se entienda antes de intentar cambiar algo. */}
+            {soloLectura && (
+              <span
+                className="flex items-center gap-1.5 rounded-sm border border-rule-dark/40 px-2 py-1 text-xs font-medium text-ink-soft"
+                title="Este ejército es de otro usuario y te lo ha compartido: puedes verlo y exportarlo, pero no editarlo"
+              >
+                <LockIcon className="h-3.5 w-3.5" />
+                Solo lectura
+              </span>
+            )}
             {dirty && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}
-            <Button variant="ghost" onClick={() => setEditingSettings(true)}>
-              Editar lista
-            </Button>
+            {!soloLectura && (
+              <Button variant="ghost" onClick={() => setEditingSettings(true)}>
+                Editar lista
+              </Button>
+            )}
             <Button variant="secondary" onClick={handleExportPdf} disabled={exportingPdf || currentEntries.length === 0}>
               {exportingPdf ? 'Generando…' : '📄 Exportar Lista'}
             </Button>
@@ -1103,9 +1129,11 @@ export function ArmyListBuilderPage() {
             >
               {exportingSheets ? 'Generando…' : '📄 Exportar Hojas de unidad'}
             </Button>
-            <Button variant="primary" onClick={handleSaveList} disabled={!dirty || savingList}>
-              {savingList ? 'Guardando…' : 'Guardar ejército'}
-            </Button>
+            {!soloLectura && (
+              <Button variant="primary" onClick={handleSaveList} disabled={!dirty || savingList}>
+                {savingList ? 'Guardando…' : 'Guardar ejército'}
+              </Button>
+            )}
           </div>
         }
       />
@@ -1227,6 +1255,10 @@ export function ArmyListBuilderPage() {
           pergamino ensuciaba la pantalla.
           La BARRA de cabecera sí lo lleva: es lo que se pulsa, y sin fondo no
           se leía como una barra sino como un título suelto. */}
+      {/* En solo lectura el marco de añadir/editar no se esconde ni se
+          deshabilita: no se pinta. Un formulario apagado sigue ocupando media
+          pantalla y sugiriendo que algo se puede hacer ahí. */}
+      {!soloLectura && (
       <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40">
         <button
           type="button"
@@ -1523,6 +1555,7 @@ export function ArmyListBuilderPage() {
       </div>
         )}
       </section>
+      )}
 
       <div className="mt-6">
         <Panel
@@ -1536,7 +1569,7 @@ export function ArmyListBuilderPage() {
             </Tooltip>
           }
           headerRight={
-            currentEntries.length > 0 ? (
+            currentEntries.length > 0 && !soloLectura ? (
               <div className="flex flex-wrap items-center gap-2">
                 {/* Ordenar REESCRIBE el orden de la lista (es lo que se pidió),
                     así que queda pendiente de guardar como cualquier otro
@@ -1660,7 +1693,7 @@ export function ArmyListBuilderPage() {
                     return (
                       <tr
                         key={entry.id}
-                        draggable
+                        draggable={!soloLectura}
                         onDragStart={(e) => {
                           e.stopPropagation()
                           dragEntryId.current = entry.id
@@ -1675,20 +1708,24 @@ export function ArmyListBuilderPage() {
                           handleDropEntry(entry.id)
                         }}
                         className={clsx(
-                          'cursor-pointer hover:bg-parchment-dark/40',
+                          !soloLectura && 'cursor-pointer hover:bg-parchment-dark/40',
                           draft.editingEntryId === entry.id && 'bg-bronze/10',
                           dragOverEntryId === entry.id && 'bg-bronze/10',
                         )}
-                        onClick={() => startEditEntry(entry)}
+                        onClick={() => {
+                          if (!soloLectura) startEditEntry(entry)
+                        }}
                       >
                         <td className="py-1.5 text-center align-middle">
-                          <span
-                            className="inline-flex cursor-grab p-1 text-ink-soft/60"
-                            title="Arrastra para reordenar"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <DragHandleIcon className="h-3.5 w-3.5" />
-                          </span>
+                          {!soloLectura && (
+                            <span
+                              className="inline-flex cursor-grab p-1 text-ink-soft/60"
+                              title="Arrastra para reordenar"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DragHandleIcon className="h-3.5 w-3.5" />
+                            </span>
+                          )}
                         </td>
                         <td className="py-1.5 text-center align-middle">
                           {entry.unit.faction.emblemUrl && (
@@ -1730,7 +1767,7 @@ export function ArmyListBuilderPage() {
                           {/* La segunda condición es una salida de emergencia:
                               si una tropa ya tuviera nombre de antes, hay que
                               poder quitárselo — si no, se quedaría clavado. */}
-                          {(entry.unit.unitType === 'personaje' || entry.alias) && (
+                          {!soloLectura && (entry.unit.unitType === 'personaje' || entry.alias) && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1798,7 +1835,16 @@ export function ArmyListBuilderPage() {
                           className="py-1.5 text-center align-middle font-medium text-ink"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {editingCostId === entry.id ? (
+                          {soloLectura ? (
+                            <>
+                              {cost}
+                              {entry.costOverride != null && (
+                                <Tooltip label="Coste escrito a mano por su autor" className="ml-1 inline-flex text-bronze">
+                                  <PencilIcon className="h-3 w-3" />
+                                </Tooltip>
+                              )}
+                            </>
+                          ) : editingCostId === entry.id ? (
                             <input
                               type="number"
                               min={0}
@@ -1851,6 +1897,7 @@ export function ArmyListBuilderPage() {
                           )}
                         </td>
                         <td className="py-1.5 text-center align-middle">
+                          {!soloLectura && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -1861,6 +1908,7 @@ export function ArmyListBuilderPage() {
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
                           </button>
+                          )}
                         </td>
                       </tr>
                     )

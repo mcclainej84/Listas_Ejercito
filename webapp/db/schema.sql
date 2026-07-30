@@ -601,6 +601,16 @@ CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);
 -- de Ejército original. `quantity` debe respetar units.min_size/max_size —
 -- la validación vive en domain/armyValidation.ts, no aquí (SQLite no puede
 -- expresar "entre el mínimo y el máximo de otra fila" en un CHECK simple).
+-- Ejércitos COMPARTIDOS con otros usuarios: una fila por lista y destinatario.
+-- El destinatario la ve en su sección de Ejércitos pero NO la puede editar;
+-- el dueño sigue siendo army_lists.user_id, que es quien decide con quién se
+-- comparte y quien puede borrarla.
+CREATE TABLE army_list_shares (
+    army_list_id INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (army_list_id, user_id)
+);
+
 CREATE TABLE army_list_entries (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     army_list_id        INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,

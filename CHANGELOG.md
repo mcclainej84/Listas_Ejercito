@@ -13,6 +13,22 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.69 — 30/07/2026 00:40
+
+- **Los ejércitos se pueden compartir.** En el listado, cada lista tuya tiene
+  un botón «Compartir» donde eliges con qué usuarios. A ellos les aparece en su
+  sección de Ejércitos, marcada con un **candado** y con el nombre de quien se
+  la compartió.
+- Una lista compartida contigo es de **solo lectura**: se abre, se consulta y
+  se exporta a PDF, pero no se edita. En ella no se pinta el marco de añadir
+  unidades ni salen los botones de guardar, ordenar, limpiar, renombrar,
+  arrastrar, borrar ni tocar el coste — no es que estén apagados, es que no
+  existen. En la cabecera hay un distintivo «Solo lectura» con el mismo
+  candado.
+- Un ejército sigue teniendo **un solo dueño**: si dos personas pudieran
+  editarlo, el borrador de cada una pisaría el de la otra al guardar y no
+  habría forma de saber cuál era el bueno.
+
 ## 0.68 — 30/07/2026 00:05
 
 - El **lápiz** de un coste retocado ya no es solo un aviso: pinchándolo se
