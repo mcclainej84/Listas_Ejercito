@@ -1110,25 +1110,25 @@ export function ArmyListBuilderPage() {
           para ver el ejército montado había que desplazarse, justo cuando lo
           que quieres es mirarlo entero. Plegado, el ejército cabe de una vez;
           y al pinchar cualquier unidad de la lista se despliega solo. */}
-      {/* Sin fondo propio: los dos paneles de dentro ("Unidad y opciones" y
-          "Ficha") ya traen el suyo, y apilar pergamino sobre pergamino
-          ensuciaba la pantalla. Solo queda el borde, que es lo que de verdad
-          hace falta para ver dónde empieza y acaba el marco plegable. */}
+      {/* El CUERPO va sin fondo propio: los dos paneles de dentro ("Unidad y
+          opciones" y "Ficha") ya traen el suyo, y apilar pergamino sobre
+          pergamino ensuciaba la pantalla.
+          La BARRA de cabecera sí lo lleva: es lo que se pulsa, y sin fondo no
+          se leía como una barra sino como un título suelto. */}
       <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40">
         <button
           type="button"
           onClick={() => toggleEditor(!editorOpen)}
           aria-expanded={editorOpen}
-          className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-parchment-dark/50"
+          className="flex w-full items-center justify-between gap-3 bg-parchment/70 px-4 py-2.5 text-left hover:bg-parchment-dark/50"
         >
           <span className="font-display text-lg font-semibold leading-tight text-ink">
             {draft.editingEntryId ? 'Editar entrada' : 'Añadir unidad'}
             {selectedUnit && <span className="ml-2 text-sm font-normal text-ink-soft">· {selectedUnit.name}</span>}
           </span>
-          <span className="flex items-center gap-2 text-xs font-medium text-ink-soft">
-            {editorOpen ? 'Minimizar' : 'Desplegar'}
-            <span className={clsx('text-sm transition-transform', editorOpen && 'rotate-90')}>›</span>
-          </span>
+          {/* Solo el galón: el rótulo "Minimizar"/"Desplegar" sobraba, la
+              flecha ya dice si está abierto o cerrado. */}
+          <span className={clsx('text-lg text-ink-soft transition-transform', editorOpen && 'rotate-90')}>›</span>
         </button>
 
         {editorOpen && (

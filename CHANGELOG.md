@@ -13,6 +13,31 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.62 — 29/07/2026 20:45
+
+- **Nueva sección «Listado de hechizos» en el PDF**, con una cabecera por cada
+  personaje que lleve sendas y, bajo ella, sus hechizos agrupados por senda con
+  todos sus campos: dificultad, alcance, impactos, daño, si permanece, dónde se
+  lanza y sus reglas.
+  El **nivel** manda: de cada senda solo se imprimen los hechizos hasta el
+  nivel que tenga el mago, para no tener que ir descartando a ojo en plena
+  partida. Misma retícula, misma paleta y mismo criterio de alineación que las
+  tres tablas anteriores. Si en el ejército no hay magos, la sección no sale.
+
+## 0.61 — 29/07/2026 20:10
+
+- En Ejércitos, la barra de «Añadir unidad» recupera su fondo: el cuerpo del
+  marco sigue transparente, pero la barra vuelve a leerse como una barra. Fuera
+  el rótulo «Minimizar»/«Desplegar»; queda solo el galón.
+- **Alineación de las tablas del PDF, igual en las tres**: todas las cabeceras
+  centradas, todos los datos centrados, y a la izquierda solo el texto corrido
+  —nombres, equipo, opciones y reglas—, que es lo único que se lee como frase.
+  «Coste» pasa de la derecha al centro.
+- En «Perfiles y reglas especiales» del PDF, **fuera los perfiles repetidos**:
+  tres regimientos de Arqueros repetían tres veces la misma fila. Solo se
+  descarta una entrada si produce exactamente las mismas filas que otra, así
+  que dos personajes con montura distinta siguen apareciendo los dos.
+
 ## 0.60 — 29/07/2026 19:30
 
 - **Las reglas destacadas de una facción son ahora universales.** Dejan de ser

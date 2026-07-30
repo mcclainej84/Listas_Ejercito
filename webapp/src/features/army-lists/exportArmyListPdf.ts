@@ -14,12 +14,16 @@
 //   - El PDF se abre en una pestaña nueva del navegador (doc.output +
 //     window.open) en vez de descargarse directamente — el usuario decide
 //     desde ahí si lo guarda, lo imprime o solo lo consulta.
+//   - Hay una cuarta sección, "Listado de hechizos", que el original no tenía
+//     porque no manejaba magia. Sigue la misma retícula y la misma paleta.
 // Todo lo demás (colores, fuentes, tamaños, textos, orden de secciones,
 // lógica de salto de página) es una copia 1:1.
 // ============================================================================
 import { jsPDF } from 'jspdf'
 import autoTable, { type CellHookData } from 'jspdf-autotable'
 import { computeEntryCost } from '@/domain/armyValidation'
+import { MagicRepository } from '@/data/repositories/magicRepository'
+import { MAGIC_GROUP_LABELS, type MagicPathDetail, type MagicSpell } from '@/domain/magic'
 import { mergeSpecialRules } from '@/domain/unitFormat'
 import type { ArmyListDetail, ArmyListEntry, AttributeProfile, SpecialRule } from '@/domain/types'
 
@@ -199,6 +203,19 @@ function dibujarPiePagina(doc: jsPDF, pagina: number, totalPaginas: number, nomb
   doc.text(texto, w / 2, h - 9, { align: 'center' })
 }
 
+/**
+ * Centra los rótulos de la fila de cabecera, sea cual sea la alineación de su
+ * columna.
+ *
+ * Hace falta un hook y no basta con `headStyles: { halign: 'center' }` porque
+ * en jspdf-autotable `columnStyles` gana a `headStyles`: al alinear una columna
+ * a la izquierda se llevaba también su cabecera, y el resultado eran rótulos a
+ * la izquierda, al centro y a la derecha en la misma fila.
+ */
+function centrarCabecera(data: CellHookData) {
+  if (data.section === 'head') data.cell.styles.halign = 'center'
+}
+
 /** Filete fino bajo la fila de cabecera de una tabla (theme "plain" no dibuja bordes propios). */
 function dibujarBordeInferiorCabecera(data: CellHookData) {
   if (data.section !== 'head') return
@@ -209,6 +226,48 @@ function dibujarBordeInferiorCabecera(data: CellHookData) {
 function filaEstadisticas(nombre: string, ficha: AttributeProfile | null): string[] {
   const g = (v: string | null | undefined) => (v !== undefined && v !== null && v !== '' ? v : '-')
   return [nombre, g(ficha?.m), g(ficha?.ha), g(ficha?.hp), g(ficha?.f), g(ficha?.r), g(ficha?.h), g(ficha?.i), g(ficha?.a), g(ficha?.l)]
+}
+
+/**
+ * Fila de un hechizo. El guion largo marca el campo que la senda no rellena,
+ * igual que en las fichas de atributos: una celda en blanco no distingue entre
+ * "no aplica" y "se nos olvidó".
+ */
+function filaHechizo(h: MagicSpell): string[] {
+  const g = (v: string | null | undefined) => (v != null && v !== '' ? v : '—')
+  return [
+    String(h.level),
+    h.name,
+    g(h.difficulty),
+    g(h.range),
+    g(h.hits),
+    g(h.damage),
+    h.staysActive ? 'Sí' : '—',
+    g(h.cac),
+    g(h.rules),
+  ]
+}
+
+/**
+ * Rótulo de segundo nivel (el nombre de un personaje dentro del "Listado de
+ * hechizos"). Más pequeño que el de sección y sin filete a lo ancho, para que
+ * se lea como lo que es: un escalón por debajo.
+ */
+function dibujarSubtitulo(doc: jsPDF, texto: string, y: number, familiaTitulares: string): number {
+  doc.setFont(familiaTitulares, 'bold')
+  doc.setFontSize(8.6)
+  doc.setTextColor(...INK)
+  doc.text(texto, MARGEN, y, { charSpace: 0.2 })
+  return y + 3.2
+}
+
+/**
+ * Cómo se nombra una entrada en el PDF: si la miniatura tiene nombre propio
+ * manda el nombre y el tipo va entre paréntesis. Mismo criterio en la lista de
+ * unidades y en el listado de hechizos, para poder cruzarlas de un vistazo.
+ */
+function nombreDeLaEntrada(entry: ArmyListEntry): string {
+  return entry.alias ? `${entry.alias} (${entry.unit.name})` : entry.unit.name
 }
 
 /**
@@ -271,11 +330,10 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
           .map((u) => u.name)
         return [
           String(entry.quantity),
-          // Igual que en pantalla: si la miniatura tiene nombre propio manda
-          // el nombre y el tipo va entre paréntesis. El PDF es lo que se lleva
-          // a la partida, así que es justo donde más sentido tiene ver
+          // Ver nombreDeLaEntrada: el PDF es lo que se lleva a la partida,
+          // así que es justo donde más sentido tiene leer
           // "Jules el Bretón (Paladín Bretoniano)".
-          entry.alias ? `${entry.alias} (${entry.unit.name})` : entry.unit.name,
+          nombreDeLaEntrada(entry),
           equipNames.join(', ') || '--',
           upgradeNames.join(', ') || '--',
           entry.hasStandardBearer ? 'X' : '',
@@ -313,6 +371,10 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
       fontSize: 7.4,
       cellPadding: { top: 0.8, bottom: 0.8, left: 2.2, right: 2.2 },
     },
+    // Criterio de alineación, el mismo en las tres tablas: los DATOS van
+    // centrados y solo el texto corrido —nombres, equipo, opciones, reglas—
+    // va a la izquierda, porque es lo único que se lee como frase y no como
+    // valor. Las cabeceras van todas centradas (ver centrarCabecera).
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
       1: { cellWidth: 'auto', halign: 'left' },
@@ -321,9 +383,10 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
       4: { cellWidth: 8, halign: 'center' },
       5: { cellWidth: 8, halign: 'center' },
       6: { cellWidth: 8, halign: 'center' },
-      7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' },
+      7: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
     },
     alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+    didParseCell: centrarCabecera,
     didDrawCell: dibujarBordeInferiorCabecera,
   })
 
@@ -340,19 +403,34 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
     reglas: string
   }
   const cuerpoPerfiles: FilaPerfil[] = []
+  // Esta tabla es una REFERENCIA de perfiles, no un recuento del ejército: la
+  // lista de arriba ya dice cuántas unidades hay de cada cosa. Llevar tres
+  // regimientos de Arqueros repetía tres veces la misma fila de atributos y
+  // las mismas reglas, alargando el PDF sin añadir un solo dato.
+  //
+  // Se descarta una entrada solo si produce EXACTAMENTE las mismas filas que
+  // otra anterior —perfil, atributos, reglas y sus monturas/carros—, así que
+  // dos Paladines con montura distinta siguen apareciendo los dos: ahí las
+  // filas ya no son iguales.
+  const vistas = new Set<string>()
   for (const entry of sortedEntries) {
     const unit = entry.unit
     const rulesText = reglasDeLaEntrada(entry).map((r) => r.name).join(', ') || '—'
-    cuerpoPerfiles.push({ datos: filaEstadisticas(unit.name, unit.profiles.base), reglas: rulesText })
+    const filas: FilaPerfil[] = [{ datos: filaEstadisticas(unit.name, unit.profiles.base), reglas: rulesText }]
 
     const montura = entry.mountProfileId ? unit.profiles.montura.find((p) => p.id === entry.mountProfileId) : null
     if (montura) {
-      cuerpoPerfiles.push({ datos: filaEstadisticas(`• ${montura.name ?? 'Montura'}`, montura), reglas: '' })
+      filas.push({ datos: filaEstadisticas(`• ${montura.name ?? 'Montura'}`, montura), reglas: '' })
     }
     const carro = entry.chariotProfileId ? unit.profiles.carro.find((p) => p.id === entry.chariotProfileId) : null
     if (carro) {
-      cuerpoPerfiles.push({ datos: filaEstadisticas(`• ${carro.name ?? 'Carro'}`, carro), reglas: '' })
+      filas.push({ datos: filaEstadisticas(`• ${carro.name ?? 'Carro'}`, carro), reglas: '' })
     }
+
+    const huella = JSON.stringify(filas)
+    if (vistas.has(huella)) continue
+    vistas.add(huella)
+    cuerpoPerfiles.push(...filas)
   }
 
   const filasTabla2 = cuerpoPerfiles.length
@@ -401,6 +479,7 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
     },
     alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
     didParseCell: (data) => {
+      centrarCabecera(data)
       if (data.section !== 'body') return
       const primeraCelda = Array.isArray(data.row.raw) ? data.row.raw[0] : undefined
       const esSubfila = typeof primeraCelda === 'string' && primeraCelda.startsWith('•')
@@ -464,8 +543,136 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
       1: { cellWidth: 'auto', halign: 'left' },
     },
     alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+    didParseCell: centrarCabecera,
     didDrawCell: dibujarBordeInferiorCabecera,
   })
+
+  // --- Sección 4: Listado de hechizos, por personaje y por senda. ---
+  //
+  // Solo aparece si algún personaje de la lista lleva sendas: en un ejército
+  // sin magos, una sección vacía sería una página de más que hay que pasar.
+  //
+  // El NIVEL manda. Un mago de nivel 2 puede lanzar los hechizos de nivel 1 y
+  // 2 de sus sendas, no los de 3 y 4, así que aquí solo se imprimen los que de
+  // verdad puede llevar. Sacar los siete de cada senda obligaría a ir
+  // descartando a ojo en plena partida, que es justo lo que este listado
+  // existe para evitar.
+  const entradasConMagia = sortedEntries.filter((e) => e.magicPaths.length > 0)
+  if (entradasConMagia.length > 0) {
+    // El catálogo de sendas se pide una sola vez, ya con sus hechizos dentro.
+    let sendas: MagicPathDetail[] = []
+    try {
+      sendas = await MagicRepository.listPathsWithSpells()
+    } catch {
+      sendas = []
+    }
+    const sendaPorId = new Map(sendas.map((p) => [p.id, p]))
+
+    let finalYGlosario = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y3
+    if (finalYGlosario + ALTURA_MINIMA > doc.internal.pageSize.getHeight() - ALTURA_PIE) {
+      doc.addPage()
+      finalYGlosario = 26
+    }
+    let yMagia = dibujarEtiquetaSeccion(doc, 'Listado de hechizos', finalYGlosario + 8, familiaTitulares)
+
+    for (const entry of entradasConMagia) {
+      // Un subtítulo solo al pie de la página quedaría huérfano, con su tabla
+      // empezando en la siguiente. Se comprueba que quepa el rótulo más unas
+      // filas antes de escribirlo.
+      if (yMagia + ALTURA_MINIMA > doc.internal.pageSize.getHeight() - ALTURA_PIE) {
+        doc.addPage()
+        yMagia = 26
+      }
+
+      const elegidas = entry.magicPaths
+        .map((mp) => ({ senda: sendaPorId.get(mp.pathId), nivel: mp.level }))
+        .filter((x): x is { senda: MagicPathDetail; nivel: number } => x.senda != null)
+
+      const resumen = elegidas.map((x) => `${x.senda.name} (nivel ${x.nivel})`).join('  ·  ')
+      yMagia = dibujarSubtitulo(doc, nombreDeLaEntrada(entry), yMagia, familiaTitulares)
+      if (resumen) {
+        doc.setFont('times', 'italic')
+        doc.setFontSize(7)
+        doc.setTextColor(...INK_SUAVE)
+        doc.text(resumen, MARGEN, yMagia + 1.5)
+        yMagia += 4.4
+      }
+
+      // Una fila de grupo por senda (a todo lo ancho) y debajo sus hechizos.
+      // Agrupar así, en vez de repetir el nombre de la senda en una columna,
+      // deja el ancho entero para los datos del hechizo, que son muchos.
+      const filas: (string | { content: string; colSpan: number })[][] = []
+      for (const { senda, nivel } of elegidas) {
+        const hechizos = senda.spells
+          .filter((h) => h.level <= nivel)
+          .sort((a, b) => a.level - b.level || a.sortOrder - b.sortOrder)
+        filas.push([
+          {
+            content: `${senda.name.toUpperCase()}  ·  ${MAGIC_GROUP_LABELS[senda.group]}  ·  hasta nivel ${nivel}`,
+            colSpan: 9,
+          },
+        ])
+        if (hechizos.length === 0) {
+          filas.push([{ content: 'Esta senda no tiene hechizos hasta ese nivel.', colSpan: 9 }])
+          continue
+        }
+        for (const h of hechizos) filas.push(filaHechizo(h))
+      }
+
+      autoTable(doc, {
+        startY: yMagia,
+        margin: { top: 26, bottom: ALTURA_PIE, left: MARGEN, right: MARGEN },
+        head: [['NV', 'HECHIZO', 'DIF.', 'ALCANCE', 'IMPACTOS', 'DAÑO', 'PERM.', 'DÓNDE', 'REGLAS']],
+        body: filas,
+        theme: 'plain',
+        styles: {
+          font: 'times',
+          fontSize: 6.8,
+          textColor: rgb(INK),
+          cellPadding: { top: 1, bottom: 1, left: 1.8, right: 1.8 },
+          overflow: 'linebreak',
+        },
+        headStyles: {
+          textColor: rgb(INK_SUAVE),
+          fontStyle: 'bold',
+          fontSize: 6.6,
+          cellPadding: { top: 0.8, bottom: 0.8, left: 1.8, right: 1.8 },
+        },
+        // Mismo criterio que las tablas de arriba: datos al centro, y a la
+        // izquierda solo lo que se lee como frase (el nombre y las reglas).
+        columnStyles: {
+          0: { cellWidth: 7, halign: 'center' },
+          1: { cellWidth: 32, halign: 'left' },
+          2: { cellWidth: 11, halign: 'center' },
+          3: { cellWidth: 17, halign: 'center' },
+          4: { cellWidth: 17, halign: 'center' },
+          5: { cellWidth: 17, halign: 'center' },
+          6: { cellWidth: 11, halign: 'center' },
+          7: { cellWidth: 20, halign: 'center' },
+          8: { cellWidth: 'auto', halign: 'left' },
+        },
+        alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+        didParseCell: (data) => {
+          centrarCabecera(data)
+          if (data.section !== 'body') return
+          // Las filas de senda son cabeceras internas: fondo propio y sin
+          // zebra, para que se vea dónde empieza cada senda.
+          const cruda = data.row.raw
+          const esGrupo = Array.isArray(cruda) && cruda.length === 1
+          if (esGrupo) {
+            data.cell.styles.fillColor = rgb(FONDO_ALT)
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.textColor = rgb(INK_SUAVE)
+            data.cell.styles.halign = 'left'
+            data.cell.styles.fontSize = 6.6
+          }
+        },
+        didDrawCell: dibujarBordeInferiorCabecera,
+      })
+
+      yMagia = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yMagia) + 6
+    }
+  }
 
   // --- Pie de página en todas las páginas del documento. ---
   const totalPaginas = doc.getNumberOfPages()
