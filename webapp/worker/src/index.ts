@@ -624,6 +624,15 @@ const MIGRATIONS: string[] = [
      user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
      PRIMARY KEY (army_list_id, user_id)
    )`,
+  // Despliegue: dónde se coloca cada entrada de la lista sobre la mesa.
+  // Las coordenadas van en CENTÍMETROS reales de mesa (0..180 x 0..120) y no
+  // en píxeles: así el plan sigue valiendo aunque el lienzo se dibuje a otro
+  // tamaño en otra pantalla.
+  `CREATE TABLE IF NOT EXISTS army_list_deployments (
+     entry_id INTEGER PRIMARY KEY REFERENCES army_list_entries(id) ON DELETE CASCADE,
+     x_cm     REAL NOT NULL,
+     y_cm     REAL NOT NULL
+   )`,
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

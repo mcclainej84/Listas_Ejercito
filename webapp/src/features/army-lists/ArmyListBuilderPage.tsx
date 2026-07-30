@@ -50,35 +50,16 @@ import {
   PencilIcon,
   NameTagIcon,
   LockIcon,
-  type ShieldMetal,
 } from '@/shared/ui/icons'
 import { AttributeTable } from '@/shared/ui/AttributeTable'
 import { ArmyListSettingsModal } from '@/features/army-lists/ArmyListSettingsModal'
 import { CompositionSummary } from '@/features/army-lists/CompositionSummary'
+import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { AliasModal } from '@/features/army-lists/AliasModal'
 import { SORT_LABELS, sortEntries, type SortCriterion } from '@/features/army-lists/sorting'
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
-
-/**
- * Escudo metálico por categoría en la lista de ejército: oro las Singulares,
- * bronce las Básicas y plata las Especiales. Los personajes no llevan escudo
- * (decisión del usuario), y tampoco las categorías sin metal asignado —
- * devolver null es lo correcto ahí, no inventarles uno.
- */
-function categoryShieldMetal(categoryCode: string | null | undefined): ShieldMetal | null {
-  switch (categoryCode) {
-    case 'SINGULAR':
-      return 'oro'
-    case 'BASICA':
-      return 'bronce'
-    case 'ESPECIAL':
-      return 'plata'
-    default:
-      return null
-  }
-}
 
 /**
  * Las tres columnas del grupo de mando. Se declaran una sola vez y se recorren
@@ -1114,6 +1095,9 @@ export function ArmyListBuilderPage() {
               </span>
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}
+            <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}/despliegue`)}>
+              Despliegue
+            </Button>
             {!soloLectura && (
               <Button variant="ghost" onClick={() => setEditingSettings(true)}>
                 Editar lista

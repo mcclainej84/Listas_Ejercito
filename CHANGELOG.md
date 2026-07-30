@@ -13,6 +13,38 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.71 — 30/07/2026 02:05
+
+- El **lienzo del despliegue ocupa todo el ancho** y la reserva pasa **debajo**,
+  en horizontal. Una mesa es apaisada: robarle una columna para un listado la
+  encogía justo en la dirección que más duele.
+- Cada peana lleva ahora el **emblema de la facción** dentro del cuadro y el
+  **nombre fuera**, debajo, flotando sobre la mesa sin caja ni fondo. El nombre
+  es lo único que hay que poder leer siempre; una etiqueta opaca por unidad
+  taparía justo el terreno que se está planificando.
+- **Peanas a escala real**: 12 × 10 cm un regimiento, 5 × 10 un carro (la peana
+  de 50 × 100 mm) y 4 × 4 los personajes, máquinas de guerra y asedio. Al ir a
+  escala, dos unidades pegadas en el lienzo están pegadas de verdad sobre la
+  mesa.
+
+## 0.70 — 30/07/2026 01:30
+
+- **Nueva pantalla «Despliegue»**, con su botón dentro de cada ejército. Un
+  lienzo con la mesa a escala (**180 × 120 cm**, con su retícula de 30 cm y la
+  línea central) y, al lado, la **reserva** con las unidades que aún no has
+  colocado. Al pinchar una, sale a la mesa como un estandarte con su nombre,
+  cantidad y coste, y se arrastra a donde quieras.
+- Las posiciones se guardan **en centímetros reales de mesa**, no en píxeles:
+  el mismo plan se ve igual en cualquier pantalla y las distancias siguen
+  significando algo. El estandarte no se sale del tablero y se puede afinar con
+  las flechas del teclado (1 cm, o 5 cm con Mayúsculas).
+- Se edita en memoria y se persiste con **«Guardar despliegue»**, como el
+  constructor de listas. Un ejército compartido contigo se puede consultar
+  pero no recolocar.
+- Todos los estandartes miden lo mismo: es un esquema de colocación, no una
+  medición. La base de datos no guarda el tamaño de peana, y un plan que
+  parezca medido sin estarlo engaña más de lo que ayuda.
+
 ## 0.69 — 30/07/2026 00:40
 
 - **Los ejércitos se pueden compartir.** En el listado, cada lista tuya tiene

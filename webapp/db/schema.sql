@@ -605,6 +605,21 @@ CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);
 -- El destinatario la ve en su sección de Ejércitos pero NO la puede editar;
 -- el dueño sigue siendo army_lists.user_id, que es quien decide con quién se
 -- comparte y quien puede borrarla.
+-- DESPLIEGUE: dónde se coloca cada entrada de la lista sobre la mesa, para
+-- poder preparar el plan antes de la partida.
+--
+-- Las coordenadas van en CENTÍMETROS REALES de mesa (0..180 x 0..120) y no en
+-- píxeles: el mismo plan se ve igual en un portátil y en un móvil, y las
+-- distancias siguen significando algo.
+--
+-- Una fila por entrada como mucho (entry_id es la clave): una unidad está en
+-- un sitio o no está desplegada. Sin fila = todavía en la reserva.
+CREATE TABLE army_list_deployments (
+    entry_id INTEGER PRIMARY KEY REFERENCES army_list_entries(id) ON DELETE CASCADE,
+    x_cm     REAL NOT NULL,
+    y_cm     REAL NOT NULL
+);
+
 CREATE TABLE army_list_shares (
     army_list_id INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

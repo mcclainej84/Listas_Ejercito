@@ -12,6 +12,7 @@ import { UnitRepository } from '@/data/repositories/unitRepository'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { computeCategoryInsertIndex } from '@/domain/armyValidation'
 import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput, EntryMagicPath } from '@/domain/types'
+import type { DeploymentPosition } from '@/domain/deployment'
 
 function mapArmyList(row: Record<string, unknown>): ArmyList {
   return {
@@ -200,6 +201,48 @@ export const ArmyListRepository = {
       ...userIds.map((userId) => ({
         sql: 'INSERT OR IGNORE INTO army_list_shares (army_list_id, user_id) VALUES (?, ?)',
         params: [armyListId, userId],
+      })),
+    ])
+  },
+
+  // ---- Despliegue -------------------------------------------------------
+
+  /**
+   * Dónde está colocada cada entrada de la lista sobre la mesa. Las entradas
+   * SIN fila no están desplegadas: siguen en la reserva del lateral.
+   */
+  async getDeployment(armyListId: number): Promise<DeploymentPosition[]> {
+    try {
+      return await query<DeploymentPosition>(
+        `SELECT d.entry_id, d.x_cm, d.y_cm
+           FROM army_list_deployments d
+           JOIN army_list_entries e ON e.id = d.entry_id
+          WHERE e.army_list_id = ?`,
+        [armyListId],
+        (r) => ({ entryId: r.entry_id as number, xCm: r.x_cm as number, yCm: r.y_cm as number }),
+      )
+    } catch {
+      return []
+    }
+  },
+
+  /**
+   * Sustituye entero el despliegue de una lista.
+   *
+   * Se borra por LISTA y no por entrada porque quitar una unidad de la mesa es
+   * borrar su fila: si solo se insertara lo que hay colocado, lo retirado se
+   * quedaría clavado en la mesa para siempre.
+   */
+  async saveDeployment(armyListId: number, posiciones: DeploymentPosition[]): Promise<void> {
+    await execBatch([
+      {
+        sql: `DELETE FROM army_list_deployments
+               WHERE entry_id IN (SELECT id FROM army_list_entries WHERE army_list_id = ?)`,
+        params: [armyListId],
+      },
+      ...posiciones.map((p) => ({
+        sql: 'INSERT OR REPLACE INTO army_list_deployments (entry_id, x_cm, y_cm) VALUES (?, ?, ?)',
+        params: [p.entryId, p.xCm, p.yCm],
       })),
     ])
   },

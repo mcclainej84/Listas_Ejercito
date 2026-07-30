@@ -17,6 +17,7 @@ import { LogPage } from '@/features/admin/log/LogPage'
 import { FichasPage } from '@/features/fichas/FichasPage'
 import { ArmyListsPage } from '@/features/army-lists/ArmyListsPage'
 import { ArmyListBuilderPage } from '@/features/army-lists/ArmyListBuilderPage'
+import { DeploymentPage } from '@/features/army-lists/DeploymentPage'
 
 // HashRouter (en vez de BrowserRouter): GitHub Pages no reescribe rutas del
 // lado del servidor, así que cualquier ruta "bonita" con BrowserRouter daría
@@ -165,6 +166,14 @@ const router = createHashRouter([
         element: (
           <PasswordGate>
             <ArmyListBuilderPage />
+          </PasswordGate>
+        ),
+      },
+      {
+        path: '/ejercitos/:id/despliegue',
+        element: (
+          <PasswordGate>
+            <DeploymentPage />
           </PasswordGate>
         ),
       },

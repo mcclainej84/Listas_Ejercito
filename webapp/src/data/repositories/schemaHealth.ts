@@ -53,6 +53,7 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Opciones de la lista de ejército', probe: 'SELECT show_mounts FROM users LIMIT 1' },
   { label: 'Coste retocado a mano', probe: 'SELECT cost_override FROM army_list_entries LIMIT 1' },
   { label: 'Ejércitos compartidos', probe: 'SELECT user_id FROM army_list_shares LIMIT 1' },
+  { label: 'Despliegue sobre la mesa', probe: 'SELECT x_cm FROM army_list_deployments LIMIT 1' },
   { label: 'Reglas destacadas por facción', probe: 'SELECT rule_id FROM faction_featured_rules LIMIT 1' },
 ]
 
