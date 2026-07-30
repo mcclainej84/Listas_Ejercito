@@ -633,6 +633,9 @@ const MIGRATIONS: string[] = [
      x_cm     REAL NOT NULL,
      y_cm     REAL NOT NULL
    )`,
+  // ¿Esta persona ve también el DESPLIEGUE, o solo la lista? Por defecto no:
+  // enseñarle el ejército a un rival no debería enseñarle dónde vas a colocar.
+  'ALTER TABLE army_list_shares ADD COLUMN share_deployment INTEGER NOT NULL DEFAULT 0',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

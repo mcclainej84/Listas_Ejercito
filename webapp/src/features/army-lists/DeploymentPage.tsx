@@ -100,11 +100,16 @@ export function DeploymentPage() {
   const inicioRecuadro = useRef<{ xCm: number; yCm: number } | null>(null)
 
   const esDeOtro = list != null && list.userId != null && user != null && list.userId !== user.id
-  const { data: compartida, loading: cargandoComparticion } = useAsync(
-    () => (esDeOtro && list && user ? ArmyListRepository.isSharedWith(list.id, user.id) : Promise.resolve(false)),
+  const { data: acceso, loading: cargandoComparticion } = useAsync(
+    () =>
+      esDeOtro && list && user
+        ? ArmyListRepository.getShareAccess(list.id, user.id)
+        : Promise.resolve({ compartida: false, conDespliegue: false }),
     [esDeOtro, list?.id, user?.id],
   )
-  const soloLectura = esDeOtro && compartida === true
+  const soloLectura = esDeOtro && acceso?.compartida === true
+  /** El despliegue se comparte aparte: puede estar compartida la lista y no él. */
+  const puedeVerlo = !esDeOtro || acceso?.conDespliegue === true
 
   /** Tamaño de peana por entrada, resuelto una vez por render. */
   const tamanoPorEntrada = new Map<number, TamanoCm>((list?.entries ?? []).map((e) => [e.id, tamanoDe(e)]))
@@ -219,6 +224,8 @@ export function DeploymentPage() {
     )
   }
 
+  // Dos negativas distintas y con mensajes distintos: no es lo mismo "esta
+  // lista no es tuya" que "esta lista sí, pero su despliegue no".
   if (esDeOtro && !soloLectura) {
     return (
       <div>
@@ -227,6 +234,22 @@ export function DeploymentPage() {
         </button>
         <div className="rounded-sm border border-rule-dark/40 bg-parchment/70 px-4 py-3">
           <p className="text-sm text-ink">Este ejército es de otro usuario.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!puedeVerlo) {
+    return (
+      <div>
+        <button onClick={() => navigate(`/ejercitos/${list.id}`)} className="mb-3 text-sm text-ink-soft hover:text-ink">
+          ← Volver al ejército
+        </button>
+        <div className="rounded-sm border border-rule-dark/40 bg-parchment/70 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm text-ink">
+            <LockIcon className="h-4 w-4 text-ink-soft" />
+            Te han compartido este ejército, pero no su despliegue.
+          </p>
         </div>
       </div>
     )

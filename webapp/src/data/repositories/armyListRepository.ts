@@ -38,6 +38,19 @@ export interface ArmyListSummary extends ArmyList {
   ownerName: string | null
 }
 
+/** Una persona con la que está compartida una lista. */
+export interface ArmyListShare {
+  userId: number
+  /** Si además de la lista ve el despliegue sobre la mesa. */
+  shareDeployment: boolean
+}
+
+/** Qué puede ver alguien de una lista que no es suya. */
+export interface ShareAccess {
+  compartida: boolean
+  conDespliegue: boolean
+}
+
 export interface ArmyListCreateInput {
   factionId: number
   name: string
@@ -181,13 +194,13 @@ export const ArmyListRepository = {
 
   // ---- Compartir --------------------------------------------------------
 
-  /** Usuarios con los que está compartida una lista. */
-  async getShareUserIds(armyListId: number): Promise<number[]> {
+  /** Con quién está compartida una lista, y si a cada uno se le enseña el despliegue. */
+  async getShares(armyListId: number): Promise<ArmyListShare[]> {
     try {
-      return await query<number>(
-        'SELECT user_id FROM army_list_shares WHERE army_list_id = ?',
+      return await query<ArmyListShare>(
+        'SELECT user_id, share_deployment FROM army_list_shares WHERE army_list_id = ?',
         [armyListId],
-        (r) => r.user_id as number,
+        (r) => ({ userId: r.user_id as number, shareDeployment: (r.share_deployment as number) !== 0 }),
       )
     } catch {
       return []
@@ -195,12 +208,12 @@ export const ArmyListRepository = {
   },
 
   /** Sustituye entera la lista de destinatarios. */
-  async setShareUserIds(armyListId: number, userIds: number[]): Promise<void> {
+  async setShares(armyListId: number, shares: ArmyListShare[]): Promise<void> {
     await execBatch([
       { sql: 'DELETE FROM army_list_shares WHERE army_list_id = ?', params: [armyListId] },
-      ...userIds.map((userId) => ({
-        sql: 'INSERT OR IGNORE INTO army_list_shares (army_list_id, user_id) VALUES (?, ?)',
-        params: [armyListId, userId],
+      ...shares.map((share) => ({
+        sql: 'INSERT OR IGNORE INTO army_list_shares (army_list_id, user_id, share_deployment) VALUES (?, ?, ?)',
+        params: [armyListId, share.userId, share.shareDeployment ? 1 : 0],
       })),
     ])
   },
@@ -247,17 +260,35 @@ export const ArmyListRepository = {
     ])
   },
 
-  /** ¿Le han compartido esta lista a este usuario? Decide si puede abrirla (en solo lectura). */
-  async isSharedWith(armyListId: number, userId: number): Promise<boolean> {
+  /**
+   * Qué puede ver este usuario de una lista que no es suya. Decide si la abre
+   * (en solo lectura) y si además ve su despliegue.
+   *
+   * Devuelve las DOS cosas de una vez porque el despliegue se comparte aparte:
+   * se puede tener acceso a la lista y no a su despliegue. Si la columna
+   * todavía no existe (Worker sin desplegar), se responde que sí al despliegue,
+   * que es como se comportaba antes de que esto se pudiera elegir: quitar
+   * acceso por una migración a medias sería un fallo desconcertante.
+   */
+  async getShareAccess(armyListId: number, userId: number): Promise<ShareAccess> {
     try {
-      const filas = await query<number>(
-        'SELECT user_id FROM army_list_shares WHERE army_list_id = ? AND user_id = ?',
+      const filas = await query<boolean>(
+        'SELECT share_deployment FROM army_list_shares WHERE army_list_id = ? AND user_id = ?',
         [armyListId, userId],
-        (r) => r.user_id as number,
+        (r) => (r.share_deployment as number) !== 0,
       )
-      return filas.length > 0
+      return { compartida: filas.length > 0, conDespliegue: filas[0] === true }
     } catch {
-      return false
+      try {
+        const filas = await query<number>(
+          'SELECT user_id FROM army_list_shares WHERE army_list_id = ? AND user_id = ?',
+          [armyListId, userId],
+          (r) => r.user_id as number,
+        )
+        return { compartida: filas.length > 0, conDespliegue: filas.length > 0 }
+      } catch {
+        return { compartida: false, conDespliegue: false }
+      }
     }
   },
 

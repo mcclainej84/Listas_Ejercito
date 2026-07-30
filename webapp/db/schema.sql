@@ -623,6 +623,10 @@ CREATE TABLE army_list_deployments (
 CREATE TABLE army_list_shares (
     army_list_id INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- ¿Ve también el DESPLIEGUE, o solo la lista? Va por destinatario y no por
+    -- lista: se le puede enseñar el ejército a un rival sin enseñarle dónde vas
+    -- a colocar, y compartírselo entero a un compañero de equipo.
+    share_deployment INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (army_list_id, user_id)
 );
 

@@ -352,12 +352,21 @@ export function ArmyListBuilderPage() {
   // ¿Me han compartido esta lista? Solo se pregunta si no es mía; el resultado
   // decide entre "solo lectura" y "no puedes abrirla".
   const esDeOtro = list != null && list.userId != null && user != null && list.userId !== user.id
-  const { data: compartidaConmigo, loading: cargandoComparticion } = useAsync(
-    () => (esDeOtro && list && user ? ArmyListRepository.isSharedWith(list.id, user.id) : Promise.resolve(false)),
+  const { data: acceso, loading: cargandoComparticion } = useAsync(
+    () =>
+      esDeOtro && list && user
+        ? ArmyListRepository.getShareAccess(list.id, user.id)
+        : Promise.resolve({ compartida: false, conDespliegue: false }),
     [esDeOtro, list?.id, user?.id],
   )
   /** Compartida contigo: se mira y se exporta, no se toca. */
-  const soloLectura = esDeOtro && compartidaConmigo === true
+  const soloLectura = esDeOtro && acceso?.compartida === true
+  /**
+   * El despliegue se comparte APARTE (ver ShareArmyListModal): en una lista de
+   * otro solo se llega a él si te lo han compartido expresamente. En la tuya,
+   * siempre.
+   */
+  const puedeVerDespliegue = !esDeOtro || acceso?.conDespliegue === true
 
   const selectedFactionId = selectedUnit?.faction.id
   useEffect(() => {
@@ -1095,9 +1104,11 @@ export function ArmyListBuilderPage() {
               </span>
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}
-            <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}/despliegue`)}>
-              Despliegue
-            </Button>
+            {puedeVerDespliegue && (
+              <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}/despliegue`)}>
+                Despliegue
+              </Button>
+            )}
             {!soloLectura && (
               <Button variant="ghost" onClick={() => setEditingSettings(true)}>
                 Editar lista

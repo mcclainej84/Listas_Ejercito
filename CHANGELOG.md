@@ -13,6 +13,19 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.74 — 30/07/2026 03:45
+
+- Al compartir un ejército, ahora se elige **por persona** si además ve el
+  **despliegue**. El diálogo tiene dos casillas: «Ejército» y «Despliegue».
+  Enseñarle la lista a un rival para que la revise antes de la partida no
+  debería enseñarle dónde vas a colocar; a un compañero de equipo sí.
+- La casilla del despliegue **nace apagada**, también en las listas ya
+  compartidas: lo que se comparte sin querer no se puede des-ver. Se enciende
+  en un clic.
+- A quien tiene la lista pero no el despliegue, el botón «Despliegue» ni le
+  aparece, y si llega por un enlace directo se encuentra un aviso claro en vez
+  de un error.
+
 ## 0.73 — 30/07/2026 03:10
 
 - **Selección múltiple en el despliegue.** Arrastrando sobre la mesa vacía se
