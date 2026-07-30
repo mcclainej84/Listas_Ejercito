@@ -16,6 +16,10 @@
 //     guarda, lo imprime o solo lo consulta.
 //   - Hay una cuarta sección, "Listado de hechizos", que el original no tenía
 //     porque no manejaba magia. Sigue la misma retícula y la misma paleta.
+//   - Hay una variante en BLANCO Y NEGRO (ver PALETA_BN), que sigue al
+//     interruptor de la barra superior. No es el PDF de color desaturado: se
+//     quita el fondo de pergamino y se separan los grises, porque el objetivo
+//     ahí es imprimirlo sin gastar media impresora.
 // Todo lo demás (colores, fuentes, tamaños, textos, orden de secciones,
 // lógica de salto de página) es una copia 1:1.
 // ============================================================================
@@ -33,12 +37,50 @@ const FONT_REGULAR_URL = `${import.meta.env.BASE_URL}assets/army-sheet/fonts/Cas
 const FONT_BOLD_URL = `${import.meta.env.BASE_URL}assets/army-sheet/fonts/CaslonAntique-Bold.ttf`
 const FONT_TITULARES = 'CaslonAntique'
 
-// Paleta EXACTA del original (PALETA_PDF en script.js).
-const INK = [40, 32, 24] as const // texto principal
-const INK_SUAVE = [112, 101, 87] as const // texto secundario / etiquetas
-const LINEA = [166, 163, 154] as const // #A6A39A — reglas y separadores
-const FONDO_ALT = [217, 209, 193] as const // franja de fila alterna (zebra)
-const FONDO_RESPALDO = [235, 229, 216] as const // sólo si la textura no llega a cargar
+type Color = readonly [number, number, number]
+
+interface Paleta {
+  /** Texto principal. */
+  ink: Color
+  /** Texto secundario y etiquetas. */
+  inkSuave: Color
+  /** Filetes y separadores. */
+  linea: Color
+  /** Franja de fila alterna (zebra). */
+  fondoAlt: Color
+  /** Fondo de página cuando no se usa la textura. */
+  fondoRespaldo: Color
+  /** Si se pinta el pergamino de fondo. */
+  conTextura: boolean
+}
+
+/** Paleta EXACTA del original (PALETA_PDF en script.js). */
+const PALETA_COLOR: Paleta = {
+  ink: [40, 32, 24],
+  inkSuave: [112, 101, 87],
+  linea: [166, 163, 154], // #A6A39A
+  fondoAlt: [217, 209, 193],
+  fondoRespaldo: [235, 229, 216], // sólo si la textura no llega a cargar
+  conTextura: true,
+}
+
+/**
+ * Blanco y negro PARA IMPRIMIR, que no es lo mismo que pasar el color a grises.
+ *
+ * Se quita el pergamino del fondo: en una impresora doméstica, un fondo a
+ * sangre en todas las páginas es un derroche de tinta y deja el texto sobre un
+ * gris sucio. Con el fondo fuera, los grises se pueden separar bien —negro
+ * casi puro para el texto, medio para lo secundario, claro para los filetes y
+ * la zebra— y la hoja sale legible y barata.
+ */
+const PALETA_BN: Paleta = {
+  ink: [26, 26, 26],
+  inkSuave: [90, 90, 90],
+  linea: [160, 160, 160],
+  fondoAlt: [238, 238, 238],
+  fondoRespaldo: [255, 255, 255],
+  conTextura: false,
+}
 
 // Dimensiones reales (px) de la textura — se conserva su proporción real
 // (encaje "a sangre completa" tipo cover, no un estirado que la deforme).
@@ -49,7 +91,7 @@ const ALTURA_PIE = 18
 const ALTURA_MINIMA = 34
 
 /** Copia una paleta `readonly [r,g,b]` a la tupla mutable que esperan los tipos de jspdf-autotable. */
-function rgb(color: readonly [number, number, number]): [number, number, number] {
+function rgb(color: Color): [number, number, number] {
   return [color[0], color[1], color[2]]
 }
 
@@ -92,22 +134,22 @@ async function registrarFuenteTitulares(doc: jsPDF): Promise<boolean> {
 }
 
 /** Fondo de pergamino a sangre completa (encaje tipo "cover", sin deformar), o color de respaldo si no cargó. */
-function dibujarFondoPagina(doc: jsPDF, texturaDataUrl: string | null) {
+function dibujarFondoPagina(doc: jsPDF, texturaDataUrl: string | null, paleta: Paleta) {
   const w = doc.internal.pageSize.getWidth()
   const h = doc.internal.pageSize.getHeight()
-  if (texturaDataUrl) {
+  if (texturaDataUrl && paleta.conTextura) {
     const escala = Math.max(w / TEXTURA_PX.ancho, h / TEXTURA_PX.alto)
     const anchoFinal = TEXTURA_PX.ancho * escala
     const altoFinal = TEXTURA_PX.alto * escala
     doc.addImage(texturaDataUrl, 'JPEG', (w - anchoFinal) / 2, (h - altoFinal) / 2, anchoFinal, altoFinal, undefined, 'FAST')
   } else {
-    doc.setFillColor(...FONDO_RESPALDO)
+    doc.setFillColor(...paleta.fondoRespaldo)
     doc.rect(0, 0, w, h, 'F')
   }
 }
 
-function dibujarFilete(doc: jsPDF, xIzq: number, xDer: number, y: number) {
-  doc.setDrawColor(...LINEA)
+function dibujarFilete(doc: jsPDF, xIzq: number, xDer: number, y: number, paleta: Paleta) {
+  doc.setDrawColor(...paleta.linea)
   doc.setLineWidth(0.3)
   doc.line(xIzq, y, xDer, y)
 }
@@ -115,7 +157,7 @@ function dibujarFilete(doc: jsPDF, xIzq: number, xDer: number, y: number) {
 /** Cabecera completa (sólo primera página): título centrado + placa de puntos totales a la derecha. */
 function dibujarCabeceraPrincipal(
   doc: jsPDF,
-  opts: { fecha: string; numUnidades: number; totalPuntos: number; familiaTitulares: string },
+  opts: { fecha: string; numUnidades: number; totalPuntos: number; familiaTitulares: string; paleta: Paleta },
 ): number {
   const w = doc.internal.pageSize.getWidth()
   const yTitulo = 20
@@ -125,12 +167,12 @@ function dibujarCabeceraPrincipal(
   doc.setFont(opts.familiaTitulares, 'normal')
   doc.setFontSize(25)
   const anchoTitulo = doc.getTextWidth(tituloTexto) + tituloCharSpace * (tituloTexto.length - 1)
-  doc.setTextColor(...INK)
+  doc.setTextColor(...opts.paleta.ink)
   doc.text(tituloTexto, (w - anchoTitulo) / 2, yTitulo, { charSpace: tituloCharSpace })
 
   doc.setFont('times', 'italic')
   doc.setFontSize(8)
-  doc.setTextColor(...INK_SUAVE)
+  doc.setTextColor(...opts.paleta.inkSuave)
   doc.text(`Generado el ${opts.fecha} · ${opts.numUnidades} entrada(s) de ejército`, w / 2, yTitulo + 9, {
     align: 'center',
   })
@@ -145,28 +187,28 @@ function dibujarCabeceraPrincipal(
   const yLinea2 = yEtiqueta + 2
   const yNumero = yLinea2 + 9
 
-  dibujarFilete(doc, xIzq, xDer, yLinea1)
+  dibujarFilete(doc, xIzq, xDer, yLinea1, opts.paleta)
 
   doc.setFont('times', 'bold')
   doc.setFontSize(7.2)
-  doc.setTextColor(...INK_SUAVE)
+  doc.setTextColor(...opts.paleta.inkSuave)
   doc.text('PUNTOS TOTALES', xCentro, yEtiqueta, { align: 'center' })
 
-  dibujarFilete(doc, xIzq, xDer, yLinea2)
+  dibujarFilete(doc, xIzq, xDer, yLinea2, opts.paleta)
 
   doc.setFont(opts.familiaTitulares, 'bold')
   doc.setFontSize(20)
-  doc.setTextColor(...INK)
+  doc.setTextColor(...opts.paleta.ink)
   doc.text(String(opts.totalPuntos || 0), xCentro, yNumero, { align: 'center' })
 
   return yTitulo + 22
 }
 
 /** Cabecera reducida para páginas de continuación: título pequeño + nombre de la lista + filete. */
-function dibujarCabeceraContinuacion(doc: jsPDF, opts: { nombreLista: string; familiaTitulares: string }) {
+function dibujarCabeceraContinuacion(doc: jsPDF, opts: { nombreLista: string; familiaTitulares: string; paleta: Paleta }) {
   const w = doc.internal.pageSize.getWidth()
 
-  doc.setTextColor(...INK)
+  doc.setTextColor(...opts.paleta.ink)
   doc.setFont(opts.familiaTitulares, 'normal')
   doc.setFontSize(12)
   doc.text('HOJA DE EJÉRCITO', MARGEN, 20, { charSpace: 0.35 })
@@ -174,33 +216,33 @@ function dibujarCabeceraContinuacion(doc: jsPDF, opts: { nombreLista: string; fa
   if (opts.nombreLista) {
     doc.setFont('times', 'italic')
     doc.setFontSize(8.5)
-    doc.setTextColor(...INK_SUAVE)
+    doc.setTextColor(...opts.paleta.inkSuave)
     doc.text(opts.nombreLista, w - MARGEN, 20, { align: 'right' })
   }
 
-  dibujarFilete(doc, MARGEN, w - MARGEN, 23)
+  dibujarFilete(doc, MARGEN, w - MARGEN, 23, opts.paleta)
 }
 
 /** Etiqueta de sección en versalitas espaciadas, con un filete fino debajo. */
-function dibujarEtiquetaSeccion(doc: jsPDF, texto: string, y: number, familiaTitulares: string): number {
+function dibujarEtiquetaSeccion(doc: jsPDF, texto: string, y: number, familiaTitulares: string, paleta: Paleta): number {
   const w = doc.internal.pageSize.getWidth()
   doc.setFont(familiaTitulares, 'bold')
   doc.setFontSize(10.5)
-  doc.setTextColor(...INK)
+  doc.setTextColor(...paleta.ink)
   doc.text(texto.toUpperCase(), MARGEN, y, { charSpace: 0.35 })
-  dibujarFilete(doc, MARGEN, w - MARGEN, y + 2)
+  dibujarFilete(doc, MARGEN, w - MARGEN, y + 2, paleta)
   return y + 7
 }
 
 /** Pie de página minimalista: un filete fino + una línea de texto centrada. */
-function dibujarPiePagina(doc: jsPDF, pagina: number, totalPaginas: number, nombreLista: string) {
+function dibujarPiePagina(doc: jsPDF, pagina: number, totalPaginas: number, nombreLista: string, paleta: Paleta) {
   const w = doc.internal.pageSize.getWidth()
   const h = doc.internal.pageSize.getHeight()
-  dibujarFilete(doc, MARGEN, w - MARGEN, h - 14)
+  dibujarFilete(doc, MARGEN, w - MARGEN, h - 14, paleta)
   const texto = `${pagina}  ·  HOJA DE EJÉRCITO${nombreLista ? '  ·  ' + nombreLista : ''}  ·  Página ${pagina} de ${totalPaginas}`
   doc.setFont('times', 'normal')
   doc.setFontSize(7.3)
-  doc.setTextColor(...INK_SUAVE)
+  doc.setTextColor(...paleta.inkSuave)
   doc.text(texto, w / 2, h - 9, { align: 'center' })
 }
 
@@ -218,9 +260,15 @@ function centrarCabecera(data: CellHookData) {
 }
 
 /** Filete fino bajo la fila de cabecera de una tabla (theme "plain" no dibuja bordes propios). */
-function dibujarBordeInferiorCabecera(data: CellHookData) {
+function dibujarBordeInferiorCabecera(data: CellHookData, paleta: Paleta) {
   if (data.section !== 'head') return
-  dibujarFilete(data.doc as unknown as jsPDF, data.cell.x, data.cell.x + data.cell.width, data.cell.y + data.cell.height)
+  dibujarFilete(
+    data.doc as unknown as jsPDF,
+    data.cell.x,
+    data.cell.x + data.cell.width,
+    data.cell.y + data.cell.height,
+    paleta,
+  )
 }
 
 /** Fila de estadísticas [nombre, M, HA, HP, F, R, H, I, A, L], con "-" para lo que falte (mismo criterio que el original). */
@@ -254,10 +302,10 @@ function filaHechizo(h: MagicSpell): string[] {
  * hechizos"). Más pequeño que el de sección y sin filete a lo ancho, para que
  * se lea como lo que es: un escalón por debajo.
  */
-function dibujarSubtitulo(doc: jsPDF, texto: string, y: number, familiaTitulares: string): number {
+function dibujarSubtitulo(doc: jsPDF, texto: string, y: number, familiaTitulares: string, paleta: Paleta): number {
   doc.setFont(familiaTitulares, 'bold')
   doc.setFontSize(8.6)
-  doc.setTextColor(...INK)
+  doc.setTextColor(...paleta.ink)
   doc.text(texto, MARGEN, y, { charSpace: 0.2 })
   return y + 3.2
 }
@@ -291,10 +339,20 @@ export async function exportArmyListToPdf(
   list: ArmyListDetail,
   total: number,
   ventana: Window | null = null,
+  blancoYNegro = false,
 ): Promise<void> {
+  // La paleta se elige UNA vez y se pasa a todo lo que dibuja. En blanco y
+  // negro no se trata de desaturar el color: se quita el fondo de pergamino y
+  // se separan los grises para que la hoja se imprima bien (ver PALETA_BN).
+  const paleta = blancoYNegro ? PALETA_BN : PALETA_COLOR
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
-  const [texturaDataUrl, fuenteOk] = await Promise.all([fetchDataUrl(TEXTURE_URL), registrarFuenteTitulares(doc)])
+  // La textura ni se pide en blanco y negro: es una imagen grande que no se va
+  // a usar.
+  const [texturaDataUrl, fuenteOk] = await Promise.all([
+    paleta.conTextura ? fetchDataUrl(TEXTURE_URL) : Promise.resolve(null),
+    registrarFuenteTitulares(doc),
+  ])
   const familiaTitulares = fuenteOk ? FONT_TITULARES : 'times'
 
   const sortedEntries: ArmyListEntry[] = [...list.entries].sort((a, b) => a.sortOrder - b.sortOrder)
@@ -307,21 +365,22 @@ export async function exportArmyListToPdf(
   const addPageOriginal = doc.addPage.bind(doc)
   doc.addPage = ((...args: Parameters<typeof addPageOriginal>) => {
     const resultado = addPageOriginal(...args)
-    dibujarFondoPagina(doc, texturaDataUrl)
-    dibujarCabeceraContinuacion(doc, { nombreLista: list.name, familiaTitulares })
+    dibujarFondoPagina(doc, texturaDataUrl, paleta)
+    dibujarCabeceraContinuacion(doc, { nombreLista: list.name, familiaTitulares, paleta })
     return resultado
   }) as typeof doc.addPage
 
   // Página 1: ésta ya existe al crear el documento, así que se pinta aparte.
-  dibujarFondoPagina(doc, texturaDataUrl)
+  dibujarFondoPagina(doc, texturaDataUrl, paleta)
 
   let y = dibujarCabeceraPrincipal(doc, {
     fecha,
     numUnidades: sortedEntries.length,
     totalPuntos: total,
     familiaTitulares,
+    paleta,
   })
-  y = dibujarEtiquetaSeccion(doc, 'Lista de unidades', y + 3, familiaTitulares)
+  y = dibujarEtiquetaSeccion(doc, 'Lista de unidades', y + 3, familiaTitulares, paleta)
 
   // --- Tabla 1: Lista de unidades. ---
   const cuerpoLista = sortedEntries.length
@@ -352,7 +411,7 @@ export async function exportArmyListToPdf(
           {
             content: 'No se han añadido unidades a esta lista todavía.',
             colSpan: 8,
-            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(INK_SUAVE) },
+            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(paleta.inkSuave) },
           },
         ],
       ]
@@ -366,12 +425,12 @@ export async function exportArmyListToPdf(
     styles: {
       font: 'times',
       fontSize: 7.8,
-      textColor: rgb(INK),
+      textColor: rgb(paleta.ink),
       cellPadding: { top: 1.2, bottom: 1.2, left: 2.2, right: 2.2 },
       overflow: 'linebreak',
     },
     headStyles: {
-      textColor: rgb(INK_SUAVE),
+      textColor: rgb(paleta.inkSuave),
       fontStyle: 'bold',
       fontSize: 7.4,
       cellPadding: { top: 0.8, bottom: 0.8, left: 2.2, right: 2.2 },
@@ -390,9 +449,9 @@ export async function exportArmyListToPdf(
       6: { cellWidth: 8, halign: 'center' },
       7: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
     },
-    alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+    alternateRowStyles: { fillColor: rgb(paleta.fondoAlt) },
     didParseCell: centrarCabecera,
-    didDrawCell: dibujarBordeInferiorCabecera,
+    didDrawCell: (data) => dibujarBordeInferiorCabecera(data, paleta),
   })
 
   // --- Tabla 2: Perfiles y reglas especiales (monturas/carros como sub-filas "• "). ---
@@ -401,7 +460,7 @@ export async function exportArmyListToPdf(
     doc.addPage()
     finalYLista = 26
   }
-  const y2 = dibujarEtiquetaSeccion(doc, 'Perfiles y reglas especiales', finalYLista + 8, familiaTitulares)
+  const y2 = dibujarEtiquetaSeccion(doc, 'Perfiles y reglas especiales', finalYLista + 8, familiaTitulares, paleta)
 
   interface FilaPerfil {
     datos: string[]
@@ -451,7 +510,7 @@ export async function exportArmyListToPdf(
           {
             content: 'No hay perfiles que mostrar.',
             colSpan: 11,
-            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(INK_SUAVE) },
+            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(paleta.inkSuave) },
           },
         ],
       ]
@@ -465,12 +524,12 @@ export async function exportArmyListToPdf(
     styles: {
       font: 'times',
       fontSize: 7.1,
-      textColor: rgb(INK),
+      textColor: rgb(paleta.ink),
       cellPadding: { top: 1, bottom: 1, left: 2.2, right: 1.8 },
       overflow: 'linebreak',
     },
     headStyles: {
-      textColor: rgb(INK_SUAVE),
+      textColor: rgb(paleta.inkSuave),
       fontStyle: 'bold',
       fontSize: 7,
       cellPadding: { top: 0.8, bottom: 0.8, left: 2, right: 1.8 },
@@ -488,18 +547,18 @@ export async function exportArmyListToPdf(
       9: { cellWidth: 8, halign: 'center' },
       10: { cellWidth: 'auto', halign: 'left' },
     },
-    alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+    alternateRowStyles: { fillColor: rgb(paleta.fondoAlt) },
     didParseCell: (data) => {
       centrarCabecera(data)
       if (data.section !== 'body') return
       const primeraCelda = Array.isArray(data.row.raw) ? data.row.raw[0] : undefined
       const esSubfila = typeof primeraCelda === 'string' && primeraCelda.startsWith('•')
       if (esSubfila) {
-        data.cell.styles.textColor = rgb(INK_SUAVE)
+        data.cell.styles.textColor = rgb(paleta.inkSuave)
         data.cell.styles.fontSize = 6.7
       }
     },
-    didDrawCell: dibujarBordeInferiorCabecera,
+    didDrawCell: (data) => dibujarBordeInferiorCabecera(data, paleta),
   })
 
   // --- Tabla 3: Resumen de reglas especiales (glosario alfabético). ---
@@ -508,7 +567,7 @@ export async function exportArmyListToPdf(
     doc.addPage()
     finalYPerfiles = 26
   }
-  const y3 = dibujarEtiquetaSeccion(doc, 'Resumen de reglas especiales', finalYPerfiles + 8, familiaTitulares)
+  const y3 = dibujarEtiquetaSeccion(doc, 'Resumen de reglas especiales', finalYPerfiles + 8, familiaTitulares, paleta)
 
   const rulesMap = new Map<number, { name: string; description: string }>()
   for (const entry of list.entries) {
@@ -525,7 +584,7 @@ export async function exportArmyListToPdf(
           {
             content: 'Esta lista no utiliza ninguna regla especial.',
             colSpan: 2,
-            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(INK_SUAVE) },
+            styles: { halign: 'center' as const, fontStyle: 'italic' as const, textColor: rgb(paleta.inkSuave) },
           },
         ],
       ]
@@ -539,12 +598,12 @@ export async function exportArmyListToPdf(
     styles: {
       font: 'times',
       fontSize: 7.6,
-      textColor: rgb(INK),
+      textColor: rgb(paleta.ink),
       cellPadding: { top: 1.4, bottom: 1.4, left: 2.2, right: 2.2 },
       overflow: 'linebreak',
     },
     headStyles: {
-      textColor: rgb(INK_SUAVE),
+      textColor: rgb(paleta.inkSuave),
       fontStyle: 'bold',
       fontSize: 7.4,
       cellPadding: { top: 0.8, bottom: 0.8, left: 2.2, right: 2.2 },
@@ -553,9 +612,9 @@ export async function exportArmyListToPdf(
       0: { cellWidth: 45, halign: 'left', fontStyle: 'bold' },
       1: { cellWidth: 'auto', halign: 'left' },
     },
-    alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+    alternateRowStyles: { fillColor: rgb(paleta.fondoAlt) },
     didParseCell: centrarCabecera,
-    didDrawCell: dibujarBordeInferiorCabecera,
+    didDrawCell: (data) => dibujarBordeInferiorCabecera(data, paleta),
   })
 
   // --- Sección 4: Listado de hechizos, por personaje y por senda. ---
@@ -584,7 +643,7 @@ export async function exportArmyListToPdf(
       doc.addPage()
       finalYGlosario = 26
     }
-    let yMagia = dibujarEtiquetaSeccion(doc, 'Listado de hechizos', finalYGlosario + 8, familiaTitulares)
+    let yMagia = dibujarEtiquetaSeccion(doc, 'Listado de hechizos', finalYGlosario + 8, familiaTitulares, paleta)
 
     for (const entry of entradasConMagia) {
       // Un subtítulo solo al pie de la página quedaría huérfano, con su tabla
@@ -600,11 +659,11 @@ export async function exportArmyListToPdf(
         .filter((x): x is { senda: MagicPathDetail; nivel: number } => x.senda != null)
 
       const resumen = elegidas.map((x) => `${x.senda.name} (nivel ${x.nivel})`).join('  ·  ')
-      yMagia = dibujarSubtitulo(doc, nombreDeLaEntrada(entry), yMagia, familiaTitulares)
+      yMagia = dibujarSubtitulo(doc, nombreDeLaEntrada(entry), yMagia, familiaTitulares, paleta)
       if (resumen) {
         doc.setFont('times', 'italic')
         doc.setFontSize(7)
-        doc.setTextColor(...INK_SUAVE)
+        doc.setTextColor(...paleta.inkSuave)
         doc.text(resumen, MARGEN, yMagia + 1.5)
         yMagia += 4.4
       }
@@ -639,12 +698,12 @@ export async function exportArmyListToPdf(
         styles: {
           font: 'times',
           fontSize: 6.8,
-          textColor: rgb(INK),
+          textColor: rgb(paleta.ink),
           cellPadding: { top: 1, bottom: 1, left: 1.8, right: 1.8 },
           overflow: 'linebreak',
         },
         headStyles: {
-          textColor: rgb(INK_SUAVE),
+          textColor: rgb(paleta.inkSuave),
           fontStyle: 'bold',
           fontSize: 6.6,
           cellPadding: { top: 0.8, bottom: 0.8, left: 1.8, right: 1.8 },
@@ -662,7 +721,7 @@ export async function exportArmyListToPdf(
           7: { cellWidth: 20, halign: 'center' },
           8: { cellWidth: 'auto', halign: 'left' },
         },
-        alternateRowStyles: { fillColor: rgb(FONDO_ALT) },
+        alternateRowStyles: { fillColor: rgb(paleta.fondoAlt) },
         didParseCell: (data) => {
           centrarCabecera(data)
           if (data.section !== 'body') return
@@ -671,14 +730,14 @@ export async function exportArmyListToPdf(
           const cruda = data.row.raw
           const esGrupo = Array.isArray(cruda) && cruda.length === 1
           if (esGrupo) {
-            data.cell.styles.fillColor = rgb(FONDO_ALT)
+            data.cell.styles.fillColor = rgb(paleta.fondoAlt)
             data.cell.styles.fontStyle = 'bold'
-            data.cell.styles.textColor = rgb(INK_SUAVE)
+            data.cell.styles.textColor = rgb(paleta.inkSuave)
             data.cell.styles.halign = 'left'
             data.cell.styles.fontSize = 6.6
           }
         },
-        didDrawCell: dibujarBordeInferiorCabecera,
+        didDrawCell: (data) => dibujarBordeInferiorCabecera(data, paleta),
       })
 
       yMagia = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yMagia) + 6
@@ -689,7 +748,7 @@ export async function exportArmyListToPdf(
   const totalPaginas = doc.getNumberOfPages()
   for (let p = 1; p <= totalPaginas; p++) {
     doc.setPage(p)
-    dibujarPiePagina(doc, p, totalPaginas, list.name)
+    dibujarPiePagina(doc, p, totalPaginas, list.name, paleta)
   }
 
   // Se ve en una pestaña nueva (en vez de descargar directamente) para que el

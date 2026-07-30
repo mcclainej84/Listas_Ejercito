@@ -235,8 +235,10 @@ export function ArmyListBuilderPage() {
   /** Entrada cuyo coste se está escribiendo a mano, y lo tecleado hasta ahora. */
   const [editingCostId, setEditingCostId] = useState<number | null>(null)
   const [costText, setCostText] = useState('')
-  // El blanco y negro de las hojas exportadas sigue al interruptor global de la
-  // barra superior: exportas lo que ves.
+  // El blanco y negro de LOS DOS PDF sigue al interruptor global de la barra
+  // superior: exportas lo que ves. Cada uno lo interpreta como le corresponde
+  // —las hojas en escala de grises, la hoja de ejército sin fondo y con los
+  // grises separados para imprimir— pero el mando es el mismo.
   const [grayscale] = useGlobalGrayscale()
   const [browseFactionId, setBrowseFactionId] = useState<number | null>(null)
   const [browseCategory, setBrowseCategory] = useState<string | null>(null)
@@ -795,7 +797,7 @@ export function ArmyListBuilderPage() {
       // verdad se exporta un PDF, así que van en su propio chunk en vez de
       // engordar el bundle inicial de toda la app.
       const { exportArmyListToPdf } = await import('@/features/army-lists/exportArmyListPdf')
-      await exportArmyListToPdf({ ...list, name, pointsLimit, entries: currentEntries }, total, ventana)
+      await exportArmyListToPdf({ ...list, name, pointsLimit, entries: currentEntries }, total, ventana, grayscale)
     } catch (err) {
       cerrarPestanaPdf(ventana)
       throw err

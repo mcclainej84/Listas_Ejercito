@@ -13,6 +13,17 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.75 — 30/07/2026 04:15
+
+- El **interruptor de blanco y negro de la barra superior manda ahora en los
+  dos PDF**. Cada uno lo interpreta como le corresponde:
+  - **Hojas de unidad**: en escala de grises, tal y como se ven en pantalla.
+  - **Hoja de ejército**: se **quita el fondo de pergamino** y los grises se
+    separan —negro casi puro para el texto, medio para lo secundario, claro
+    para filetes y zebra—. No es el PDF de color desaturado: un fondo a sangre
+    en cada página gasta media impresora y deja el texto sobre un gris sucio.
+    En blanco y negro la textura ni se descarga.
+
 ## 0.74 — 30/07/2026 03:45
 
 - Al compartir un ejército, ahora se elige **por persona** si además ve el
