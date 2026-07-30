@@ -7,6 +7,7 @@ import { ChevronDownIcon, ContrastIcon } from '@/shared/ui/icons'
 import { useGlobalGrayscale } from '@/shared/theme/useGrayscaleMode'
 import { setActingAsAdmin, signOut, useSession } from '@/shared/session/useSession'
 import { MyFactionsModal } from '@/features/user/MyFactionsModal'
+import { ArmyListOptionsModal } from '@/features/user/ArmyListOptionsModal'
 
 interface NavItem {
   to: string
@@ -212,7 +213,13 @@ function GlobalGrayscaleToggle() {
  * decide si se ven las opciones de edición — no es un permiso, se activa sin
  * contraseña), acceso a "Mis facciones" y cerrar sesión.
  */
-function UserMenu({ onOpenFactions }: { onOpenFactions: () => void }) {
+function UserMenu({
+  onOpenFactions,
+  onOpenArmyListOptions,
+}: {
+  onOpenFactions: () => void
+  onOpenArmyListOptions: () => void
+}) {
   const { user, actingAsAdmin } = useSession()
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState({ top: 0, right: 0 })
@@ -290,6 +297,15 @@ function UserMenu({ onOpenFactions }: { onOpenFactions: () => void }) {
             <button
               onClick={() => {
                 setOpen(false)
+                onOpenArmyListOptions()
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-ink hover:bg-parchment-dark"
+            >
+              Opciones Lista de ejército
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false)
                 signOut()
               }}
               className="w-full border-t border-rule-dark/20 px-3 py-2 text-left text-sm text-ink-soft hover:bg-parchment-dark hover:text-maroon"
@@ -306,6 +322,7 @@ function UserMenu({ onOpenFactions }: { onOpenFactions: () => void }) {
 export function TopNav() {
   const { user, actingAsAdmin } = useSession()
   const [factionsOpen, setFactionsOpen] = useState(false)
+  const [listOptionsOpen, setListOptionsOpen] = useState(false)
 
   return (
     <header className="border-b-2 border-ink bg-parchment/90 backdrop-blur-sm">
@@ -333,9 +350,25 @@ export function TopNav() {
           <div className="w-56">
             <GlobalSearch />
           </div>
-          <UserMenu onOpenFactions={() => setFactionsOpen(true)} />
+          <UserMenu
+            onOpenFactions={() => setFactionsOpen(true)}
+            onOpenArmyListOptions={() => setListOptionsOpen(true)}
+          />
         </div>
       </div>
+
+      {listOptionsOpen && user && (
+        <ArmyListOptionsModal
+          userId={user.id}
+          onClose={() => setListOptionsOpen(false)}
+          onSaved={() => {
+            setListOptionsOpen(false)
+            // El constructor lee las opciones al montarse; recargar es la forma
+            // más simple y fiable de que el cambio se vea ya, esté abierto o no.
+            window.location.reload()
+          }}
+        />
+      )}
 
       {factionsOpen && user && (
         <MyFactionsModal

@@ -50,6 +50,7 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Imágenes de las hojas en R2', probe: 'SELECT illu_key FROM unit_sheets LIMIT 1' },
   { label: 'Imágenes de hojas de montura y opción en R2', probe: 'SELECT illu_key FROM sheet_presentations LIMIT 1' },
   { label: 'Facción favorita', probe: 'SELECT favorite_faction_id FROM users LIMIT 1' },
+  { label: 'Opciones de la lista de ejército', probe: 'SELECT show_mounts FROM users LIMIT 1' },
   { label: 'Reglas destacadas por facción', probe: 'SELECT rule_id FROM faction_featured_rules LIMIT 1' },
 ]
 

@@ -670,13 +670,14 @@ CREATE TABLE users (
     -- pantallas con selector de facción (Hojas de Unidad, Ejércitos, Editor).
     -- ON DELETE SET NULL: si se borra la facción, el usuario se queda sin
     -- favorita, no con una referencia rota.
-    favorite_faction_id INTEGER REFERENCES factions(id) ON DELETE SET NULL
+    favorite_faction_id INTEGER REFERENCES factions(id) ON DELETE SET NULL,
+    -- Opciones de "Unidades en la lista" en el constructor de ejércitos: si se
+    -- ve la línea de montura/carro y la de magia bajo cada unidad. Encendidas
+    -- de salida (1) — ver la migración del Worker.
+    show_mounts   INTEGER NOT NULL DEFAULT 1,
+    show_magic    INTEGER NOT NULL DEFAULT 1
 );
 
--- Reglas especiales que un usuario ha DESTACADO para una facción. Es una
--- preferencia personal (de ahí user_id), no un dato de la facción: al montar
--- un ejército, de las reglas que la unidad lleva de verdad, estas salen
--- primero y separadas del resto por un filete.
 -- Reglas destacadas de cada FACCIÓN, iguales para todos los usuarios: forman
 -- parte del catálogo compartido. Al montar un ejército, de las reglas que la
 -- unidad lleva de verdad, estas salen primero y separadas del resto.

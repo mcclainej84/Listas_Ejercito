@@ -607,6 +607,11 @@ const MIGRATIONS: string[] = [
      rule_id    INTEGER NOT NULL REFERENCES special_rules(id) ON DELETE CASCADE,
      PRIMARY KEY (faction_id, rule_id)
    )`,
+  // Opciones de la lista de ejército, por usuario. Por defecto ENCENDIDAS (1):
+  // el que no las quiera las apaga, pero quien no sepa que existen ve los
+  // datos, que es lo contrario de estrenarlas ocultas y no enterarse nunca.
+  'ALTER TABLE users ADD COLUMN show_mounts INTEGER NOT NULL DEFAULT 1',
+  'ALTER TABLE users ADD COLUMN show_magic INTEGER NOT NULL DEFAULT 1',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

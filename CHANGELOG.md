@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.64 — 29/07/2026 21:55
+
+- El **nombre propio de un personaje sale ya en las cuatro tablas del PDF**.
+  Faltaba en «Perfiles y reglas especiales», que era la única que seguía
+  poniendo el tipo a secas: ahora dice «Jules el Bretón (Paladín Bretoniano)»
+  como el resto. De paso, dos personajes bautizados distinto dejan de pisarse
+  al descartar perfiles repetidos, aunque compartan perfil.
+
+## 0.63 — 29/07/2026 21:30
+
+- En «Unidades en la lista», bajo el nombre de cada unidad aparecen dos líneas
+  nuevas cuando hay algo que contar: «Montura: Caballo de guerra · Carro:
+  Carro bretoniano» (los dos en la misma línea, la montura primero, porque en
+  la práctica son excluyentes) y «Sendas: Fuego 2 · Bestias 1». Cada dato va
+  rotulado: sin rótulo, un nombre suelto bajo la unidad no dice qué es.
+  Van como líneas y no como columnas
+  nuevas: solo las lleva una minoría de entradas, y dos columnas vacías en casi
+  todas las filas habrían estrechado el resto de la tabla para nada.
+- Nueva opción **«Opciones Lista de ejército»** en el menú del usuario, para
+  encender o apagar cada una de esas dos líneas. Es preferencia de cada usuario
+  —dos personas pueden abrir el mismo ejército y verlo con distinto detalle— y
+  **ambas nacen encendidas** para todos.
+
 ## 0.62 — 29/07/2026 20:45
 
 - **Nueva sección «Listado de hechizos» en el PDF**, con una cabecera por cada

@@ -416,7 +416,13 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
   for (const entry of sortedEntries) {
     const unit = entry.unit
     const rulesText = reglasDeLaEntrada(entry).map((r) => r.name).join(', ') || '—'
-    const filas: FilaPerfil[] = [{ datos: filaEstadisticas(unit.name, unit.profiles.base), reglas: rulesText }]
+    // Con el nombre propio, igual que en las otras tres tablas: quien lee la
+    // hoja busca "Jules el Bretón", no "Paladín Bretoniano". Como el nombre
+    // forma parte de la fila, dos personajes bautizados distinto ya no se
+    // pisan al descartar repetidos, aunque compartan perfil.
+    const filas: FilaPerfil[] = [
+      { datos: filaEstadisticas(nombreDeLaEntrada(entry), unit.profiles.base), reglas: rulesText },
+    ]
 
     const montura = entry.mountProfileId ? unit.profiles.montura.find((p) => p.id === entry.mountProfileId) : null
     if (montura) {

@@ -7,6 +7,7 @@ import { EquipmentRepository, UnitCategoryRepository, UpgradeRepository } from '
 import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRepository'
 import { RuleRepository } from '@/data/repositories/ruleRepository'
 import { MagicRepository } from '@/data/repositories/magicRepository'
+import { UserRepository, DEFAULT_ARMY_LIST_OPTIONS } from '@/data/repositories/userRepository'
 import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
 import { isWizardTag } from '@/domain/magic'
@@ -208,6 +209,14 @@ export function ArmyListBuilderPage() {
   const { data: compositionRules } = useAsync(() => CompositionRuleRepository.listAll())
   const { data: categories } = useAsync(() => UnitCategoryRepository.listAll())
   const { data: magicPaths } = useAsync(() => MagicRepository.listPaths())
+  // Qué líneas extra se ven bajo cada unidad. Es preferencia del usuario y se
+  // configura desde su menú (ver ArmyListOptionsModal); sin sesión, las dos
+  // encendidas, que es el valor por defecto.
+  const { data: listOptions } = useAsync(
+    () => (user ? UserRepository.getArmyListOptions(user.id) : Promise.resolve(DEFAULT_ARMY_LIST_OPTIONS)),
+    [user?.id],
+  )
+  const opciones = listOptions ?? DEFAULT_ARMY_LIST_OPTIONS
 
   // --- Estado editable local (el "borrador") ---------------------------------
   // `entries` es la fuente de verdad de la pantalla mientras se edita; se
@@ -1515,6 +1524,36 @@ export function ArmyListBuilderPage() {
                       .map((u) => u.name)
                     const combo = [...equipNames, ...upgradeNames].join(', ') || '—'
                     const shieldMetal = categoryShieldMetal(entry.unit.category?.code)
+
+                    // "Montura: Caballo de guerra · Carro: Carro bretoniano".
+                    // Los dos en la MISMA línea, la montura primero: son
+                    // excluyentes en la práctica (o cabalgas o vas en carro),
+                    // así que darles una línea a cada uno dejaría casi siempre
+                    // una vacía. Cada uno va rotulado porque, sin rótulo, un
+                    // nombre suelto bajo la unidad no dice qué es.
+                    const monturaNombre = entry.mountProfileId
+                      ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId)?.name
+                      : null
+                    const carroNombre = entry.chariotProfileId
+                      ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId)?.name
+                      : null
+                    const cabalgadura = [
+                      monturaNombre ? `Montura: ${monturaNombre}` : null,
+                      carroNombre ? `Carro: ${carroNombre}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+
+                    // "Sendas: Fuego 2 · Bestias 1". El nivel va pegado a su
+                    // senda porque puede ser distinto en cada una.
+                    const listaSendas = entry.magicPaths
+                      .map((mp) => {
+                        const senda = magicPaths?.find((p) => p.id === mp.pathId)
+                        return senda ? `${senda.name} ${mp.level}` : null
+                      })
+                      .filter(Boolean)
+                      .join(' · ')
+                    const sendas = listaSendas ? `Sendas: ${listaSendas}` : ''
                     return (
                       <tr
                         key={entry.id}
@@ -1614,6 +1653,23 @@ export function ArmyListBuilderPage() {
                             >
                               <WarningIcon className="h-3.5 w-3.5" />
                             </Tooltip>
+                          )}
+
+                          {/* Líneas extra bajo el nombre, no columnas nuevas:
+                              solo las lleva una minoría de entradas, y dos
+                              columnas más vacías en casi todas las filas
+                              habrían estrechado el resto de la tabla para
+                              nada. Cada una se puede apagar desde el menú del
+                              usuario (ver ArmyListOptionsModal). */}
+                          {opciones.showMounts && cabalgadura && (
+                            <span className="mt-0.5 block truncate text-mini text-ink-soft" title={cabalgadura}>
+                              {cabalgadura}
+                            </span>
+                          )}
+                          {opciones.showMagic && sendas && (
+                            <span className="mt-0.5 block truncate text-mini text-bronze" title={sendas}>
+                              {sendas}
+                            </span>
                           )}
                         </td>
                         <td className="truncate py-1.5 align-middle text-ink-soft" title={combo}>

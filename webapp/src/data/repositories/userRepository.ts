@@ -22,6 +22,17 @@ function mapUser(row: Record<string, unknown>): User {
   }
 }
 
+/** Líneas opcionales bajo cada unidad en "Unidades en la lista". */
+export interface ArmyListOptions {
+  /** Línea con la montura y el carro elegidos. */
+  showMounts: boolean
+  /** Línea con las sendas de magia y su nivel. */
+  showMagic: boolean
+}
+
+/** Ambas encendidas: quien no sepa que existen ve los datos igualmente. */
+export const DEFAULT_ARMY_LIST_OPTIONS: ArmyListOptions = { showMounts: true, showMagic: true }
+
 export const UserRepository = {
   /** Todos los usuarios, para poder elegir en la pantalla de acceso sin tener que recordar el nombre exacto. */
   async listAll(): Promise<User[]> {
@@ -107,5 +118,35 @@ export const UserRepository = {
   /** Marca (o desmarca, con null) la facción favorita del usuario. */
   async setFavoriteFactionId(userId: number, factionId: number | null): Promise<void> {
     await exec('UPDATE users SET favorite_faction_id = ? WHERE id = ?', [factionId, userId])
+  },
+
+  // ---- Opciones de la lista de ejército -----------------------------------
+
+  /**
+   * Qué líneas extra se ven bajo cada unidad en "Unidades en la lista".
+   *
+   * Si la consulta falla —Worker sin desplegar, red caída— se devuelven las
+   * dos ENCENDIDAS: es el valor por defecto de la columna, y ante la duda es
+   * mejor enseñar de más que esconder datos sin que el usuario lo haya pedido.
+   */
+  async getArmyListOptions(userId: number): Promise<ArmyListOptions> {
+    try {
+      const row = await queryOne<ArmyListOptions>(
+        'SELECT show_mounts, show_magic FROM users WHERE id = ?',
+        [userId],
+        (r) => ({ showMounts: r.show_mounts !== 0, showMagic: r.show_magic !== 0 }),
+      )
+      return row ?? DEFAULT_ARMY_LIST_OPTIONS
+    } catch {
+      return DEFAULT_ARMY_LIST_OPTIONS
+    }
+  },
+
+  async setArmyListOptions(userId: number, options: ArmyListOptions): Promise<void> {
+    await exec('UPDATE users SET show_mounts = ?, show_magic = ? WHERE id = ?', [
+      options.showMounts ? 1 : 0,
+      options.showMagic ? 1 : 0,
+      userId,
+    ])
   },
 }
