@@ -13,6 +13,23 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.60 — 29/07/2026 19:30
+
+- **Las reglas destacadas de una facción son ahora universales.** Dejan de ser
+  una preferencia de cada usuario y pasan a formar parte del catálogo: lo que
+  se marque en Facciones › Editar › Reglas destacadas lo ve todo el mundo.
+  Empiezan **todas vacías**, para volver a meterlas a mano.
+  Técnicamente: nueva tabla `faction_featured_rules`. La antigua
+  `user_faction_rules` se conserva sin usar, para no destruir lo que hubiera
+  marcado cada usuario.
+- En edición de unidades, la **T.S.** se muda a la cabecera del cuadro «Perfil
+  base», en la misma línea que el título y a la derecha: es un atributo más de
+  la miniatura y ahí se lee junto a F, R y H.
+- En el ejército, «Magia», las sendas y los grupos van en minúscula con la
+  inicial en mayúscula («Fuego», «Elementales») en vez de todo en minúsculas.
+- El separador de reglas especiales ya no grita: «De la facción» y «Reglas»
+  (antes «DE LA FACCIÓN» y «OTRAS REGLAS»).
+
 ## 0.59 — 29/07/2026 18:45
 
 - **La magia depende ahora de la ETIQUETA.** Si un personaje tiene la etiqueta

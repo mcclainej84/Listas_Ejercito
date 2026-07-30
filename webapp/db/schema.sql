@@ -677,6 +677,17 @@ CREATE TABLE users (
 -- preferencia personal (de ahí user_id), no un dato de la facción: al montar
 -- un ejército, de las reglas que la unidad lleva de verdad, estas salen
 -- primero y separadas del resto por un filete.
+-- Reglas destacadas de cada FACCIÓN, iguales para todos los usuarios: forman
+-- parte del catálogo compartido. Al montar un ejército, de las reglas que la
+-- unidad lleva de verdad, estas salen primero y separadas del resto.
+CREATE TABLE faction_featured_rules (
+    faction_id INTEGER NOT NULL REFERENCES factions(id) ON DELETE CASCADE,
+    rule_id    INTEGER NOT NULL REFERENCES special_rules(id) ON DELETE CASCADE,
+    PRIMARY KEY (faction_id, rule_id)
+);
+
+-- OBSOLETA: la sustituye faction_featured_rules. Ya no se lee ni se escribe;
+-- se conserva para no destruir lo que cada usuario hubiera marcado.
 CREATE TABLE user_faction_rules (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     faction_id INTEGER NOT NULL REFERENCES factions(id) ON DELETE CASCADE,

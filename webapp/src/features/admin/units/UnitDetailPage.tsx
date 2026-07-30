@@ -471,7 +471,7 @@ export function UnitDetailPage() {
                 <>
                   <div className="col-span-4 sm:col-span-2">
                     <TextField
-                      label="Tam. mín."
+                      label="Tamaño mín."
                       type="number"
                       max={99}
                       value={draft.scalar.minSize ?? ''}
@@ -485,7 +485,7 @@ export function UnitDetailPage() {
                   </div>
                   <div className="col-span-4 sm:col-span-2">
                     <TextField
-                      label="Tam. máx."
+                      label="Tamaño máx."
                       type="number"
                       max={99}
                       value={draft.scalar.maxSize ?? ''}
@@ -499,7 +499,7 @@ export function UnitDetailPage() {
                   </div>
                   <div className="col-span-4 sm:col-span-2">
                     <TextField
-                      label="Tam. def."
+                      label="Tamaño inicial"
                       type="number"
                       max={99}
                       title="Tamaño de partida sugerido al añadir esta unidad a una lista (no es un límite, solo precarga la cantidad)."
@@ -515,33 +515,10 @@ export function UnitDetailPage() {
                 </>
               )}
 
-              {/* T.S. como lista cerrada: los únicos valores legales son 0-6, y
-                  el 0 ("—") afirma que no tiene salvación, que es distinto de
-                  "todavía sin rellenar" (vacío). */}
-              <div className="col-span-4 sm:col-span-2">
-                <Select
-                  label="T.S."
-                  value={draft.scalar.armorSave ?? ''}
-                  onChange={(e) =>
-                    updateDraft((d) => ({
-                      ...d,
-                      scalar: { ...d.scalar, armorSave: e.target.value === '' ? null : Number(e.target.value) },
-                    }))
-                  }
-                >
-                  <option value="" />
-                  {ARMOR_SAVE_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {formatArmorSave(value)}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
               {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este tipo
                   caben en el ejército, no cuántas miniaturas la forman. */}
               {unit.unitType !== 'personaje' && (
-                <div className="col-span-8 flex items-end pb-2 sm:col-span-4">
+                <div className="col-span-12 flex items-end pb-2 sm:col-span-6">
                   <label
                     className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft"
                     title="Solo una unidad de este tipo en todo el ejército. No limita el número de miniaturas."
@@ -602,7 +579,38 @@ export function UnitDetailPage() {
         </div>
 
         <div className="space-y-6 lg:col-span-2">
-          <Panel title="Perfil base">
+          {/* La T.S. vive en la cabecera del PERFIL BASE y no en Datos
+              generales: es un atributo más de la miniatura, y ahí se lee junto
+              a F, R, H y el resto en vez de a dos cuadros de distancia.
+
+              Lista cerrada porque los únicos valores legales son 0-6. El 0
+              ("—") afirma que no tiene salvación, que es distinto de "todavía
+              sin rellenar" (vacío). */}
+          <Panel
+            title="Perfil base"
+            headerRight={
+              <label className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-ink-soft">T.S.</span>
+                <select
+                  value={draft.scalar.armorSave ?? ''}
+                  onChange={(e) =>
+                    updateDraft((d) => ({
+                      ...d,
+                      scalar: { ...d.scalar, armorSave: e.target.value === '' ? null : Number(e.target.value) },
+                    }))
+                  }
+                  className="rounded-sm border border-rule-dark/40 bg-parchment px-1.5 py-1 text-xs text-ink outline-none focus:border-bronze"
+                >
+                  <option value="" />
+                  {ARMOR_SAVE_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {formatArmorSave(value)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            }
+          >
             {baseProfile ? (
               <EditableAttributeTable
                 value={draft.profileStats[baseProfile.id] ?? extractProfileInput(baseProfile)}

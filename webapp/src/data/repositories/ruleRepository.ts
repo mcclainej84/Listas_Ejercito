@@ -1,4 +1,4 @@
-import { execCatalog } from '@/data/sqlite/client'
+import { execCatalog, execCatalogBatch } from '@/data/sqlite/client'
 import { queryLocal, queryLocalOne } from '@/data/sqlite/localCatalog'
 import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
 import type { SpecialRule } from '@/domain/types'
@@ -91,9 +91,41 @@ export const RuleRepository = {
    * que puede añadir (upgrade_special_rules vía unit_upgrade_options) y las
    * de las monturas/carros que puede montar (profile_special_rules vía
    * unit_profiles). Sirve para que "destacar reglas" (ver
-   * user_faction_rules) ofrezca solo las relevantes para esa facción, no las
+   * faction_featured_rules) ofrezca solo las relevantes para esa facción, no las
    * 350+ del catálogo entero.
    */
+  /**
+   * Ids de las reglas DESTACADAS de una facción.
+   *
+   * Es catálogo compartido, no preferencia de usuario: lo que se marque aquí
+   * lo ve todo el mundo. Antes vivía en user_faction_rules, una fila por
+   * usuario, lo que significaba que cada uno tenía que volver a marcarlas.
+   */
+  async getFeaturedRuleIds(factionId: number): Promise<number[]> {
+    try {
+      return await queryLocal(
+        'SELECT rule_id FROM faction_featured_rules WHERE faction_id = ?',
+        [factionId],
+        (r) => r.rule_id as number,
+      )
+    } catch {
+      // Todavía sin desplegar el Worker: ninguna destacada es una respuesta
+      // correcta y no rompe el constructor (ver schemaHealth).
+      return []
+    }
+  },
+
+  /** Sustituye enteras las reglas destacadas de una facción. */
+  async setFeaturedRuleIds(factionId: number, ruleIds: number[]): Promise<void> {
+    await execCatalogBatch([
+      { sql: 'DELETE FROM faction_featured_rules WHERE faction_id = ?', params: [factionId] },
+      ...ruleIds.map((ruleId) => ({
+        sql: 'INSERT OR IGNORE INTO faction_featured_rules (faction_id, rule_id) VALUES (?, ?)',
+        params: [factionId, ruleId],
+      })),
+    ])
+  },
+
   async listByFaction(factionId: number): Promise<SpecialRule[]> {
     return queryLocal(
       `SELECT DISTINCT sr.* FROM special_rules sr

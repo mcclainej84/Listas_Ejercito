@@ -65,6 +65,7 @@ const CATALOG_TABLES = [
   'unit_upgrade_options',
   'unit_command_options',
   'faction_construction_rules',
+  'faction_featured_rules',
   'import_meta',
   'magic_paths',
   'magic_spells',

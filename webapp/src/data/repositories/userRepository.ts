@@ -108,30 +108,4 @@ export const UserRepository = {
   async setFavoriteFactionId(userId: number, factionId: number | null): Promise<void> {
     await exec('UPDATE users SET favorite_faction_id = ? WHERE id = ?', [factionId, userId])
   },
-
-  // ---- Reglas destacadas por facción --------------------------------------
-
-  /** Ids de las reglas que el usuario ha destacado para una facción. */
-  async getFactionRuleIds(userId: number, factionId: number): Promise<number[]> {
-    try {
-      return await query<number>(
-        'SELECT rule_id FROM user_faction_rules WHERE user_id = ? AND faction_id = ?',
-        [userId, factionId],
-        (r) => r.rule_id as number,
-      )
-    } catch {
-      return []
-    }
-  },
-
-  /** Sustituye las reglas destacadas del usuario para una facción. */
-  async setFactionRuleIds(userId: number, factionId: number, ruleIds: number[]): Promise<void> {
-    await execBatch([
-      { sql: 'DELETE FROM user_faction_rules WHERE user_id = ? AND faction_id = ?', params: [userId, factionId] },
-      ...ruleIds.map((ruleId) => ({
-        sql: 'INSERT OR IGNORE INTO user_faction_rules (user_id, faction_id, rule_id) VALUES (?, ?, ?)',
-        params: [userId, factionId, ruleId],
-      })),
-    ])
-  },
 }

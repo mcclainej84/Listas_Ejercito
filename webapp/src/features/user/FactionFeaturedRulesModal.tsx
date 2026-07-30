@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { RuleRepository } from '@/data/repositories/ruleRepository'
-import { UserRepository } from '@/data/repositories/userRepository'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
@@ -8,29 +7,29 @@ import { Spinner } from '@/shared/ui/Spinner'
 import type { Faction } from '@/domain/types'
 
 /**
- * "Reglas destacadas" de una facción: cuáles quiere el usuario ver SIEMPRE
- * primero (separadas del resto por un filete) al montar una lista de esa
- * facción — ver ArmyListBuilderPage > panel "Ficha". Es preferencia
- * personal (ligada al usuario, no al catálogo compartido), por eso vive en
- * user_faction_rules y no en special_rules.
+ * "Reglas destacadas" de una facción: cuáles salen SIEMPRE primero (separadas
+ * del resto) al montar una lista de esa facción — ver ArmyListBuilderPage >
+ * panel "Ficha".
+ *
+ * Es dato del CATÁLOGO, común a todos los usuarios: lo que se marque aquí lo
+ * ve todo el mundo. Antes era una preferencia por usuario, lo que obligaba a
+ * cada uno a volver a marcar las mismas reglas.
  *
  * Solo se ofrecen las reglas que una unidad de esta facción puede llegar a
  * llevar de verdad (ver RuleRepository.listByFaction): destacar una regla
  * que la facción no usa no cambiaría nada al montar el ejército.
  */
 export function FactionFeaturedRulesModal({
-  userId,
   faction,
   onClose,
   onSaved,
 }: {
-  userId: number
   faction: Faction
   onClose: () => void
   onSaved: () => void
 }) {
   const { data: rules, loading } = useAsync(() => RuleRepository.listByFaction(faction.id), [faction.id])
-  const { data: featured } = useAsync(() => UserRepository.getFactionRuleIds(userId, faction.id), [userId, faction.id])
+  const { data: featured } = useAsync(() => RuleRepository.getFeaturedRuleIds(faction.id), [faction.id])
 
   const [selected, setSelected] = useState<Set<number> | null>(null)
   useEffect(() => {
@@ -45,7 +44,7 @@ export function FactionFeaturedRulesModal({
     setSaving(true)
     setError(null)
     try {
-      await UserRepository.setFactionRuleIds(userId, faction.id, [...selected])
+      await RuleRepository.setFeaturedRuleIds(faction.id, [...selected])
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -77,11 +76,6 @@ export function FactionFeaturedRulesModal({
         </>
       }
     >
-      <p className="mb-3 text-xs text-ink-soft">
-        Marca las reglas especiales que quieres ver siempre las primeras al montar una lista de <b>{faction.name}</b>.
-        Aparecerán separadas del resto por un filete, y solo si la unidad las lleva de verdad.
-      </p>
-
       {loading || !selected ? (
         <Spinner />
       ) : (rules ?? []).length === 0 ? (

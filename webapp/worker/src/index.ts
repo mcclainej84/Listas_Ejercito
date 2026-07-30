@@ -102,6 +102,7 @@ const SNAPSHOT_TABLES = [
   'unit_upgrade_options',
   'unit_command_options',
   'faction_construction_rules',
+  'faction_featured_rules',
   'import_meta',
   // Magia: es catálogo puro (30 sendas, 213 hechizos, texto corto) y se
   // consulta al pintar cualquier ficha de hechicero, así que viaja en el
@@ -461,7 +462,10 @@ const MIGRATIONS: string[] = [
   "ALTER TABLE sheet_presentations ADD COLUMN section_widths TEXT NOT NULL DEFAULT '{}'",
   // Facción favorita del usuario (preseleccionada en todas las pantallas).
   'ALTER TABLE users ADD COLUMN favorite_faction_id INTEGER REFERENCES factions(id)',
-  // Reglas especiales destacadas por usuario y facción.
+  // Reglas especiales destacadas por usuario y facción. OBSOLETA: las reglas
+  // destacadas pasaron a ser del CATÁLOGO (faction_featured_rules, más abajo),
+  // iguales para todos. Se deja la tabla porque borrarla haría desaparecer sin
+  // vuelta atrás lo que cada usuario tuviera marcado; ya no se lee ni escribe.
   `CREATE TABLE IF NOT EXISTS user_faction_rules (
      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
      faction_id INTEGER NOT NULL REFERENCES factions(id) ON DELETE CASCADE,
@@ -594,6 +598,14 @@ const MIGRATIONS: string[] = [
      path_id  INTEGER NOT NULL REFERENCES magic_paths(id) ON DELETE CASCADE,
      level    INTEGER NOT NULL DEFAULT 1,
      PRIMARY KEY (entry_id, path_id)
+   )`,
+  // Reglas destacadas de cada FACCIÓN. Sustituye a user_faction_rules: son
+  // parte del catálogo compartido, no una preferencia de cada usuario, así que
+  // lo que se marque aquí lo ve todo el mundo. Nace vacía a propósito.
+  `CREATE TABLE IF NOT EXISTS faction_featured_rules (
+     faction_id INTEGER NOT NULL REFERENCES factions(id) ON DELETE CASCADE,
+     rule_id    INTEGER NOT NULL REFERENCES special_rules(id) ON DELETE CASCADE,
+     PRIMARY KEY (faction_id, rule_id)
    )`,
 ]
 

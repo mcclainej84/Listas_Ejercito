@@ -227,9 +227,8 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 
-      {showRules && faction && user && (
+      {showRules && faction && (
         <FactionFeaturedRulesModal
-          userId={user.id}
           faction={faction}
           onClose={() => setShowRules(false)}
           onSaved={() => setShowRules(false)}

@@ -5,13 +5,13 @@ import { ArmyListRepository } from '@/data/repositories/armyListRepository'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { EquipmentRepository, UnitCategoryRepository, UpgradeRepository } from '@/data/repositories/lookupRepositories'
 import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRepository'
+import { RuleRepository } from '@/data/repositories/ruleRepository'
 import { MagicRepository } from '@/data/repositories/magicRepository'
 import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
 import { isWizardTag } from '@/domain/magic'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useSession } from '@/shared/session/useSession'
-import { UserRepository } from '@/data/repositories/userRepository'
 import {
   computeCategoryInsertIndex,
   computeEntryCost,
@@ -339,10 +339,10 @@ export function ArmyListBuilderPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [dirty])
 
-  // Reglas destacadas del usuario para la facción de la unidad que se está
-  // viendo. Se cargan aquí y no en handlePickUnit porque también hay que
-  // recargarlas al editar una entrada existente (startEditEntry) y al cambiar
-  // de usuario — un único efecto cubre los tres casos.
+  // Reglas destacadas de la facción de la unidad que se está viendo. Son del
+  // catálogo, iguales para todos. Se cargan aquí y no en handlePickUnit porque
+  // también hay que recargarlas al editar una entrada existente
+  // (startEditEntry) — un único efecto cubre los dos casos.
   //
   // IMPORTANTE: este efecto va ANTES de los `return` anticipados de más abajo
   // (carga/privacidad/error) a propósito — los Hooks de React deben correr en
@@ -350,18 +350,18 @@ export function ArmyListBuilderPage() {
   // después de que la lista termine de cargar.
   const selectedFactionId = selectedUnit?.faction.id
   useEffect(() => {
-    if (!user || selectedFactionId == null) {
+    if (selectedFactionId == null) {
       setDestacadaIds(new Set())
       return
     }
     let cancelled = false
-    void UserRepository.getFactionRuleIds(user.id, selectedFactionId).then((ids) => {
+    void RuleRepository.getFeaturedRuleIds(selectedFactionId).then((ids) => {
       if (!cancelled) setDestacadaIds(new Set(ids))
     })
     return () => {
       cancelled = true
     }
-  }, [user, selectedFactionId])
+  }, [selectedFactionId])
 
   if (loading) return <Spinner />
 
@@ -1382,8 +1382,8 @@ export function ArmyListBuilderPage() {
                             {i === destacadasCount && destacadasCount > 0 && (
                               <span className="mb-1.5 flex items-center gap-2 pt-1">
                                 <span className="h-px flex-1 bg-rule-dark/40" />
-                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70 uppercase">
-                                  Otras reglas
+                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
+                                  Reglas
                                 </span>
                                 <span className="h-px flex-1 bg-rule-dark/40" />
                               </span>
@@ -1391,7 +1391,7 @@ export function ArmyListBuilderPage() {
                             {i === 0 && destacadasCount > 0 && (
                               <span className="mb-1.5 flex items-center gap-2">
                                 <span className="h-px flex-1 bg-rule-dark/40" />
-                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70 uppercase">
+                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
                                   De la facción
                                 </span>
                                 <span className="h-px flex-1 bg-rule-dark/40" />

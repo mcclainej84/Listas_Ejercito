@@ -23,6 +23,18 @@ import { MAGIC_GROUPS, MAGIC_GROUP_LABELS, MAGIC_LEVELS, type MagicPath } from '
 import { TrashIcon } from '@/shared/ui/icons'
 import type { EntryMagicPath } from '@/domain/types'
 
+/**
+ * "NIGROMANCIA" → "Nigromancia", "Fuego" → "Fuego".
+ *
+ * No basta con capitalizar la primera letra: hay que bajar el resto, porque lo
+ * que llega del catálogo puede venir ya en mayúsculas. Solo toca la primera
+ * palabra, que es lo correcto en español ("Manuscritos de nigromancia").
+ */
+function sentenceCase(text: string): string {
+  const lower = text.toLocaleLowerCase('es')
+  return lower.charAt(0).toLocaleUpperCase('es') + lower.slice(1)
+}
+
 interface EntryMagicSectionProps {
   paths: MagicPath[]
   value: EntryMagicPath[]
@@ -56,14 +68,14 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-2 bg-parchment-dark/40 px-2.5 py-1.5 text-left hover:bg-parchment-dark"
       >
-        <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft lowercase">
-          magia
+        <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft">
+          Magia
           {/* El resumen en la cabecera evita tener que abrir la sección solo
               para comprobar qué lleva. */}
           {value.length > 0 && (
             <span className="ml-2 font-normal text-bronze">
               {value
-                .map((v) => `${(pathById.get(v.pathId)?.name ?? '—').toLowerCase()} ${v.level}`)
+                .map((v) => `${sentenceCase(pathById.get(v.pathId)?.name ?? '—')} ${v.level}`)
                 .join(' · ')}
             </span>
           )}
@@ -80,10 +92,10 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
                 return (
                   <li key={chosen.pathId} className="flex items-center gap-2 px-2 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-xs text-ink">
-                      {(path?.name ?? 'senda borrada').toLowerCase()}
+                      {sentenceCase(path?.name ?? 'senda borrada')}
                       {path && (
                         <span className="ml-1.5 text-mini text-ink-soft/70">
-                          {MAGIC_GROUP_LABELS[path.group].toLowerCase()}
+                          {sentenceCase(MAGIC_GROUP_LABELS[path.group])}
                         </span>
                       )}
                     </span>
@@ -133,15 +145,15 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
               }}
               className="w-full rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1.5 text-xs text-ink outline-none focus:border-bronze"
             >
-              <option value="">+ añadir senda…</option>
+              <option value="">+ Añadir senda…</option>
               {MAGIC_GROUPS.map((group) => {
                 const groupPaths = available.filter((p) => p.group === group)
                 if (groupPaths.length === 0) return null
                 return (
-                  <optgroup key={group} label={MAGIC_GROUP_LABELS[group].toLowerCase()}>
+                  <optgroup key={group} label={sentenceCase(MAGIC_GROUP_LABELS[group])}>
                     {groupPaths.map((path) => (
                       <option key={path.id} value={path.id}>
-                        {path.name.toLowerCase()}
+                        {sentenceCase(path.name)}
                       </option>
                     ))}
                   </optgroup>
