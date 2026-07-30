@@ -617,7 +617,11 @@ CREATE TABLE army_list_entries (
     -- "Jules el Bretón (Paladín Bretoniano)", porque el tipo sigue haciendo
     -- falta para saber qué reglas se aplican. NULL = sin nombre propio.
     alias               TEXT,
-    sort_order          INTEGER NOT NULL DEFAULT 0
+    sort_order          INTEGER NOT NULL DEFAULT 0,
+    -- Coste escrito a mano que PISA al calculado. NULL = usar el cálculo.
+    -- No se usa 0 como "sin retocar" porque 0 es un coste válido: hay
+    -- opciones que no cuestan puntos.
+    cost_override      INTEGER
 );
 
 CREATE INDEX idx_army_list_entries_list ON army_list_entries(army_list_id);

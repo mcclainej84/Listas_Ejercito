@@ -550,3 +550,96 @@ export async function captureUnitCanvas(unit: UnitDetail, sheet: UnitSheet, view
   if (view.grayscale) grayscaleCanvasInPlace(canvas)
   return canvas
 }
+
+// ---------------------------------------------------------------------------
+// Reglas especiales DESCRITAS (para "Exportar Hojas de unidad" en PDF)
+// ---------------------------------------------------------------------------
+/**
+ * La ficha lista los NOMBRES de las reglas ("Miedo, Odio, Tozudez"), que es
+ * todo lo que cabe en la tarjeta. Este bloque las desarrolla: nombre en
+ * negrita seguido de su texto, para poder llevar el ejército a la partida sin
+ * el reglamento al lado.
+ *
+ * Se dibuja con las MISMAS fuentes, el mismo ancho de tarjeta y el mismo
+ * interlineado que la ficha, y sobre el mismo fondo blanco, para que en el PDF
+ * parezca la continuación de la hoja y no un anexo pegado.
+ *
+ * Devuelve null si la unidad no tiene reglas: media página en blanco con un
+ * título huérfano es peor que no poner nada.
+ */
+export async function captureSpecialRulesCanvas(
+  unit: UnitDetail,
+  view: ExportView,
+): Promise<HTMLCanvasElement | null> {
+  if (unit.specialRules.length === 0) return null
+  await ensureFonts()
+
+  const maxW = CONTENT_W
+  const measure = document.createElement('canvas').getContext('2d')!
+
+  // Se mide antes de dibujar porque la altura del canvas depende de cuánto
+  // texto haya, y cambiar el tamaño de un canvas borra su contenido.
+  interface Entrada {
+    nombre: string
+    lineas: string[]
+  }
+  const entradas: Entrada[] = []
+  let alto = PAD_TOP + Math.round(BODY_SIZE * 1.2) + TITLE_SMALL_MB + 4
+  for (const regla of unit.specialRules) {
+    measure.font = BODY_BOLD_FONT
+    const anchoNombre = measure.measureText(`${regla.name}: `).width
+    measure.font = BODY_FONT
+    // La primera línea comparte hueco con el nombre en negrita; el resto va a
+    // ancho completo, igual que hace drawLabelledField en la tarjeta.
+    const todas = wrapText(measure, regla.description || '–', Math.max(20, maxW - anchoNombre))
+    const resto = todas.length > 1 ? wrapText(measure, todas.slice(1).join(' '), maxW) : []
+    const lineas = [todas[0] ?? '', ...resto]
+    entradas.push({ nombre: regla.name, lineas })
+    alto += lineas.length * LINE_H + LI_MB * 2
+  }
+  alto += PAD_BOTTOM
+
+  const canvas = document.createElement('canvas')
+  canvas.width = CARD_W * SCALE
+  canvas.height = Math.round(alto) * SCALE
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(SCALE, SCALE)
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, CARD_W, alto)
+
+  let y = PAD_TOP
+  ctx.font = BODY_BOLD_FONT
+  ctx.fillStyle = INK
+  ctx.textBaseline = 'top'
+  ctx.fillText('Reglas especiales:', PAD_X, y)
+  y += Math.round(BODY_SIZE * 1.2) + TITLE_SMALL_MB
+
+  // Filete bajo el título, del mismo color y grosor que los de la tabla de
+  // características: es el separador que ya usa la ficha.
+  ctx.strokeStyle = ROW_LINE
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(PAD_X, y + 0.5)
+  ctx.lineTo(CARD_W - PAD_X, y + 0.5)
+  ctx.stroke()
+  y += 4
+
+  for (const entrada of entradas) {
+    ctx.font = BODY_BOLD_FONT
+    ctx.fillStyle = INK
+    const etiqueta = `${entrada.nombre}: `
+    ctx.fillText(etiqueta, PAD_X, y)
+    const anchoNombre = ctx.measureText(etiqueta).width
+
+    ctx.font = BODY_FONT
+    entrada.lineas.forEach((linea, i) => {
+      const x = i === 0 ? PAD_X + anchoNombre : PAD_X
+      ctx.fillText(linea, x, y + i * LINE_H)
+    })
+    y += entrada.lineas.length * LINE_H + LI_MB * 2
+  }
+
+  if (view.grayscale) grayscaleCanvasInPlace(canvas)
+  return canvas
+}

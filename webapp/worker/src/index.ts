@@ -612,6 +612,10 @@ const MIGRATIONS: string[] = [
   // datos, que es lo contrario de estrenarlas ocultas y no enterarse nunca.
   'ALTER TABLE users ADD COLUMN show_mounts INTEGER NOT NULL DEFAULT 1',
   'ALTER TABLE users ADD COLUMN show_magic INTEGER NOT NULL DEFAULT 1',
+  // Coste escrito a mano para una entrada, que pisa el calculado. NULL = usar
+  // el cálculo. Se distingue a propósito de 0, que es un coste válido
+  // ("gratis") y no lo mismo que "sin retocar".
+  'ALTER TABLE army_list_entries ADD COLUMN cost_override INTEGER',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

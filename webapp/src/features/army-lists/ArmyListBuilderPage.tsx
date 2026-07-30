@@ -7,6 +7,8 @@ import { EquipmentRepository, UnitCategoryRepository, UpgradeRepository } from '
 import { CompositionRuleRepository } from '@/data/repositories/compositionRuleRepository'
 import { RuleRepository } from '@/data/repositories/ruleRepository'
 import { MagicRepository } from '@/data/repositories/magicRepository'
+import { abrirPestanaPdf, cerrarPestanaPdf } from '@/features/army-lists/pdfWindow'
+import { useGlobalGrayscale } from '@/shared/theme/useGrayscaleMode'
 import { UserRepository, DEFAULT_ARMY_LIST_OPTIONS } from '@/data/repositories/userRepository'
 import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
@@ -45,6 +47,7 @@ import {
   CheckIcon,
   CategoryShield,
   WarningIcon,
+  PencilIcon,
   NameTagIcon,
   type ShieldMetal,
 } from '@/shared/ui/icons'
@@ -246,6 +249,13 @@ export function ArmyListBuilderPage() {
   const [editingSettings, setEditingSettings] = useState(false)
   const [deletingEntry, setDeletingEntry] = useState<ArmyListEntry | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [exportingSheets, setExportingSheets] = useState(false)
+  /** Entrada cuyo coste se está escribiendo a mano, y lo tecleado hasta ahora. */
+  const [editingCostId, setEditingCostId] = useState<number | null>(null)
+  const [costText, setCostText] = useState('')
+  // El blanco y negro de las hojas exportadas sigue al interruptor global de la
+  // barra superior: exportas lo que ves.
+  const [grayscale] = useGlobalGrayscale()
   const [browseFactionId, setBrowseFactionId] = useState<number | null>(null)
   const [browseCategory, setBrowseCategory] = useState<string | null>(null)
   const [unitSearch, setUnitSearch] = useState('')
@@ -565,6 +575,10 @@ export function ArmyListBuilderPage() {
       // propia fila (ver el icono de nombre en "Unidades en la lista"). Al
       // EDITAR una entrada existente hay que conservar el que ya tuviera.
       alias: currentEntries.find((e) => e.id === draft.editingEntryId)?.alias ?? null,
+      // El coste a mano también se decide sobre la fila ya puesta en la lista
+      // (pinchando en su coste), así que al editar hay que conservarlo: si no,
+      // tocar cualquier otra cosa de la entrada lo borraría sin avisar.
+      costOverride: currentEntries.find((e) => e.id === draft.editingEntryId)?.costOverride ?? null,
       // Solo los hechiceros llevan sendas: si se desmarca "Hechicero" en el
       // catálogo, las que hubiera dejan de guardarse en vez de quedarse
       // colgando en una entrada que ya no puede lanzarlas.
@@ -600,6 +614,7 @@ export function ArmyListBuilderPage() {
       hasChampion: input.hasChampion,
       championName: null,
       alias: input.alias,
+      costOverride: input.costOverride,
       magicPaths: input.magicPaths,
       sortOrder: 0,
       equipmentIds: input.equipmentIds,
@@ -661,6 +676,34 @@ export function ArmyListBuilderPage() {
     setSortCriterion('')
   }
 
+  /**
+   * Guarda el coste tecleado para una entrada.
+   *
+   * Vacío = volver al coste CALCULADO (costOverride null), que es la única
+   * forma de deshacer un retoque. Se distingue de escribir 0, que es un coste
+   * a mano válido y perfectamente legítimo.
+   *
+   * Solo queda en el borrador: se persiste con "Guardar ejército", como
+   * cualquier otro cambio de la lista.
+   */
+  function commitCost(entryId: number) {
+    const texto = costText.trim()
+    const valor = texto === '' ? null : Math.max(0, Math.round(Number(texto)))
+    setEditingCostId(null)
+    if (texto !== '' && !Number.isFinite(valor)) return // no era un número: se deja como estaba
+    const anterior = currentEntries.find((e) => e.id === entryId)?.costOverride ?? null
+    if (valor === anterior) return
+    setEntries(currentEntries.map((e) => (e.id === entryId ? { ...e, costOverride: valor } : e)))
+    setDirty(true)
+  }
+
+  function startEditCost(entry: ArmyListEntry) {
+    setEditingCostId(entry.id)
+    // Se parte del coste que se está viendo, retocado o no: así corregir "de
+    // 120 a 125" es teclear un dígito y no volver a escribirlo todo.
+    setCostText(String(computeEntryCost(entry.unit, entry)))
+  }
+
   /** Persiste TODO el borrador de una vez (botón "Guardar ejército"). Devuelve true si se guardó bien. */
   async function handleSaveList(): Promise<boolean> {
     if (!list) return false
@@ -676,6 +719,7 @@ export function ArmyListBuilderPage() {
         hasMusician: e.hasMusician,
         hasChampion: e.hasChampion,
         championName: e.championName,
+        costOverride: e.costOverride,
         alias: e.alias,
         magicPaths: e.magicPaths,
         equipmentIds: e.equipmentIds,
@@ -692,15 +736,60 @@ export function ArmyListBuilderPage() {
     }
   }
 
+  /**
+   * "Exportar Hojas de unidad": la hoja de cada unidad de la lista, una por
+   * página, con sus reglas especiales desarrolladas debajo.
+   *
+   * Se exporta una hoja por UNIDAD distinta y no una por entrada: si la lista
+   * lleva tres regimientos de Arqueros, la hoja es la misma tres veces. La
+   * primera aparición manda el orden, para que el PDF siga el de la lista.
+   *
+   * El blanco y negro sigue al interruptor global de la barra superior, que es
+   * el que ya decide cómo se ve todo lo demás.
+   */
+  async function handleExportSheets() {
+    if (!list || currentEntries.length === 0) return
+    // ANTES de cualquier await: el permiso para abrir pestañas caduca a los
+    // instantes del clic, y esto tarda en generarse.
+    const ventana = abrirPestanaPdf()
+    setExportingSheets(true)
+    try {
+      const [{ exportUnitSheetsToPdf }, { UnitSheetRepository }] = await Promise.all([
+        import('@/features/army-lists/exportUnitSheetsPdf'),
+        import('@/data/repositories/unitSheetRepository'),
+      ])
+
+      const unidades = new Map<number, (typeof currentEntries)[number]['unit']>()
+      for (const entry of currentEntries) {
+        if (!unidades.has(entry.unit.id)) unidades.set(entry.unit.id, entry.unit)
+      }
+
+      const hojas = []
+      for (const unit of unidades.values()) {
+        hojas.push({ unit, sheet: await UnitSheetRepository.getByUnitId(unit.id) })
+      }
+      await exportUnitSheetsToPdf(hojas, { grayscale, showFrame: false }, ventana)
+    } catch (err) {
+      cerrarPestanaPdf(ventana)
+      throw err
+    } finally {
+      setExportingSheets(false)
+    }
+  }
+
   async function handleExportPdf() {
     if (!list) return
+    const ventana = abrirPestanaPdf()
     setExportingPdf(true)
     try {
       // Import perezoso: jsPDF + jspdf-autotable solo hacen falta cuando de
       // verdad se exporta un PDF, así que van en su propio chunk en vez de
       // engordar el bundle inicial de toda la app.
       const { exportArmyListToPdf } = await import('@/features/army-lists/exportArmyListPdf')
-      await exportArmyListToPdf({ ...list, name, pointsLimit, entries: currentEntries }, total)
+      await exportArmyListToPdf({ ...list, name, pointsLimit, entries: currentEntries }, total, ventana)
+    } catch (err) {
+      cerrarPestanaPdf(ventana)
+      throw err
     } finally {
       setExportingPdf(false)
     }
@@ -998,7 +1087,14 @@ export function ArmyListBuilderPage() {
               Editar lista
             </Button>
             <Button variant="secondary" onClick={handleExportPdf} disabled={exportingPdf || currentEntries.length === 0}>
-              {exportingPdf ? 'Generando…' : '📄 Exportar PDF'}
+              {exportingPdf ? 'Generando…' : '📄 Exportar Lista'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleExportSheets}
+              disabled={exportingSheets || currentEntries.length === 0}
+            >
+              {exportingSheets ? 'Generando…' : '📄 Exportar Hojas de unidad'}
             </Button>
             <Button variant="primary" onClick={handleSaveList} disabled={!dirty || savingList}>
               {savingList ? 'Guardando…' : 'Guardar ejército'}
@@ -1685,7 +1781,50 @@ export function ArmyListBuilderPage() {
                             </Tooltip>
                           </td>
                         ))}
-                        <td className="py-1.5 text-center align-middle font-medium text-ink">{cost}</td>
+                        {/* El coste se escribe a mano pinchándolo. Sirve para
+                            lo que la fórmula no cubre (una errata del libro,
+                            una regla de la casa), y una vez escrito manda a
+                            todos los efectos: total, avisos de límite, ordenar
+                            por coste y los dos PDF. El lápiz avisa de que ese
+                            número ya no sale del cálculo. */}
+                        <td
+                          className="py-1.5 text-center align-middle font-medium text-ink"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {editingCostId === entry.id ? (
+                            <input
+                              type="number"
+                              min={0}
+                              autoFocus
+                              value={costText}
+                              onChange={(e) => setCostText(e.target.value)}
+                              onBlur={() => commitCost(entry.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') commitCost(entry.id)
+                                // Escape sale sin guardar, que es lo que
+                                // espera cualquiera que se haya equivocado de
+                                // fila.
+                                if (e.key === 'Escape') setEditingCostId(null)
+                              }}
+                              aria-label={`Coste de ${entry.unit.name}`}
+                              className="w-14 rounded-sm border border-bronze bg-parchment px-1 py-0.5 text-center text-xs text-ink outline-none"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startEditCost(entry)}
+                              title={
+                                entry.costOverride != null
+                                  ? 'Coste escrito a mano. Pincha para cambiarlo; déjalo vacío para volver al calculado'
+                                  : 'Pincha para escribir el coste a mano'
+                              }
+                              className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-parchment-dark"
+                            >
+                              {cost}
+                              {entry.costOverride != null && <PencilIcon className="h-3 w-3 text-bronze" />}
+                            </button>
+                          )}
+                        </td>
                         <td className="py-1.5 text-center align-middle">
                           <button
                             onClick={(e) => {

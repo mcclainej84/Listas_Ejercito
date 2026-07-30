@@ -357,3 +357,13 @@ export function CheckCircleIcon({ className = 'h-4 w-4' }: { className?: string 
     </svg>
   )
 }
+
+/** Lápiz — marca un dato escrito a mano, distinto del que calcula el programa. */
+export function PencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+      <path d="M13.2 3.5 16.5 6.8 7.4 15.9l-4 .7.7-4 9.1-9.1Z" strokeLinejoin="round" />
+      <path d="m11.6 5.1 3.3 3.3" strokeLinecap="round" />
+    </svg>
+  )
+}

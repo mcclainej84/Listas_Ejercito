@@ -21,6 +21,12 @@ export interface EntryCostInput {
   hasChampion: boolean
   mountProfileId: number | null
   chariotProfileId: number | null
+  /**
+   * Coste a mano que pisa al calculado. Opcional porque también se calcula el
+   * coste de una entrada que todavía no existe (el botón "Añadir a la lista"),
+   * y ahí no hay nada que pisar.
+   */
+  costOverride?: number | null
 }
 
 /**
@@ -32,8 +38,15 @@ export interface EntryCostInput {
  * original (`numero * (costeTropa + costeEquipo) + costeUnidad + costeP +
  * costeM + costeC`), generalizada de un único equipo/opción a conjuntos de
  * varios y con el coste de montura añadido para personajes.
+ *
+ * Si la entrada tiene COSTE A MANO, manda ese y no se calcula nada. Se
+ * comprueba aquí, en el único sitio por el que pasan el total, el PDF, el
+ * ordenar por coste y el resumen por categorías, para que un coste retocado
+ * valga a todos los efectos sin tener que acordarse en cada pantalla.
  */
 export function computeEntryCost(unit: UnitDetail, input: EntryCostInput): number {
+  if (input.costOverride != null) return input.costOverride
+
   const equipmentCost = unit.equipmentOptions
     .filter((e) => input.equipmentIds.includes(e.id))
     .reduce((sum, e) => sum + e.cost, 0)

@@ -11,9 +11,9 @@
 // deliberadas, mínimas:
 //   - Los datos salen del dominio de esta app (ArmyListDetail) en vez de
 //     leerse del DOM de una tabla HTML como hacía el original.
-//   - El PDF se abre en una pestaña nueva del navegador (doc.output +
-//     window.open) en vez de descargarse directamente — el usuario decide
-//     desde ahí si lo guarda, lo imprime o solo lo consulta.
+//   - El PDF se ve en una pestaña nueva del navegador (ver pdfWindow.ts) en
+//     vez de descargarse directamente — el usuario decide desde ahí si lo
+//     guarda, lo imprime o solo lo consulta.
 //   - Hay una cuarta sección, "Listado de hechizos", que el original no tenía
 //     porque no manejaba magia. Sigue la misma retícula y la misma paleta.
 // Todo lo demás (colores, fuentes, tamaños, textos, orden de secciones,
@@ -25,6 +25,7 @@ import { computeEntryCost } from '@/domain/armyValidation'
 import { MagicRepository } from '@/data/repositories/magicRepository'
 import { MAGIC_GROUP_LABELS, type MagicPathDetail, type MagicSpell } from '@/domain/magic'
 import { mergeSpecialRules } from '@/domain/unitFormat'
+import { mostrarPdf } from '@/features/army-lists/pdfWindow'
 import type { ArmyListDetail, ArmyListEntry, AttributeProfile, SpecialRule } from '@/domain/types'
 
 const TEXTURE_URL = `${import.meta.env.BASE_URL}assets/army-sheet/fondo-pergamino.jpg`
@@ -286,7 +287,11 @@ function reglasDeLaEntrada(entry: ArmyListEntry): SpecialRule[] {
   return mergeSpecialRules(entry.unit.specialRules, montura?.specialRules ?? [], carro?.specialRules ?? [])
 }
 
-export async function exportArmyListToPdf(list: ArmyListDetail, total: number): Promise<void> {
+export async function exportArmyListToPdf(
+  list: ArmyListDetail,
+  total: number,
+  ventana: Window | null = null,
+): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
   const [texturaDataUrl, fuenteOk] = await Promise.all([fetchDataUrl(TEXTURE_URL), registrarFuenteTitulares(doc)])
@@ -687,9 +692,11 @@ export async function exportArmyListToPdf(list: ArmyListDetail, total: number): 
     dibujarPiePagina(doc, p, totalPaginas, list.name)
   }
 
-  // Se abre en una pestaña nueva (en vez de descargar directamente) para
-  // que el usuario pueda verlo/imprimirlo desde el propio visor del
-  // navegador, en vez de forzar una descarga directa a disco.
-  const blobUrl = doc.output('bloburl')
-  window.open(blobUrl, '_blank')
+  // Se ve en una pestaña nueva (en vez de descargar directamente) para que el
+  // usuario pueda consultarlo o imprimirlo desde el propio visor del
+  // navegador. La pestaña la abre el llamador en el clic (ver pdfWindow.ts):
+  // esta función también espera a la textura y a las fuentes, y con las sendas
+  // cargadas de por medio puede tardar lo bastante como para que el navegador
+  // deje de permitirlo.
+  mostrarPdf(ventana, doc, `${list.name || 'lista'}.pdf`)
 }

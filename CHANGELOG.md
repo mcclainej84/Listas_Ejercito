@@ -13,6 +13,40 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.67 — 29/07/2026 23:45
+
+- **Arreglado: el navegador bloqueaba «Exportar Hojas de unidad».** El permiso
+  para abrir una pestaña caduca a los instantes de la pulsación, y generar las
+  hojas —fuentes, ilustraciones desde R2 y un canvas por unidad— tardaba más
+  que eso. Ahora la pestaña se abre en el mismo clic, con un aviso de
+  «Generando el PDF…», y se lleva al documento cuando está listo. Si aun así
+  la bloquean, el PDF se descarga en vez de perderse. Lo mismo se aplicó a
+  «Exportar Lista», que corría el mismo riesgo aunque tarde menos.
+
+## 0.66 — 29/07/2026 23:15
+
+- En «Unidades en la lista», el **coste se puede escribir a mano**: se pincha
+  el número y se teclea. Al lado aparece un **lápiz** que avisa de que ese
+  coste ya no sale del cálculo. Dejar la casilla **vacía** vuelve al calculado;
+  escribir **0** es un coste a mano válido, no lo mismo que borrarlo.
+- El coste escrito a mano **manda a todos los efectos**: total del ejército,
+  aviso de límite de puntos, «Composición del ejército», ordenar por coste y
+  los dos PDF. Se comprueba en el único sitio por el que pasan todos
+  (`computeEntryCost`), para que no haya una pantalla que se olvide.
+
+## 0.65 — 29/07/2026 22:40
+
+- «Exportar PDF» pasa a llamarse **«Exportar Lista»**, y a su lado aparece
+  **«Exportar Hojas de unidad»**: un PDF con la hoja de cada unidad del
+  ejército, **una por página**, y debajo sus **reglas especiales
+  desarrolladas** (nombre y texto), para no necesitar el reglamento al lado.
+  Las hojas salen del mismo motor que usan el PNG y el Word de la sección
+  Fichas, así que heredan su tipografía y su maquetación exactas: en el PDF
+  parecen la misma hoja. También heredan el blanco y negro del interruptor de
+  la barra superior.
+  Se exporta una hoja por unidad **distinta**: tres regimientos de Arqueros
+  comparten hoja, y el orden es el de la lista.
+
 ## 0.64 — 29/07/2026 21:55
 
 - El **nombre propio de un personaje sale ya en las cuatro tablas del PDF**.

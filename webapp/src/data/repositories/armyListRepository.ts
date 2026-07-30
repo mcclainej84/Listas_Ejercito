@@ -76,6 +76,9 @@ async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry
     hasChampion: Boolean(row.has_champion),
     championName: (row.champion_name as string) ?? null,
     alias: (row.alias as string) ?? null,
+    // `?? null` y no `|| null`: un coste de 0 es válido y no debe convertirse
+    // en "sin retocar".
+    costOverride: (row.cost_override as number) ?? null,
     magicPaths,
     sortOrder: row.sort_order as number,
     equipmentIds,
@@ -210,6 +213,7 @@ export const ArmyListRepository = {
           hasChampion: e.hasChampion,
           championName: e.championName,
           alias: e.alias,
+          costOverride: e.costOverride,
           magicPaths: e.magicPaths,
           equipmentIds: e.equipmentIds,
           upgradeIds: e.upgradeIds,
@@ -299,8 +303,8 @@ export const ArmyListRepository = {
     const entryId = await exec(
       `INSERT INTO army_list_entries
          (army_list_id, unit_id, quantity, mount_profile_id, chariot_profile_id,
-          has_standard_bearer, has_musician, has_champion, champion_name, alias, sort_order)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+          has_standard_bearer, has_musician, has_champion, champion_name, alias, cost_override, sort_order)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         armyListId,
         input.unitId,
@@ -312,6 +316,7 @@ export const ArmyListRepository = {
         input.hasChampion ? 1 : 0,
         input.championName,
         input.alias,
+        input.costOverride,
         existingRows.length, // provisional (al final); se corrige justo debajo
       ],
     )
@@ -348,7 +353,8 @@ export const ArmyListRepository = {
     await exec(
       `UPDATE army_list_entries
        SET unit_id = ?, quantity = ?, mount_profile_id = ?, chariot_profile_id = ?,
-           has_standard_bearer = ?, has_musician = ?, has_champion = ?, champion_name = ?, alias = ?
+           has_standard_bearer = ?, has_musician = ?, has_champion = ?, champion_name = ?, alias = ?,
+           cost_override = ?
        WHERE id = ?`,
       [
         input.unitId,
@@ -360,6 +366,7 @@ export const ArmyListRepository = {
         input.hasChampion ? 1 : 0,
         input.championName,
         input.alias,
+        input.costOverride,
         entryId,
       ],
     )
@@ -407,8 +414,9 @@ export const ArmyListRepository = {
       statements.push({
         sql: `INSERT INTO army_list_entries
                 (id, army_list_id, unit_id, quantity, mount_profile_id, chariot_profile_id,
-                 has_standard_bearer, has_musician, has_champion, champion_name, alias, sort_order)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 has_standard_bearer, has_musician, has_champion, champion_name, alias, cost_override,
+                 sort_order)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         params: [
           entryId,
           armyListId,
@@ -421,6 +429,7 @@ export const ArmyListRepository = {
           entry.hasChampion ? 1 : 0,
           entry.championName,
           entry.alias,
+          entry.costOverride,
           index,
         ],
       })

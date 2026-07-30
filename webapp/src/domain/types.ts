@@ -351,6 +351,12 @@ export interface ArmyListEntry {
    */
   alias: string | null
   /**
+   * Coste escrito a mano que PISA al calculado, para los casos que la fórmula
+   * no cubre. null = usar el cálculo. Ojo: 0 NO significa "sin retocar" —
+   * es un coste válido.
+   */
+  costOverride: number | null
+  /**
    * Sendas de magia de ESTA miniatura en ESTA lista, cada una con su nivel.
    *
    * El nivel es por senda y no del personaje: puede llevar Fuego a nivel 2 y
@@ -385,6 +391,8 @@ export interface ArmyListEntryInput {
   championName: string | null
   /** Nombre propio de la miniatura en la lista (ver ArmyListEntry.alias). */
   alias: string | null
+  /** Coste a mano que pisa al calculado (ver ArmyListEntry.costOverride). */
+  costOverride: number | null
   /** Sendas de magia con su nivel (ver ArmyListEntry.magicPaths). */
   magicPaths: EntryMagicPath[]
   equipmentIds: number[]
