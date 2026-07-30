@@ -13,6 +13,31 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.73 — 30/07/2026 03:10
+
+- **Selección múltiple en el despliegue.** Arrastrando sobre la mesa vacía se
+  dibuja un recuadro que selecciona todo lo que toca; después, arrastrar
+  cualquiera de las seleccionadas **mueve el grupo entero** manteniendo las
+  distancias. Con Mayúsculas se van sumando unidades a la selección, y las
+  flechas del teclado también mueven todo lo seleccionado.
+- El grupo se mueve **como un bloque**: al empujarlo contra un borde deja de
+  avanzar entero en vez de que las de fuera se paren y las de dentro sigan. Un
+  frente no se deforma solo por haber arrastrado un poco de más.
+- «Devolver a la reserva» retira todas las seleccionadas de una vez.
+
+## 0.72 — 30/07/2026 02:35
+
+- En el lienzo, el **nombre de la unidad se ciñe al ancho de su peana** y baja
+  de línea por el siguiente espacio en blanco. Una palabra suelta más ancha que
+  la peana se sale antes que partirse por la mitad, que sería ilegible.
+- Nuevo botón **«Alinear unidades»**: forma **líneas de batalla**. Toma la
+  unidad más adelantada, sube a su altura todas las que se solapen con ella en
+  vertical, y repite con las que quedan — así salen tantos frentes como haga
+  falta, no uno solo. Las `x` no se tocan.
+  Se igualan los **frentes**, no los centros: una peana de personaje tiene 4 cm
+  de fondo y un regimiento 10, así que igualando centros el personaje quedaría
+  3 cm por detrás de la línea.
+
 ## 0.71 — 30/07/2026 02:05
 
 - El **lienzo del despliegue ocupa todo el ancho** y la reserva pasa **debajo**,

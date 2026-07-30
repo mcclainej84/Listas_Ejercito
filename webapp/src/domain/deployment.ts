@@ -87,3 +87,108 @@ export function limitarAMesa(xCm: number, yCm: number, tamano: TamanoCm): { xCm:
 export function redondearCm(valor: number): number {
   return Math.round(valor * 2) / 2
 }
+
+/** Una peana ya colocada, con su tamaño resuelto. Lo que necesita `alinearFrentes`. */
+export interface PeanaEnMesa extends DeploymentPosition {
+  tamano: TamanoCm
+}
+
+/**
+ * Alinea las unidades en FRENTES DE BATALLA.
+ *
+ * Cómo funciona: se busca la unidad más adelantada (la que tiene el frente más
+ * cerca del enemigo, o sea la `y` menor). Todas las que se solapen con ella en
+ * vertical forman su misma línea y suben a su altura. Las que no se solapen se
+ * quedan donde están y se repite el proceso con ellas: sale otra línea, y otra,
+ * hasta que no queda ninguna. Por eso puede haber varios frentes a la vez, que
+ * es justo lo que se pidió.
+ *
+ * SE ALINEAN LOS FRENTES, NO LOS CENTROS. Una peana de personaje tiene 4 cm de
+ * fondo y un regimiento 10: igualando los centros, el personaje quedaría 3 cm
+ * por detrás de la línea. Lo que forma una línea de batalla es que los frentes
+ * estén a la misma altura, así que cada peana se coloca por su frente y su
+ * fondo cae hacia atrás.
+ *
+ * El solape se mide contra el tramo del LÍDER, no contra el de la unidad que se
+ * acaba de mover: si se encadenaran, una fila de unidades escalonadas se
+ * arrastraría entera hasta la primera, y el ejemplo del usuario dice justo lo
+ * contrario (la unidad Z se queda donde está).
+ */
+export function alinearFrentes(peanas: PeanaEnMesa[]): DeploymentPosition[] {
+  const frenteDe = (p: PeanaEnMesa) => p.yCm - p.tamano.altoCm / 2
+  const traseraDe = (p: PeanaEnMesa) => p.yCm + p.tamano.altoCm / 2
+
+  const pendientes = [...peanas].sort((a, b) => frenteDe(a) - frenteDe(b))
+  const resultado: DeploymentPosition[] = []
+
+  while (pendientes.length > 0) {
+    const lider = pendientes.shift()!
+    const frente = frenteDe(lider)
+    const trasera = traseraDe(lider)
+
+    const alineadas = [lider]
+    for (let i = pendientes.length - 1; i >= 0; i--) {
+      const candidata = pendientes[i]
+      // Solape estricto: tocarse justo por el borde no es estar en la misma
+      // línea, es estar una detrás de otra.
+      if (frenteDe(candidata) < trasera && traseraDe(candidata) > frente) {
+        alineadas.push(candidata)
+        pendientes.splice(i, 1)
+      }
+    }
+
+    for (const peana of alineadas) {
+      const dentro = limitarAMesa(peana.xCm, frente + peana.tamano.altoCm / 2, peana.tamano)
+      resultado.push({ entryId: peana.entryId, xCm: redondearCm(dentro.xCm), yCm: redondearCm(dentro.yCm) })
+    }
+  }
+
+  return resultado
+}
+
+/**
+ * Recorta un desplazamiento para que NINGUNA de las peanas se salga de la mesa.
+ *
+ * Se calcula un único recorte para todo el grupo, no uno por peana. Si cada una
+ * se limitara por su cuenta, al empujar la formación contra un borde las de
+ * fuera se pararían y las de dentro seguirían: el frente se deformaría solo por
+ * haber arrastrado un poco de más. Así el grupo se mueve como un bloque y
+ * simplemente deja de avanzar cuando la primera toca el borde.
+ */
+export function limitarDesplazamiento(
+  peanas: PeanaEnMesa[],
+  dxCm: number,
+  dyCm: number,
+): { dxCm: number; dyCm: number } {
+  let dx = dxCm
+  let dy = dyCm
+  for (const p of peanas) {
+    const margenX = p.tamano.anchoCm / 2
+    const margenY = p.tamano.altoCm / 2
+    dx = Math.max(margenX - p.xCm, Math.min(MESA_ANCHO_CM - margenX - p.xCm, dx))
+    dy = Math.max(margenY - p.yCm, Math.min(MESA_ALTO_CM - margenY - p.yCm, dy))
+  }
+  return { dxCm: dx, dyCm: dy }
+}
+
+/** Un rectángulo de selección sobre la mesa, en cm. Los extremos pueden venir en cualquier orden. */
+export interface RectanguloCm {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
+/** ¿Toca esta peana el rectángulo? Basta con rozarlo: pedir que quepa entera obligaría a barridos enormes. */
+export function peanaDentroDelRectangulo(peana: PeanaEnMesa, rect: RectanguloCm): boolean {
+  const izq = Math.min(rect.x1, rect.x2)
+  const der = Math.max(rect.x1, rect.x2)
+  const arr = Math.min(rect.y1, rect.y2)
+  const aba = Math.max(rect.y1, rect.y2)
+  return (
+    peana.xCm - peana.tamano.anchoCm / 2 < der &&
+    peana.xCm + peana.tamano.anchoCm / 2 > izq &&
+    peana.yCm - peana.tamano.altoCm / 2 < aba &&
+    peana.yCm + peana.tamano.altoCm / 2 > arr
+  )
+}

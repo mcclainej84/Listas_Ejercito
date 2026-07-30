@@ -16,6 +16,11 @@
 // recortarlo, y el nombre es lo único que hay que poder leer siempre; el resto
 // (coste, cantidad) está a un paso en el ejército y aquí solo estorba.
 //
+// SELECCIÓN MÚLTIPLE. Arrastrando sobre la mesa vacía se dibuja un recuadro
+// que selecciona todo lo que toca; después, arrastrar cualquiera de las
+// seleccionadas mueve el grupo entero manteniendo las distancias. Es lo que
+// permite recolocar un flanco sin rehacerlo unidad por unidad.
+//
 // Es un BORRADOR: se edita en memoria y se persiste con "Guardar despliegue",
 // igual que el constructor de listas. Así arrastrar veinte veces no son veinte
 // escrituras en la base.
@@ -28,10 +33,14 @@ import {
   MESA_ALTO_CM,
   MESA_ANCHO_CM,
   RETICULA_CM,
+  alinearFrentes,
   limitarAMesa,
+  limitarDesplazamiento,
+  peanaDentroDelRectangulo,
   redondearCm,
   tamanoDeEntrada,
   type DeploymentPosition,
+  type RectanguloCm,
   type TamanoCm,
 } from '@/domain/deployment'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -70,15 +79,25 @@ export function DeploymentPage() {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [seleccionada, setSeleccionada] = useState<number | null>(null)
+  /** Entradas seleccionadas. Se mueven juntas al arrastrar cualquiera de ellas. */
+  const [seleccion, setSeleccion] = useState<Set<number>>(new Set())
+  /** Recuadro de selección mientras se arrastra sobre la mesa vacía, en cm. */
+  const [recuadro, setRecuadro] = useState<RectanguloCm | null>(null)
 
   useEffect(() => {
     if (guardado) setPosiciones(new Map(guardado.map((p) => [p.entryId, p])))
   }, [guardado])
 
   const mesaRef = useRef<HTMLDivElement>(null)
-  /** Desfase entre el punto donde se agarró y el centro de la peana, en cm. */
-  const agarre = useRef<{ dx: number; dy: number } | null>(null)
+  /**
+   * Arrastre en curso: dónde estaba el ratón al empezar y dónde estaba CADA
+   * peana que se mueve. Se guardan las posiciones de partida en vez de ir
+   * acumulando incrementos porque, al recortar el desplazamiento contra el
+   * borde, los incrementos acumulados iban perdiendo la formación.
+   */
+  const agarre = useRef<{ xCm: number; yCm: number; inicio: Map<number, DeploymentPosition> } | null>(null)
+  /** Punto donde empezó el recuadro de selección. */
+  const inicioRecuadro = useRef<{ xCm: number; yCm: number } | null>(null)
 
   const esDeOtro = list != null && list.userId != null && user != null && list.userId !== user.id
   const { data: compartida, loading: cargandoComparticion } = useAsync(
@@ -86,6 +105,9 @@ export function DeploymentPage() {
     [esDeOtro, list?.id, user?.id],
   )
   const soloLectura = esDeOtro && compartida === true
+
+  /** Tamaño de peana por entrada, resuelto una vez por render. */
+  const tamanoPorEntrada = new Map<number, TamanoCm>((list?.entries ?? []).map((e) => [e.id, tamanoDe(e)]))
 
   /** Píxeles del lienzo → centímetros de mesa. Es la única conversión del archivo. */
   function aCm(clientX: number, clientY: number): { xCm: number; yCm: number } {
@@ -107,13 +129,37 @@ export function DeploymentPage() {
     setDirty(true)
   }
 
-  function retirar(entryId: number) {
+  function retirar(entryIds: number[]) {
     setPosiciones((prev) => {
       const next = new Map(prev)
-      next.delete(entryId)
+      for (const id of entryIds) next.delete(id)
       return next
     })
-    setSeleccionada((sel) => (sel === entryId ? null : sel))
+    setSeleccion(new Set())
+    setDirty(true)
+  }
+
+  /**
+   * Mueve el GRUPO arrastrado. El desplazamiento se recorta una sola vez para
+   * todas (ver limitarDesplazamiento), así la formación no se deforma al
+   * empujarla contra un borde.
+   */
+  function moverGrupo(dxCm: number, dyCm: number) {
+    const enJuego = agarre.current
+    if (!enJuego) return
+    const peanas = [...enJuego.inicio.values()].map((p) => ({ ...p, tamano: tamanoPorEntrada.get(p.entryId)! }))
+    const d = limitarDesplazamiento(peanas, dxCm, dyCm)
+    setPosiciones((prev) => {
+      const next = new Map(prev)
+      for (const p of peanas) {
+        next.set(p.entryId, {
+          entryId: p.entryId,
+          xCm: redondearCm(p.xCm + d.dxCm),
+          yCm: redondearCm(p.yCm + d.dyCm),
+        })
+      }
+      return next
+    })
     setDirty(true)
   }
 
@@ -126,6 +172,25 @@ export function DeploymentPage() {
     const columna = yaPuestas % 10
     const fila = Math.floor(yaPuestas / 10)
     colocar(entry, 12 + columna * 17, MESA_ALTO_CM - 12 - fila * 13)
+  }
+
+  /**
+   * Ordena el ejército en frentes de batalla (ver alinearFrentes). No es un
+   * "ordenar" global: respeta las x, solo iguala las alturas de las unidades
+   * que ya estaban a la par, y puede salir más de una línea.
+   */
+  function handleAlinear(entradas: ArmyListEntry[]) {
+    const enMesa = entradas.filter((e) => posiciones.has(e.id))
+    if (enMesa.length < 2) return
+    const alineadas = alinearFrentes(
+      enMesa.map((entry) => ({ ...posiciones.get(entry.id)!, tamano: tamanoDe(entry) })),
+    )
+    setPosiciones((prev) => {
+      const next = new Map(prev)
+      for (const p of alineadas) next.set(p.entryId, p)
+      return next
+    })
+    setDirty(true)
   }
 
   async function handleSave() {
@@ -170,7 +235,7 @@ export function DeploymentPage() {
   const entradas = [...list.entries].sort((a, b) => a.sortOrder - b.sortOrder)
   const enReserva = entradas.filter((e) => !posiciones.has(e.id))
   const enMesa = entradas.filter((e) => posiciones.has(e.id))
-  const entradaSeleccionada = seleccionada != null ? entradas.find((e) => e.id === seleccionada) : undefined
+  const seleccionadas = entradas.filter((e) => seleccion.has(e.id) && posiciones.has(e.id))
 
   return (
     <div>
@@ -186,6 +251,16 @@ export function DeploymentPage() {
               </span>
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}
+            {!soloLectura && (
+              <Button
+                variant="ghost"
+                onClick={() => handleAlinear(entradas)}
+                disabled={enMesa.length < 2}
+                title="Iguala la altura de las unidades que ya están a la par, formando líneas de batalla"
+              >
+                Alinear unidades
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}`)}>
               Volver al ejército
             </Button>
@@ -206,8 +281,39 @@ export function DeploymentPage() {
       <div
         ref={mesaRef}
         style={{ aspectRatio: `${MESA_ANCHO_CM} / ${MESA_ALTO_CM}` }}
-        onClick={() => setSeleccionada(null)}
-        className="relative w-full overflow-hidden rounded-sm border-2 border-ink bg-parchment/60"
+        onPointerDown={(e) => {
+          // Solo si se empieza sobre la mesa VACÍA: al pulsar una peana, el
+          // evento lo atiende ella y no llega aquí (hace stopPropagation).
+          if (soloLectura || e.button !== 0) return
+          const p = aCm(e.clientX, e.clientY)
+          inicioRecuadro.current = p
+          setRecuadro({ x1: p.xCm, y1: p.yCm, x2: p.xCm, y2: p.yCm })
+          e.currentTarget.setPointerCapture(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          if (!inicioRecuadro.current) return
+          const p = aCm(e.clientX, e.clientY)
+          const origen = inicioRecuadro.current
+          setRecuadro({ x1: origen.xCm, y1: origen.yCm, x2: p.xCm, y2: p.yCm })
+        }}
+        onPointerUp={() => {
+          const rect = recuadro
+          inicioRecuadro.current = null
+          setRecuadro(null)
+          if (!rect) return
+          // Un recuadro minúsculo es un clic, no un barrido: se interpreta como
+          // "deseleccionar todo", que es lo que espera quien pincha en un hueco.
+          const esClic = Math.abs(rect.x2 - rect.x1) < 2 && Math.abs(rect.y2 - rect.y1) < 2
+          if (esClic) {
+            setSeleccion(new Set())
+            return
+          }
+          const dentro = enMesa.filter((entry) =>
+            peanaDentroDelRectangulo({ ...posiciones.get(entry.id)!, tamano: tamanoPorEntrada.get(entry.id)! }, rect),
+          )
+          setSeleccion(new Set(dentro.map((e) => e.id)))
+        }}
+        className="relative w-full touch-none overflow-hidden rounded-sm border-2 border-ink bg-parchment/60"
       >
         {/* Retícula cada 30 cm (las 12" del reglamento), como referencia para
             medir a ojo distancias de despliegue. */}
@@ -224,6 +330,19 @@ export function DeploymentPage() {
         {/* Línea central: la referencia que de verdad se usa al desplegar. */}
         <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-maroon/40" />
 
+        {recuadro && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute z-30 border border-dashed border-maroon bg-maroon/10"
+            style={{
+              left: `${(Math.min(recuadro.x1, recuadro.x2) / MESA_ANCHO_CM) * 100}%`,
+              top: `${(Math.min(recuadro.y1, recuadro.y2) / MESA_ALTO_CM) * 100}%`,
+              width: `${(Math.abs(recuadro.x2 - recuadro.x1) / MESA_ANCHO_CM) * 100}%`,
+              height: `${(Math.abs(recuadro.y2 - recuadro.y1) / MESA_ALTO_CM) * 100}%`,
+            }}
+          />
+        )}
+
         {enMesa.map((entry) => {
           const pos = posiciones.get(entry.id)!
           const tamano = tamanoDe(entry)
@@ -234,40 +353,66 @@ export function DeploymentPage() {
               key={entry.id}
               role="button"
               tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation()
-                setSeleccionada(entry.id)
-              }}
               onPointerDown={(e) => {
-                if (soloLectura) return
+                if (soloLectura || e.button !== 0) return
                 e.preventDefault()
+                // Sin esto, el lienzo empezaría a dibujar un recuadro debajo.
                 e.stopPropagation()
-                setSeleccionada(entry.id)
+
+                // Pulsar una peana que YA está seleccionada conserva el grupo
+                // (es como se arrastra un flanco entero); pulsar una de fuera
+                // deja seleccionada solo esa. Con Mayúsculas se van sumando.
+                const grupo = e.shiftKey
+                  ? new Set(seleccion).add(entry.id)
+                  : seleccion.has(entry.id)
+                    ? seleccion
+                    : new Set([entry.id])
+                setSeleccion(grupo)
+
                 const raton = aCm(e.clientX, e.clientY)
-                // Se guarda el desfase respecto al CENTRO para que la peana no
-                // dé un salto al empezar a arrastrar.
-                agarre.current = { dx: pos.xCm - raton.xCm, dy: pos.yCm - raton.yCm }
+                const inicio = new Map<number, DeploymentPosition>()
+                for (const id of grupo) {
+                  const p = posiciones.get(id)
+                  if (p) inicio.set(id, p)
+                }
+                agarre.current = { xCm: raton.xCm, yCm: raton.yCm, inicio }
                 e.currentTarget.setPointerCapture(e.pointerId)
               }}
               onPointerMove={(e) => {
                 if (!agarre.current) return
                 const raton = aCm(e.clientX, e.clientY)
-                colocar(entry, raton.xCm + agarre.current.dx, raton.yCm + agarre.current.dy)
+                moverGrupo(raton.xCm - agarre.current.xCm, raton.yCm - agarre.current.yCm)
               }}
               onPointerUp={() => {
                 agarre.current = null
               }}
               onKeyDown={(e) => {
                 if (soloLectura) return
-                // Las flechas mueven de centímetro en centímetro: hay
-                // colocaciones que se afinan mejor a teclado que a pulso.
+                // Las flechas mueven de centímetro en centímetro, y mueven todo
+                // lo seleccionado: hay colocaciones que se afinan mejor a
+                // teclado que a pulso.
                 const paso = e.shiftKey ? 5 : 1
-                if (e.key === 'ArrowLeft') colocar(entry, pos.xCm - paso, pos.yCm)
-                else if (e.key === 'ArrowRight') colocar(entry, pos.xCm + paso, pos.yCm)
-                else if (e.key === 'ArrowUp') colocar(entry, pos.xCm, pos.yCm - paso)
-                else if (e.key === 'ArrowDown') colocar(entry, pos.xCm, pos.yCm + paso)
-                else return
+                const delta =
+                  e.key === 'ArrowLeft'
+                    ? { x: -paso, y: 0 }
+                    : e.key === 'ArrowRight'
+                      ? { x: paso, y: 0 }
+                      : e.key === 'ArrowUp'
+                        ? { x: 0, y: -paso }
+                        : e.key === 'ArrowDown'
+                          ? { x: 0, y: paso }
+                          : null
+                if (!delta) return
                 e.preventDefault()
+                const grupo = seleccion.has(entry.id) ? seleccion : new Set([entry.id])
+                const inicio = new Map<number, DeploymentPosition>()
+                for (const id of grupo) {
+                  const p = posiciones.get(id)
+                  if (p) inicio.set(id, p)
+                }
+                agarre.current = { xCm: 0, yCm: 0, inicio }
+                moverGrupo(delta.x, delta.y)
+                agarre.current = null
               }}
               title={`${nombreDeLaEntrada(entry)} — ${tamano.anchoCm} × ${tamano.altoCm} cm en (${pos.xCm}, ${pos.yCm})`}
               style={{
@@ -279,7 +424,7 @@ export function DeploymentPage() {
               className={clsx(
                 'absolute -translate-x-1/2 -translate-y-1/2 touch-none select-none',
                 soloLectura ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
-                seleccionada === entry.id ? 'z-20' : 'z-10',
+                seleccion.has(entry.id) ? 'z-20' : 'z-10',
               )}
             >
               {/* La peana ocupa el tamaño REAL, sin nada escrito dentro: a
@@ -287,7 +432,7 @@ export function DeploymentPage() {
               <div
                 className={clsx(
                   'flex h-full w-full items-center justify-center overflow-hidden rounded-[2px] border bg-parchment/95 shadow-sm shadow-black/30',
-                  seleccionada === entry.id ? 'border-maroon ring-1 ring-maroon' : 'border-ink/70',
+                  seleccion.has(entry.id) ? 'border-maroon ring-1 ring-maroon' : 'border-ink/70',
                 )}
               >
                 {emblema ? (
@@ -301,9 +446,13 @@ export function DeploymentPage() {
                   caja ni fondo: lo único que se pide del lienzo es poder leer
                   qué unidad es cada peana, y una etiqueta opaca por unidad
                   taparía justo el terreno que se está intentando planificar.
-                  `whitespace-nowrap` + centrado: el nombre puede ser más ancho
-                  que su peana y no pasa nada. */}
-              <span className="pointer-events-none absolute top-full left-1/2 mt-0.5 -translate-x-1/2 whitespace-nowrap text-[11px] leading-none font-semibold text-ink [text-shadow:0_1px_2px_rgba(235,229,216,.95),0_-1px_2px_rgba(235,229,216,.95),1px_0_2px_rgba(235,229,216,.95),-1px_0_2px_rgba(235,229,216,.95)]">
+
+                  Se ciñe al ANCHO DE LA PEANA y baja de línea por el siguiente
+                  espacio en blanco (`break-words` NO: una palabra suelta más
+                  ancha que la peana se sale antes que partirse por la mitad,
+                  que es ilegible). El halo de pergamino es lo que lo mantiene
+                  legible sobre la retícula. */}
+              <span className="pointer-events-none absolute top-full left-1/2 mt-0.5 w-full -translate-x-1/2 text-center text-[11px] leading-tight font-semibold text-ink [text-shadow:0_1px_2px_rgba(235,229,216,.95),0_-1px_2px_rgba(235,229,216,.95),1px_0_2px_rgba(235,229,216,.95),-1px_0_2px_rgba(235,229,216,.95)]">
                 {nombreDeLaEntrada(entry)}
               </span>
             </div>
@@ -311,25 +460,36 @@ export function DeploymentPage() {
         })}
       </div>
 
-      {/* Barra de la unidad elegida. Retirar va aquí y no como una papelera
-          sobre la peana: a 4 × 4 cm, un icono dentro se pulsaría sin querer
-          justo al ir a arrastrarla. */}
-      {!soloLectura && entradaSeleccionada && (
+      {/* Barra de lo seleccionado. Retirar va aquí y no como una papelera sobre
+          la peana: a 4 × 4 cm, un icono dentro se pulsaría sin querer justo al
+          ir a arrastrarla. */}
+      {!soloLectura && seleccionadas.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <span className="text-xs text-ink-soft">
-            <b className="text-ink">{nombreDeLaEntrada(entradaSeleccionada)}</b> · peana{' '}
-            {tamanoDe(entradaSeleccionada).anchoCm} × {tamanoDe(entradaSeleccionada).altoCm} cm · en (
-            {posiciones.get(entradaSeleccionada.id)?.xCm}, {posiciones.get(entradaSeleccionada.id)?.yCm}) cm
+            {seleccionadas.length === 1 ? (
+              <>
+                <b className="text-ink">{nombreDeLaEntrada(seleccionadas[0])}</b> · peana{' '}
+                {tamanoDe(seleccionadas[0]).anchoCm} × {tamanoDe(seleccionadas[0]).altoCm} cm · en (
+                {posiciones.get(seleccionadas[0].id)?.xCm}, {posiciones.get(seleccionadas[0].id)?.yCm}) cm
+              </>
+            ) : (
+              <>
+                <b className="text-ink">{seleccionadas.length} unidades</b> seleccionadas · se mueven juntas
+              </>
+            )}
           </span>
           <button
             type="button"
-            onClick={() => retirar(entradaSeleccionada.id)}
+            onClick={() => retirar(seleccionadas.map((e) => e.id))}
             className="flex items-center gap-1 rounded-sm border border-maroon/30 px-2 py-1 text-xs font-medium text-maroon hover:bg-maroon/10"
           >
             <TrashIcon className="h-3.5 w-3.5" />
-            Devolver a la reserva
+            {seleccionadas.length === 1 ? 'Devolver a la reserva' : 'Devolver todas a la reserva'}
           </button>
-          <span className="text-mini text-ink-soft/70">Las flechas mueven 1 cm; con Mayúsculas, 5 cm.</span>
+          <span className="text-mini text-ink-soft/70">
+            Arrastra sobre la mesa para seleccionar varias · Mayúsculas para añadir · las flechas mueven 1 cm (5 con
+            Mayúsculas)
+          </span>
         </div>
       )}
 
