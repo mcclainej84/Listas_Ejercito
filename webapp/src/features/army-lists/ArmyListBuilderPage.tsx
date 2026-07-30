@@ -697,6 +697,13 @@ export function ArmyListBuilderPage() {
     setDirty(true)
   }
 
+  /** Quita el coste a mano y devuelve la entrada al calculado (pinchando el lápiz). */
+  function resetCost(entryId: number) {
+    if (currentEntries.find((e) => e.id === entryId)?.costOverride == null) return
+    setEntries(currentEntries.map((e) => (e.id === entryId ? { ...e, costOverride: null } : e)))
+    setDirty(true)
+  }
+
   function startEditCost(entry: ArmyListEntry) {
     setEditingCostId(entry.id)
     // Se parte del coste que se está viendo, retocado o no: así corregir "de
@@ -1810,19 +1817,37 @@ export function ArmyListBuilderPage() {
                               className="w-14 rounded-sm border border-bronze bg-parchment px-1 py-0.5 text-center text-xs text-ink outline-none"
                             />
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => startEditCost(entry)}
-                              title={
-                                entry.costOverride != null
-                                  ? 'Coste escrito a mano. Pincha para cambiarlo; déjalo vacío para volver al calculado'
-                                  : 'Pincha para escribir el coste a mano'
-                              }
-                              className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-parchment-dark"
-                            >
-                              {cost}
-                              {entry.costOverride != null && <PencilIcon className="h-3 w-3 text-bronze" />}
-                            </button>
+                            <span className="inline-flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => startEditCost(entry)}
+                                title={
+                                  entry.costOverride != null
+                                    ? 'Coste escrito a mano. Pincha para cambiarlo'
+                                    : 'Pincha para escribir el coste a mano'
+                                }
+                                className="rounded-sm px-1 py-0.5 hover:bg-parchment-dark"
+                              >
+                                {cost}
+                              </button>
+                              {/* El lápiz avisa de que el coste es a mano Y
+                                  deshace el retoque de un clic. Es su botón y
+                                  no parte del anterior: dentro de otro botón
+                                  sería HTML inválido, y confundir "cambiarlo"
+                                  con "deshacerlo" en el mismo sitio es pedir
+                                  un borrado accidental. */}
+                              {entry.costOverride != null && (
+                                <button
+                                  type="button"
+                                  onClick={() => resetCost(entry.id)}
+                                  title="Coste escrito a mano: pincha para volver al calculado"
+                                  aria-label={`Volver al coste calculado de ${entry.unit.name}`}
+                                  className="rounded-sm p-0.5 text-bronze hover:bg-maroon/10 hover:text-maroon"
+                                >
+                                  <PencilIcon className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
                           )}
                         </td>
                         <td className="py-1.5 text-center align-middle">

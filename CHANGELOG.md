@@ -13,6 +13,16 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.68 — 30/07/2026 00:05
+
+- El **lápiz** de un coste retocado ya no es solo un aviso: pinchándolo se
+  **deshace el retoque** y la entrada vuelve a su coste calculado. Pinchar el
+  número sigue sirviendo para cambiarlo. Son dos botones distintos a propósito:
+  juntar «cambiarlo» y «deshacerlo» en el mismo sitio es pedir un borrado sin
+  querer.
+
+---
+
 ## 0.67 — 29/07/2026 23:45
 
 - **Arreglado: el navegador bloqueaba «Exportar Hojas de unidad».** El permiso
