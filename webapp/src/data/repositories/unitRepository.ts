@@ -23,13 +23,18 @@ import type {
 } from '@/domain/types'
 
 // Dentro de la categoría "Personajes" (unit_categories.code = 'PERSONAJE') el
-// orden lo decide el coste (de menor a mayor), no `sort_order`: a petición
-// del usuario, los personajes de una facción deben listarse siempre por
-// puntos (Vidente Gris antes que Señor de la Guerra, etc.), sin que nadie
+// orden lo decide el COSTE, DE MAYOR A MENOR, no `sort_order`: a petición del
+// usuario, los personajes de una facción se listan siempre por puntos y con
+// los caros arriba (Señor de la Guerra antes que Vidente Gris), sin que nadie
 // tenga que reordenarlos a mano — por eso además la UI de arrastrar y soltar
 // (ver UnitsListPage.tsx) no se ofrece para esa categoría. El resto de
 // categorías siguen usando `sort_order`, que sí es arrastrable.
-const PERSONAJE_ORDER_EXPR = `CASE WHEN c.code = 'PERSONAJE' THEN u.base_cost ELSE u.sort_order END`
+//
+// El descendente se consigue NEGANDO el coste en vez de con un DESC. La
+// expresión es una sola y la comparten personajes (coste) y el resto
+// (sort_order); un DESC se los llevaría a los dos por delante y pondría las
+// demás categorías del revés.
+const PERSONAJE_ORDER_EXPR = `CASE WHEN c.code = 'PERSONAJE' THEN -u.base_cost ELSE u.sort_order END`
 
 /**
  * «la unidad "Guerreros" (Enanos)» — cómo se nombra una unidad en el registro
@@ -422,7 +427,8 @@ export const UnitRepository = {
    * a las unidades de una categoría: `orderedUnitIds` ya viene en el orden
    * final deseado, se persiste como 0,1,2... en `sort_order`. No tiene
    * sentido llamarla para la categoría "Personajes" (se ordenan por coste,
-   * ver PERSONAJE_ORDER_EXPR) — la UI ya no ofrece arrastrar ahí.
+   * ver PERSONAJE_ORDER_EXPR, de mayor a menor) — la UI ya no ofrece
+   * arrastrar ahí.
    */
   async reorderWithinCategory(orderedUnitIds: number[]): Promise<void> {
     await execCatalogBatch(

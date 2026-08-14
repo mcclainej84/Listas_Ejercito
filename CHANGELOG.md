@@ -13,6 +13,12 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.76 — 30/07/2026 04:40
+
+- Los **personajes se ordenan por coste de MAYOR a MENOR**, tanto al añadirlos
+  en Ejércitos como en el listado de la facción. Antes iban de menor a mayor.
+  El resto de categorías siguen con su orden manual arrastrable.
+
 ## 0.75 — 30/07/2026 04:15
 
 - El **interruptor de blanco y negro de la barra superior manda ahora en los

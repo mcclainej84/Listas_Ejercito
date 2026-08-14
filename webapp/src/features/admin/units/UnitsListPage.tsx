@@ -124,8 +124,9 @@ export function UnitsListPage() {
   // ---------- Arrastrar y soltar para reordenar unidades dentro de una
   // categoría (persistido en units.sort_order, ver reorderWithinCategory).
   // "Personajes" queda fuera a propósito: esa categoría se ordena siempre
-  // por coste (ver PERSONAJE_ORDER_EXPR en unitRepository.ts), así que
-  // arrastrar ahí no tendría ningún efecto duradero. ----------
+  // por coste de mayor a menor (ver PERSONAJE_ORDER_EXPR en
+  // unitRepository.ts), así que arrastrar ahí no tendría ningún efecto
+  // duradero. ----------
   const dragUnitId = useRef<number | null>(null)
   const [dragOverId, setDragOverId] = useState<number | null>(null)
 
