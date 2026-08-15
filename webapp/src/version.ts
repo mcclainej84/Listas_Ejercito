@@ -7,6 +7,14 @@
 // CÓMO SE ACTUALIZA
 // CUALQUIER cambio en el frontend sube la versión y actualiza la fecha y hora.
 //
+// LA FECHA SE SACA DEL RELOJ, NUNCA A OJO. Se mira la hora real de España
+// (`TZ=Europe/Madrid date '+%Y-%m-%dT%H:%M'`) y se copia. Durante un tiempo se
+// fueron poniendo fechas "aproximadas" escritas de memoria, y el resultado fue
+// que el pie de página decía el día anterior y una hora que no había existido:
+// justo lo contrario de para lo que está este dato, que es saber si lo que se
+// está viendo es lo último. Las entradas del CHANGELOG afectadas se corrigieron
+// después con la fecha real de su commit.
+//
 // El número que va tras el punto es un CONTADOR, no un decimal: se incrementa
 // de uno en uno indefinidamente y NUNCA vuelca a 1.0. La secuencia es
 // 0.8 → 0.9 → 0.10 → 0.11 → … → 0.42 → … Se pasará a 1.0 solo cuando el
@@ -19,7 +27,7 @@
 // Hay que anotar el cambio también en CHANGELOG.md, en la raíz del repositorio.
 // ============================================================================
 
-export const APP_VERSION = '0.109'
+export const APP_VERSION = '0.110'
 
 /**
  * Fecha y hora de la última actualización, `YYYY-MM-DDTHH:mm` (hora local de
@@ -27,7 +35,7 @@ export const APP_VERSION = '0.109'
  * a propósito, para que refleje cuándo se hizo el cambio y no cuándo se
  * compiló por última vez.
  */
-export const APP_VERSION_DATE = '2026-08-14T19:05'
+export const APP_VERSION_DATE = '2026-08-15T10:59'
 
 /** "20/07/2026 13:13" — fecha y hora tal y como se muestran en pantalla. */
 export function formatVersionDate(stamp: string = APP_VERSION_DATE): string {

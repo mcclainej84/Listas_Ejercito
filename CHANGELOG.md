@@ -13,7 +13,19 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.109 — 14/08/2026 19:05
+## 0.110 — 15/08/2026 10:59
+
+- **Fechas de versión corregidas.** Las entradas de 0.98 a 0.109 decían
+  14/08/2026 con horas que no habían existido: se escribían de memoria en vez de
+  mirar el reloj. Ahora llevan la fecha real, sacada de la de su commit (todas
+  esas versiones salieron el 15/08 por la mañana).
+- A partir de ahora la fecha se lee del sistema en hora de España cada vez que
+  se sube la versión, y así queda escrito en `version.ts` y en un `CLAUDE.md`
+  nuevo en la raíz, junto con el resto de acuerdos de trabajo del repositorio.
+
+---
+
+## 0.109 — 15/08/2026 10:54
 
 - **La versión del pie ya sale centrada.** Iba pegada a la derecha de la
   columna de contenido, así que en pantalla ancha quedaba a un tercio del
@@ -36,7 +48,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.108 — 14/08/2026 18:20
+## 0.108 — 15/08/2026 10:42
 
 - En la biblioteca de escenografía, «Retirar» pasa a ser **«Borrar»** y
   **pregunta antes**, diciendo lo que va a pasar: desaparece de la paleta y los
@@ -49,7 +61,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.107 — 14/08/2026 18:00
+## 0.107 — 15/08/2026 10:39
 
 - Nuevo elemento de escenografía: **«Meseta»**, la pradera elevada con cantil
   que enviaste. Nace a 45 × 28 cm, la proporción de su ilustración.
@@ -69,7 +81,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.106 — 14/08/2026 17:20
+## 0.106 — 15/08/2026 10:33
 
 - **Biblioteca de escenografía, con versionado.** Desde el editor de mapas
   («Escenografía → Editar…») se pueden **añadir** elementos propios,
@@ -91,7 +103,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.105 — 14/08/2026 16:10
+## 0.105 — 15/08/2026 10:11
 
 - En el Despliegue, el rótulo de la peana pasa a ser **«36 Guerreros Skaven»**:
   cantidad y nombre, como se dice en voz alta.
@@ -109,7 +121,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.104 — 14/08/2026 15:45
+## 0.104 — 15/08/2026 10:11
 
 - **En el Despliegue, posar el ratón sobre una peana dice quién es**: nombre y
   cuántas miniaturas, al momento. Con la mesa llena de cuadros de tres letras
@@ -126,7 +138,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.103 — 14/08/2026 15:20
+## 0.103 — 15/08/2026 10:11
 
 - **Apéndices de unidad.** Botón «Apéndices» en la ficha de la unidad, con el
   número que tiene. Desde ahí se añaden, editan, borran y ordenan; una unidad
@@ -147,7 +159,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.102 — 14/08/2026 14:50
+## 0.102 — 15/08/2026 10:11
 
 - **Arreglada la alineación de «Datos generales»** en la ficha de unidad. Los
   campos se alinean ahora por abajo: un rótulo que se parte en dos líneas
@@ -163,7 +175,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.101 — 14/08/2026 14:35
+## 0.101 — 15/08/2026 10:11
 
 - **Categorías y Etiquetas**: fuera el código en mayúsculas de cada fila. Era
   el mismo nombre otra vez (Personajes / PERSONAJE); el código sigue estando y
@@ -178,7 +190,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.100 — 14/08/2026 14:20
+## 0.100 — 15/08/2026 10:11
 
 - Nuevo tipo de escenografía **«Colina rocosa»**: la meseta de cantiles que
   enviaste. Nace a 40 × 29 cm, la proporción de la ilustración. Van once tipos
@@ -186,7 +198,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.99 — 14/08/2026 14:05
+## 0.99 — 15/08/2026 10:11
 
 - **Alias de unidad**: las iniciales que se pintan DENTRO de la peana en el
   Despliegue («RO» para Ratas Ogro). Máximo 3 caracteres.
@@ -206,7 +218,7 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
-## 0.98 — 14/08/2026 13:40
+## 0.98 — 15/08/2026 10:11
 
 - **Cada facción tiene su color.** Se ve —y se cambia— en un recuadro pequeño
   al editar la facción.
