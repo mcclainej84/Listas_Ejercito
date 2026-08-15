@@ -11,18 +11,28 @@
 // retícula, que sigue diciendo el tamaño de la mesa.
 // ============================================================================
 import { MapRepository } from '@/data/repositories/mapRepository'
+import { FloorAssetRepository } from '@/data/repositories/sceneryAssetRepository'
 import { RETICULA_CM } from '@/domain/deployment'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { SceneryShape } from '@/features/maps/SceneryShape'
-import { estiloDeSuelo } from '@/features/maps/tableSurface'
+import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 
 export function MapThumbnail({ mapaId, anchoCm, altoCm }: { mapaId: number; anchoCm: number; altoCm: number }) {
   const { data: mapa } = useAsync(() => MapRepository.getById(mapaId), [mapaId])
+  // El suelo se pide por su id —la VERSIÓN con la que se guardó el mapa—, no
+  // el vigente: la miniatura tiene que enseñar el mapa tal y como es.
+  const { data: suelo } = useAsync(
+    () => (mapa?.floorId ? FloorAssetRepository.getById(mapa.floorId) : Promise.resolve(null)),
+    [mapa?.floorId],
+  )
 
   return (
     <span
       className="relative block w-full overflow-hidden"
-      style={{ aspectRatio: `${anchoCm} / ${altoCm}`, ...estiloDeSuelo(mapa?.textura ?? 'ninguna') }}
+      style={{
+        aspectRatio: `${anchoCm} / ${altoCm}`,
+        ...estiloDeSueloDeMapa(mapa?.textura ?? 'ninguna', suelo ?? null, anchoCm, altoCm),
+      }}
     >
       <span
         aria-hidden
@@ -46,7 +56,7 @@ export function MapThumbnail({ mapaId, anchoCm, altoCm }: { mapaId: number; anch
             transform: `translate(-50%, -50%) rotate(${pieza.rotacion}deg)`,
           }}
         >
-          <SceneryShape kind={pieza.kind} className="h-full w-full" />
+          <SceneryShape kind={pieza.kind} imagenUrl={pieza.imageUrl} className="h-full w-full" />
         </span>
       ))}
     </span>

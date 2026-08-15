@@ -30,7 +30,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { MapRepository } from '@/data/repositories/mapRepository'
-import { estiloDeSuelo } from '@/features/maps/tableSurface'
+import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 import {
   MESA_ALTO_MAX_CM,
   MESA_ALTO_MIN_CM,
@@ -45,13 +45,16 @@ import {
 import {
   PIEZA_MAX_CM,
   PIEZA_MIN_CM,
-  SCENERY_KINDS_CATALOGO,
   SCENERY_KINDS_INFO,
+  construirPaleta,
   tamanoDesdeTirador,
-  type SceneryKind,
+  type EntradaDePaleta,
+  type FloorAsset,
   type SceneryPiece,
   type TexturaMapa,
 } from '@/domain/scenery'
+import { FloorAssetRepository, SceneryAssetRepository } from '@/data/repositories/sceneryAssetRepository'
+import { SceneryLibraryModal } from '@/features/maps/SceneryLibraryModal'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
@@ -82,6 +85,15 @@ export function MapEditorPage() {
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [nombre, setNombre] = useState('')
   const [textura, setTextura] = useState<TexturaMapa>('ninguna')
+  const [floorId, setFloorId] = useState<number | null>(null)
+  const [editandoBiblioteca, setEditandoBiblioteca] = useState(false)
+
+  // La BIBLIOTECA: la versión vigente de cada elemento y de cada suelo. Se
+  // recarga al cerrar la ventana de edición, que es lo único que la cambia.
+  const { data: assets, reload: recargarAssets } = useAsync(() => SceneryAssetRepository.listVigentes())
+  const { data: suelos, reload: recargarSuelos } = useAsync(() => FloorAssetRepository.listVigentes())
+  const paleta = construirPaleta(assets ?? [])
+  const sueloElegido = (suelos ?? []).find((f) => f.id === floorId) ?? null
   const [seleccionada, setSeleccionada] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -93,6 +105,7 @@ export function MapEditorPage() {
     setMesa({ anchoCm: mapa.anchoCm, altoCm: mapa.altoCm })
     setNombre(mapa.name)
     setTextura(mapa.textura)
+    setFloorId(mapa.floorId)
   }, [mapa])
 
   const mesaRef = useRef<HTMLDivElement>(null)
@@ -121,24 +134,31 @@ export function MapEditorPage() {
     setDirty(true)
   }
 
-  /** Añade una pieza del catálogo, centrada en la mesa y escalonada. */
-  function anadir(kind: SceneryKind) {
-    const info = SCENERY_KINDS_INFO[kind]
+  /**
+   * Añade una pieza de la paleta, centrada en la mesa y escalonada.
+   *
+   * La pieza se queda con el `assetId` de la versión VIGENTE al colocarla: es
+   * lo que se guardará y lo que la fija para siempre en este mapa aunque la
+   * biblioteca cambie después.
+   */
+  function anadir(entrada: EntradaDePaleta) {
     const desfase = (piezas.length % 5) * 6
     const tamano = {
-      anchoCm: Math.min(info.anchoCm, mesaActual.anchoCm),
-      altoCm: Math.min(info.altoCm, mesaActual.altoCm),
+      anchoCm: Math.min(entrada.anchoCm, mesaActual.anchoCm),
+      altoCm: Math.min(entrada.altoCm, mesaActual.altoCm),
     }
     const centro = limitarAMesa(mesaActual.anchoCm / 2 + desfase, mesaActual.altoCm / 2 + desfase, tamano, mesaActual)
     const nueva: SceneryPiece = {
       id: idTemporal.current--,
-      kind,
+      kind: entrada.kind,
       xCm: redondearCm(centro.xCm),
       yCm: redondearCm(centro.yCm),
       anchoCm: tamano.anchoCm,
       altoCm: tamano.altoCm,
       rotacion: 0,
       nombre: null,
+      assetId: entrada.assetId,
+      imageUrl: entrada.imageUrl,
     }
     setPiezas((prev) => [...prev, nueva])
     setSeleccionada(nueva.id)
@@ -226,7 +246,7 @@ export function MapEditorPage() {
     setError(null)
     try {
       if (mapa && nombre.trim() && nombre.trim() !== mapa.name) await MapRepository.rename(mapaId, nombre)
-      await MapRepository.save(mapaId, mesaActual.anchoCm, mesaActual.altoCm, textura, piezas)
+      await MapRepository.save(mapaId, mesaActual.anchoCm, mesaActual.altoCm, textura, floorId, piezas)
       setDirty(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -314,28 +334,43 @@ export function MapEditorPage() {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         {/* ============ Izquierda: catálogo de escenografía ============ */}
         <aside className="w-full shrink-0 lg:w-48">
-          <Rotulo>Escenografía</Rotulo>
+          <Rotulo
+            extra={
+              <button
+                type="button"
+                onClick={() => setEditandoBiblioteca(true)}
+                title="Añadir, reemplazar o retirar elementos de escenografía"
+                className="rounded-sm border border-rule-dark/40 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
+              >
+                Editar…
+              </button>
+            }
+          >
+            Escenografía
+          </Rotulo>
           {/* Cada tipo con su propia silueta: se elige por la forma, que es
               como se piensa el terreno, no leyendo una lista de palabras. */}
           <ul className="grid grid-cols-3 gap-1.5 lg:grid-cols-2">
-            {SCENERY_KINDS_CATALOGO.map((kind) => {
-              const info = SCENERY_KINDS_INFO[kind]
-              return (
-                <li key={kind}>
-                  <button
-                    type="button"
-                    onClick={() => anadir(kind)}
-                    title={`Añadir ${info.label.toLowerCase()} (${info.anchoCm} × ${info.altoCm} cm)`}
-                    className="flex w-full flex-col items-center gap-1 rounded-sm border border-rule-dark/30 bg-parchment/60 px-1 py-1.5 transition-colors hover:border-bronze hover:bg-parchment-dark/50"
-                  >
-                    <SceneryShape kind={kind} ajuste="contener" className="h-8 w-full" />
-                    <span className="w-full truncate text-center text-[10px] leading-none text-ink-soft">
-                      {info.label}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
+            {paleta.map((entrada) => (
+              <li key={entrada.slug}>
+                <button
+                  type="button"
+                  onClick={() => anadir(entrada)}
+                  title={`Añadir ${entrada.label.toLowerCase()} (${entrada.anchoCm} × ${entrada.altoCm} cm)`}
+                  className="flex w-full flex-col items-center gap-1 rounded-sm border border-rule-dark/30 bg-parchment/60 px-1 py-1.5 transition-colors hover:border-bronze hover:bg-parchment-dark/50"
+                >
+                  <SceneryShape
+                    kind={entrada.kind}
+                    imagenUrl={entrada.imageUrl}
+                    ajuste="contener"
+                    className="h-8 w-full"
+                  />
+                  <span className="w-full truncate text-center text-[10px] leading-none text-ink-soft">
+                    {entrada.label}
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>
         </aside>
 
@@ -389,7 +424,7 @@ export function MapEditorPage() {
                   ref={mesaRef}
                   style={{
                     aspectRatio: `${mesaActual.anchoCm} / ${mesaActual.altoCm}`,
-                    ...estiloDeSuelo(textura),
+                    ...estiloDeSueloDeMapa(textura, sueloElegido, mesaActual.anchoCm, mesaActual.altoCm),
                   }}
                   onPointerDown={() => setSeleccionada(null)}
                   className="relative w-full touch-none overflow-hidden border-2 border-ink/80 shadow-[inset_0_0_60px_rgba(90,76,54,0.22)] outline outline-1 outline-offset-[3px] outline-rule-dark/40"
@@ -467,7 +502,7 @@ export function MapEditorPage() {
                           activa ? 'z-20' : 'z-10',
                         )}
                       >
-                        <SceneryShape kind={pieza.kind} className="h-full w-full" />
+                        <SceneryShape kind={pieza.kind} imagenUrl={pieza.imageUrl} className="h-full w-full" />
                         {activa && (
                           <>
                             <span
@@ -516,6 +551,16 @@ export function MapEditorPage() {
             </div>
           </div>
         </div>
+
+        {editandoBiblioteca && (
+          <SceneryLibraryModal
+            onClose={() => setEditandoBiblioteca(false)}
+            onSaved={() => {
+              recargarAssets()
+              recargarSuelos()
+            }}
+          />
+        )}
 
         {/* ============ Derecha: controles ============ */}
         <aside className="w-full shrink-0 space-y-5 lg:w-56">
@@ -566,36 +611,60 @@ export function MapEditorPage() {
               botón se pinta con su propia textura, que es la única forma de
               elegir "hierba" sabiendo lo que se va a ver. */}
           <section>
-            <Rotulo>Suelo</Rotulo>
-            <div className="flex gap-2">
-              {(
-                [
-                  { valor: 'ninguna', etiqueta: 'Liso' },
-                  { valor: 'hierba', etiqueta: 'Hierba' },
-                ] as const
-              ).map((opcion) => (
+            <Rotulo
+              extra={
                 <button
-                  key={opcion.valor}
                   type="button"
-                  onClick={() => {
-                    setTextura(opcion.valor)
-                    setDirty(true)
-                  }}
-                  disabled={esDeOtro}
-                  aria-pressed={textura === opcion.valor}
-                  className={clsx(
-                    'flex-1 overflow-hidden rounded-sm border transition-shadow disabled:opacity-50',
-                    textura === opcion.valor
-                      ? 'border-maroon shadow-[0_0_0_2px_rgba(122,36,32,.25)]'
-                      : 'border-rule-dark/40 hover:border-bronze',
-                  )}
+                  onClick={() => setEditandoBiblioteca(true)}
+                  title="Crear o reemplazar suelos de mesa"
+                  className="rounded-sm border border-rule-dark/40 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
                 >
-                  <span className="block h-8 w-full" style={estiloDeSuelo(opcion.valor)} />
-                  <span className="block bg-parchment px-1 py-0.5 text-center text-[10px] text-ink-soft">
-                    {opcion.etiqueta}
-                  </span>
+                  Editar…
                 </button>
-              ))}
+              }
+            >
+              Suelo
+            </Rotulo>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { clave: 'ninguna', etiqueta: 'Liso', suelo: null as FloorAsset | null, textura: 'ninguna' as const },
+                { clave: 'hierba', etiqueta: 'Hierba', suelo: null as FloorAsset | null, textura: 'hierba' as const },
+                ...(suelos ?? [])
+                  .filter((f) => !f.retired)
+                  .map((f) => ({ clave: `f${f.id}`, etiqueta: f.label, suelo: f, textura: 'ninguna' as const })),
+              ].map((opcion) => {
+                const elegido = opcion.suelo
+                  ? floorId === opcion.suelo.id
+                  : floorId == null && textura === opcion.textura
+                return (
+                  <button
+                    key={opcion.clave}
+                    type="button"
+                    onClick={() => {
+                      setTextura(opcion.textura)
+                      setFloorId(opcion.suelo?.id ?? null)
+                      setDirty(true)
+                    }}
+                    disabled={esDeOtro}
+                    aria-pressed={elegido}
+                    title={opcion.etiqueta}
+                    className={clsx(
+                      'w-16 shrink-0 overflow-hidden rounded-sm border transition-shadow disabled:opacity-50',
+                      elegido
+                        ? 'border-maroon shadow-[0_0_0_2px_rgba(122,36,32,.25)]'
+                        : 'border-rule-dark/40 hover:border-bronze',
+                    )}
+                  >
+                    <span
+                      className="block h-8 w-full"
+                      style={estiloDeSueloDeMapa(opcion.textura, opcion.suelo, 180, 120)}
+                    />
+                    <span className="block truncate bg-parchment px-1 py-0.5 text-center text-[10px] text-ink-soft">
+                      {opcion.etiqueta}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </section>
 

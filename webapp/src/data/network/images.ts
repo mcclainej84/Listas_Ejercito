@@ -49,6 +49,45 @@ async function contentHash(bytes: Uint8Array): Promise<string> {
     .join('')
 }
 
+/**
+ * Sube una imagen a una clave que no es la de una hoja: la biblioteca de
+ * escenografía y los suelos de mapa la usan para guardar sus versiones (ver
+ * sceneryAssetRepository). La clave la construye quien llama, y como lleva el
+ * hash del contenido, la de una versión antigua no se pisa nunca — que es lo
+ * que permite que un mapa viejo siga viendo su imagen de siempre.
+ */
+export async function uploadImageAtKey(key: string, bytes: Uint8Array, mime: string): Promise<string> {
+  const passwordHash = await getStoredPasswordHash()
+  const body = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(body).set(bytes)
+
+  const res = await fetch(imageUrl(key), {
+    method: 'PUT',
+    headers: { 'Content-Type': mime, [PASSWORD_HEADER]: passwordHash ?? '' },
+    body,
+  })
+  if (res.status === 401) {
+    clearPassword()
+    throw new AuthRequiredError()
+  }
+  if (res.status === 503) {
+    throw new Error(
+      'El almacén de imágenes no está configurado todavía. Hay que habilitar R2, crear el bucket ' +
+        '"wharmy-images" y volver a desplegar el Worker (ver worker/wrangler.toml).',
+    )
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(data.error ?? `No se pudo subir la imagen (${res.status}).`)
+  }
+  return key
+}
+
+/** Hash corto del contenido, para componer claves cacheables desde fuera de este archivo. */
+export async function hashDeContenido(bytes: Uint8Array): Promise<string> {
+  return contentHash(bytes)
+}
+
 export type ImageSlot = 'illu' | 'emblem'
 
 /** Clave del objeto en R2. El prefijo agrupa por hoja, lo que hace legible el bucket y permite borrar por lotes. */

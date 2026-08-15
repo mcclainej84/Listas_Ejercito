@@ -5,19 +5,25 @@
 // miniatura del listado y el Despliegue—, y por eso vive aquí y no en ninguno
 // de ellos: un mapa tiene que verse igual se mire desde donde se mire.
 //
-// MUY SUAVE, A PROPÓSITO. La hierba es un fondo, no el tema. Por encima van la
+// DOS ORÍGENES. Los de FÁBRICA (liso y hierba) son puro CSS, sin imágenes que
+// descargar. Los de la BIBLIOTECA son una foto que se enlosa cada `tileCm`
+// centímetros de mesa (ver floor_assets); como se guardan versionados, un mapa
+// antiguo sigue viendo la imagen con la que se hizo.
+//
+// MUY SUAVES, LOS DOS. El suelo es un fondo, no el tema. Por encima van la
 // retícula de 30 cm, la línea central, las ilustraciones del terreno y hasta
-// veinte peanas de colores: si el suelo tuviera contraste de verdad, competiría
-// con todo eso y la mesa dejaría de leerse. Así que son manchas de verde a un
-// 10 % de opacidad como mucho sobre el mismo pergamino de siempre, más un rayado
-// finísimo en dos direcciones que a tamaño de pantalla no se ve como rayas sino
-// como grano de hierba.
+// veinte peanas de colores: si el suelo tuviera contraste de verdad,
+// competiría con todo eso y la mesa dejaría de leerse. De ahí que la hierba de
+// fábrica sean manchas al 10 % y que los suelos con imagen lleven su propia
+// opacidad, que se aclara con un velo de pergamino por encima.
 // ============================================================================
 import type { CSSProperties } from 'react'
-import type { TexturaMapa } from '@/domain/scenery'
+import type { FloorAsset, TexturaMapa } from '@/domain/scenery'
 
 /** El pergamino de siempre: el tablero como un plano, sin terreno pintado. */
 const PERGAMINO = '#e7dcc0'
+/** El mismo color, en componentes, para poder velar con él una imagen. */
+const PERGAMINO_RGB = '231, 220, 192'
 
 export function estiloDeSuelo(textura: TexturaMapa): CSSProperties {
   if (textura !== 'hierba') return { backgroundColor: PERGAMINO }
@@ -36,5 +42,37 @@ export function estiloDeSuelo(textura: TexturaMapa): CSSProperties {
       'repeating-linear-gradient(65deg, rgba(255,255,255,.05) 0 1px, transparent 1px 5px)',
     ].join(','),
     backgroundSize: '163px 121px, 227px 167px, 139px 109px, auto, auto',
+  }
+}
+
+/**
+ * El suelo del mapa, sea de la biblioteca o de fábrica.
+ *
+ * Con imagen, se enlosa en TANTO POR CIENTO del ancho de la mesa y no en
+ * píxeles: así una losa de 60 cm mide 60 cm se vea la mesa como se vea, y no
+ * cambia de escala al agrandar la ventana.
+ *
+ * La opacidad se consigue con un velo de pergamino ENCIMA de la imagen, dentro
+ * de la misma pila de fondos. Es la única forma: `opacity` en CSS afectaría
+ * también a la escenografía y a las peanas, que son hijas del tablero.
+ */
+export function estiloDeSueloDeMapa(
+  textura: TexturaMapa,
+  suelo: FloorAsset | null,
+  anchoCm: number,
+  altoCm: number,
+): CSSProperties {
+  if (!suelo?.imageUrl) return estiloDeSuelo(textura)
+  const velo = Math.min(1, Math.max(0, 1 - suelo.opacity))
+  const anchoLosa = (suelo.tileCm / anchoCm) * 100
+  const altoLosa = (suelo.tileCm / altoCm) * 100
+  return {
+    backgroundColor: PERGAMINO,
+    backgroundImage: [
+      `linear-gradient(rgba(${PERGAMINO_RGB},${velo}), rgba(${PERGAMINO_RGB},${velo}))`,
+      `url("${suelo.imageUrl}")`,
+    ].join(','),
+    backgroundSize: `auto, ${anchoLosa}% ${altoLosa}%`,
+    backgroundRepeat: 'no-repeat, repeat',
   }
 }

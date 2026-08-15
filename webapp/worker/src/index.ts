@@ -684,6 +684,56 @@ const MIGRATIONS: string[] = [
   // Color de facción: el distintivo con el que se reconoce a un ejército de un
   // vistazo (ver domain/factionColor). NULL = todavía sin asignar.
   'ALTER TABLE factions ADD COLUMN color TEXT',
+  // ---------------------------------------------------------------------
+  // BIBLIOTECA DE ESCENOGRAFÍA Y SUELOS, VERSIONADA.
+  //
+  // El problema que resuelve: si al cambiar la ilustración de "bosque" se
+  // sobrescribiera la anterior, TODOS los mapas ya hechos cambiarían de
+  // aspecto de golpe. Aquí una edición no modifica nada: INSERTA una versión
+  // nueva del mismo `slug`. Cada pieza de un mapa guarda el `asset_id`
+  // concreto con el que se guardó, así que un mapa antiguo sigue pintando su
+  // versión para siempre; el mapa que se está editando adopta la nueva en
+  // cuanto se guarda.
+  //
+  // `retired` saca un tipo de la paleta sin borrarlo: los mapas que ya lo
+  // usaban lo siguen pintando. Nada se borra nunca de estas tablas.
+  //
+  // `builtin_kind` enlaza con los tipos de fábrica dibujados en el código
+  // (ver domain/scenery): una fila con builtin_kind='bosque' e image_key
+  // reemplaza la ilustración de fábrica del bosque.
+  // ---------------------------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS scenery_assets (
+     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+     slug         TEXT NOT NULL,
+     version      INTEGER NOT NULL DEFAULT 1,
+     label        TEXT NOT NULL,
+     image_key    TEXT,
+     builtin_kind TEXT,
+     w_cm         REAL NOT NULL DEFAULT 20,
+     h_cm         REAL NOT NULL DEFAULT 20,
+     retired      INTEGER NOT NULL DEFAULT 0,
+     user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+     created_at   TEXT NOT NULL,
+     UNIQUE (slug, version)
+   )`,
+  `CREATE TABLE IF NOT EXISTS floor_assets (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     slug       TEXT NOT NULL,
+     version    INTEGER NOT NULL DEFAULT 1,
+     label      TEXT NOT NULL,
+     image_key  TEXT,
+     tile_cm    REAL NOT NULL DEFAULT 60,
+     opacity    REAL NOT NULL DEFAULT 0.5,
+     retired    INTEGER NOT NULL DEFAULT 0,
+     user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+     created_at TEXT NOT NULL,
+     UNIQUE (slug, version)
+   )`,
+  // La versión con la que se guardó cada pieza. NULL = pieza anterior a la
+  // biblioteca: se pinta con el tipo de fábrica de su `kind`, como siempre.
+  'ALTER TABLE battle_map_pieces ADD COLUMN asset_id INTEGER REFERENCES scenery_assets(id)',
+  // Suelo del mapa. NULL = el de antes (columna `texture`: liso o hierba).
+  'ALTER TABLE battle_maps ADD COLUMN floor_id INTEGER REFERENCES floor_assets(id)',
   // Textura del tablero de un mapa: 'hierba' o NULL (tablero liso, que es como
   // estaban todos los mapas hechos antes de que existiera la opción).
   'ALTER TABLE battle_maps ADD COLUMN texture TEXT',

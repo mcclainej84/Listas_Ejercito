@@ -12,6 +12,8 @@
 // caber en un presupuesto de bytes fijo.
 // ============================================================================
 
+import { cajaDeContenido, quitarFondo } from '@/shared/imageTrim'
+
 export interface ResizedImage {
   bytes: Uint8Array
   mime: string
@@ -223,6 +225,97 @@ export async function compressImageFile(file: File, options: CompressOptions = {
 
     if (!best) throw new Error('No se pudo comprimir la imagen.')
     return best
+  } finally {
+    closeSource(source)
+  }
+}
+
+/** Presupuesto de una pieza de escenografía o un suelo: se ve pequeño sobre la mesa. */
+export const MAX_SCENERY_BYTES = 160 * 1024
+
+/** Lado mayor de una pieza de escenografía ya preparada. Más resolución no se aprecia sobre la mesa. */
+const LADO_ESCENOGRAFIA = 512
+
+export interface ImagenPreparada extends ResizedImage {
+  /** Proporción ancho/alto de lo que ha quedado, para poder proponer un tamaño en cm que no deforme. */
+  proporcion: number
+  /** true si se ha llegado a quitar fondo (para poder decírselo al usuario). */
+  fondoQuitado: boolean
+}
+
+/**
+ * Deja una imagen lista para ser una pieza de escenografía o un suelo:
+ *
+ *   1. quita el fondo liso que toque el borde (ver shared/imageTrim),
+ *   2. recorta el aire que queda alrededor,
+ *   3. la reduce a 512 px de lado mayor y la comprime a WebP.
+ *
+ * Los tres pasos existen por lo mismo: sobre la mesa, una pieza se pinta a
+ * pocos centímetros. Una foto de 4000 px con su fondo blanco se vería como un
+ * recorte de papel encima del terreno, y pesaría cien veces lo necesario.
+ *
+ * Si la imagen no tiene un fondo plano que quitar, se salta ese paso y sigue
+ * con el resto: es mejor eso que devolverle al usuario un error por una imagen
+ * perfectamente válida.
+ */
+export async function prepararImagenDeEscenografia(file: File): Promise<ImagenPreparada> {
+  if (file.type && !file.type.startsWith('image/')) {
+    throw new Error('El archivo seleccionado no es una imagen.')
+  }
+  const { source, width: srcW, height: srcH } = await decodeImage(file)
+  try {
+    if (!srcW || !srcH) throw new Error('El archivo seleccionado no es una imagen válida.')
+
+    // Se trabaja ya a tamaño reducido: quitar el fondo de una foto de 4000 px
+    // son 16 millones de píxeles recorridos para tirarlos justo después.
+    const escala = Math.min(1, LADO_ESCENOGRAFIA / Math.max(srcW, srcH))
+    const w = Math.max(1, Math.round(srcW * escala))
+    const h = Math.max(1, Math.round(srcH * escala))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) throw new Error('No se pudo procesar la imagen (canvas no disponible).')
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(source, 0, 0, w, h)
+
+    const imagen = ctx.getImageData(0, 0, w, h)
+    const borrados = quitarFondo(imagen.data, w, h)
+    ctx.putImageData(imagen, 0, 0)
+
+    const caja = cajaDeContenido(imagen.data, w, h)
+    let final = canvas
+    if (caja && (caja.ancho < w || caja.alto < h)) {
+      const recorte = document.createElement('canvas')
+      recorte.width = caja.ancho
+      recorte.height = caja.alto
+      const rctx = recorte.getContext('2d')
+      if (rctx) {
+        rctx.drawImage(canvas, caja.x, caja.y, caja.ancho, caja.alto, 0, 0, caja.ancho, caja.alto)
+        final = recorte
+      }
+    }
+
+    const mime = supportsWebp() ? 'image/webp' : 'image/png'
+    const lossy = mime !== 'image/png'
+    let mejor: Uint8Array | null = null
+    for (const quality of lossy ? [0.88, 0.78, 0.68, 0.55] : [undefined]) {
+      const bytes = await canvasToBytes(final, mime, quality)
+      if (!mejor || bytes.length < mejor.length) mejor = bytes
+      if (bytes.length <= MAX_SCENERY_BYTES) {
+        mejor = bytes
+        break
+      }
+    }
+    if (!mejor) throw new Error('No se pudo comprimir la imagen.')
+    return {
+      bytes: mejor,
+      mime,
+      proporcion: final.width / final.height,
+      fondoQuitado: borrados > 0,
+    }
   } finally {
     closeSource(source)
   }

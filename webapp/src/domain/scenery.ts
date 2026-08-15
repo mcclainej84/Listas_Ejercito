@@ -92,6 +92,115 @@ export function isSceneryKind(value: unknown): value is SceneryKind {
   return typeof value === 'string' && (SCENERY_KINDS as readonly string[]).includes(value)
 }
 
+// ---------------------------------------------------------------------------
+// BIBLIOTECA VERSIONADA (ver scenery_assets / floor_assets en db/schema.sql).
+//
+// Reemplazar un elemento no modifica nada: crea una VERSIÓN nueva del mismo
+// `slug`. Cada pieza de un mapa se guarda con el id de la versión que estaba
+// vigente, así que los mapas ya hechos conservan su aspecto y el que se está
+// editando adopta la nueva al guardarlo. Retirar tampoco borra: solo saca el
+// elemento de la paleta.
+// ---------------------------------------------------------------------------
+
+/** Una versión concreta de un elemento de escenografía. */
+export interface SceneryAsset {
+  id: number
+  /** Identidad estable del elemento entre versiones ('bosque', 'torre-vieja'). */
+  slug: string
+  version: number
+  label: string
+  /** Imagen en R2; null en un elemento de fábrica que sigue con su dibujo del código. */
+  imageKey: string | null
+  /** URL lista para un <img>, resuelta por el repositorio. */
+  imageUrl: string | null
+  /** Tipo de fábrica al que sustituye, si lo hay (ver SCENERY_KINDS). */
+  builtinKind: SceneryKind | null
+  anchoCm: number
+  altoCm: number
+  /** Fuera de la paleta. Los mapas que ya lo usaban lo siguen pintando. */
+  retired: boolean
+  createdAt: string
+}
+
+/** Un suelo de mesa: una imagen que se enlosa cada `tileCm` centímetros. */
+export interface FloorAsset {
+  id: number
+  slug: string
+  version: number
+  label: string
+  imageKey: string | null
+  imageUrl: string | null
+  /** Cuántos centímetros de mesa ocupa una repetición de la imagen. */
+  tileCm: number
+  /** 0–1. Cuánto se ve: por encima van la retícula, el terreno y las peanas. */
+  opacity: number
+  retired: boolean
+  createdAt: string
+}
+
+/**
+ * Lo que se ofrece en la paleta del editor: un tipo de fábrica o un elemento
+ * de la biblioteca, ya resueltos a lo mismo.
+ */
+export interface EntradaDePaleta {
+  /** Clave para React y para saber qué se ha pulsado. */
+  slug: string
+  label: string
+  anchoCm: number
+  altoCm: number
+  /** Imagen de la biblioteca; sin ella se dibuja el tipo de fábrica. */
+  imageUrl: string | null
+  /** Qué guardar en la pieza: el tipo de fábrica (compatibilidad) y la versión. */
+  kind: SceneryKind
+  assetId: number | null
+}
+
+/**
+ * La paleta vigente: los tipos de fábrica, sustituidos por su versión más
+ * reciente cuando la haya, más los elementos propios. Sin los retirados.
+ *
+ * `assetsVigentes` tiene que traer SOLO la última versión de cada slug (ver
+ * SceneryAssetRepository.listVigentes).
+ */
+export function construirPaleta(assetsVigentes: SceneryAsset[]): EntradaDePaleta[] {
+  const porSlug = new Map(assetsVigentes.map((a) => [a.slug, a]))
+  const entradas: EntradaDePaleta[] = []
+
+  for (const kind of SCENERY_KINDS_CATALOGO) {
+    const asset = porSlug.get(kind)
+    if (asset?.retired) continue
+    const info = SCENERY_KINDS_INFO[kind]
+    entradas.push({
+      slug: kind,
+      label: asset?.label ?? info.label,
+      anchoCm: asset?.anchoCm ?? info.anchoCm,
+      altoCm: asset?.altoCm ?? info.altoCm,
+      imageUrl: asset?.imageUrl ?? null,
+      kind,
+      assetId: asset?.id ?? null,
+    })
+  }
+
+  for (const asset of assetsVigentes) {
+    // Los que sustituyen a un tipo de fábrica ya han salido arriba.
+    if (asset.retired || isSceneryKind(asset.slug)) continue
+    entradas.push({
+      slug: asset.slug,
+      label: asset.label,
+      anchoCm: asset.anchoCm,
+      altoCm: asset.altoCm,
+      imageUrl: asset.imageUrl,
+      // Un elemento propio no tiene dibujo de fábrica al que caer; se guarda
+      // con el kind más neutro para que, si algún día se perdiera su imagen,
+      // siga saliendo algo con forma de pieza y no un hueco.
+      kind: asset.builtinKind ?? 'ruinas',
+      assetId: asset.id,
+    })
+  }
+
+  return entradas
+}
+
 /** Una pieza colocada sobre el mapa. `x`/`y` son su CENTRO, en cm. */
 export interface SceneryPiece {
   /** Negativo mientras es nueva y no se ha guardado (mismo truco que las entradas de lista). */
@@ -105,6 +214,13 @@ export interface SceneryPiece {
   rotacion: number
   /** Nombre propio ("Bosque de Athel Loren"); null = se usa el del tipo. */
   nombre: string | null
+  /**
+   * Versión de la biblioteca con la que se guardó. null = pieza anterior a la
+   * biblioteca, o tipo de fábrica sin reemplazar: se dibuja como siempre.
+   */
+  assetId: number | null
+  /** Imagen de esa versión, resuelta al leer el mapa. Es lo que se pinta. */
+  imageUrl: string | null
 }
 
 /** Tamaños mínimos y máximos de una pieza, en cm. */
@@ -134,8 +250,10 @@ export interface MapaDetalle {
   altoCm: number
   userId: number | null
   updatedAt: string
-  /** Suelo del tablero. Por defecto, 'ninguna'. */
+  /** Suelo de fábrica. Por defecto, 'ninguna'. Solo cuenta si no hay floorId. */
   textura: TexturaMapa
+  /** Suelo de la biblioteca, con su versión. null = el de fábrica de `textura`. */
+  floorId: number | null
   piezas: SceneryPiece[]
 }
 
@@ -149,6 +267,7 @@ export interface MapaResumen {
   ownerName: string | null
   updatedAt: string
   textura: TexturaMapa
+  floorId: number | null
   piezas: number
 }
 

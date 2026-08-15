@@ -15,6 +15,7 @@
 // trabajo para una tabla que en el peor caso tiene veinte filas.
 // ============================================================================
 import { exec, execBatch, query, queryOne } from '@/data/sqlite/client'
+import { imageUrl } from '@/data/network/images'
 import {
   esTextura,
   isSceneryKind,
@@ -38,6 +39,11 @@ function mapPiece(row: Record<string, unknown>): SceneryPiece | null {
   // Una pieza de un tipo que ya no existe se omite en vez de romper el mapa
   // entero: es un dato viejo, no un fallo del programa.
   if (!isSceneryKind(kind)) return null
+  // La imagen sale de la VERSIÓN con la que se guardó la pieza (asset_id), no
+  // de la vigente: es lo que hace que un mapa antiguo no cambie al reemplazar
+  // un elemento de la biblioteca. Sin asset_id, es una pieza anterior a la
+  // biblioteca y se dibuja con su tipo de fábrica.
+  const key = (row.asset_image_key as string) ?? null
   return {
     id: row.id as number,
     kind,
@@ -47,6 +53,8 @@ function mapPiece(row: Record<string, unknown>): SceneryPiece | null {
     altoCm: row.h_cm as number,
     rotacion: (row.rotation as number) ?? 0,
     nombre: (row.name as string) ?? null,
+    assetId: (row.asset_id as number) ?? null,
+    imageUrl: key ? imageUrl(key) : null,
   }
 }
 
@@ -78,6 +86,7 @@ export const MapRepository = {
           ownerName: (row.owner_name as string) ?? null,
           updatedAt: row.updated_at as string,
           textura: mapTextura(row.texture),
+          floorId: (row.floor_id as number) ?? null,
           piezas: row.piezas as number,
         }),
       )
@@ -118,11 +127,16 @@ export const MapRepository = {
       userId: (row.user_id as number) ?? null,
       updatedAt: row.updated_at as string,
       textura: mapTextura(row.texture),
+      floorId: (row.floor_id as number) ?? null,
     }))
     if (!cabecera) return null
 
     const filas = await query(
-      'SELECT * FROM battle_map_pieces WHERE map_id = ? ORDER BY sort_order, id',
+      `SELECT p.*, a.image_key AS asset_image_key
+         FROM battle_map_pieces p
+         LEFT JOIN scenery_assets a ON a.id = p.asset_id
+        WHERE p.map_id = ?
+        ORDER BY p.sort_order, p.id`,
       [id],
       mapPiece,
     )
@@ -130,17 +144,27 @@ export const MapRepository = {
   },
 
   /** Guarda de una vez las medidas del mapa, su textura y TODA su escenografía. */
-  async save(id: number, anchoCm: number, altoCm: number, textura: TexturaMapa, piezas: SceneryPiece[]): Promise<void> {
+  async save(
+    id: number,
+    anchoCm: number,
+    altoCm: number,
+    textura: TexturaMapa,
+    floorId: number | null,
+    piezas: SceneryPiece[],
+  ): Promise<void> {
     await execBatch([
       {
-        sql: 'UPDATE battle_maps SET width_cm = ?, height_cm = ?, texture = ?, updated_at = ? WHERE id = ?',
-        params: [anchoCm, altoCm, textura, new Date().toISOString(), id],
+        sql: 'UPDATE battle_maps SET width_cm = ?, height_cm = ?, texture = ?, floor_id = ?, updated_at = ? WHERE id = ?',
+        params: [anchoCm, altoCm, textura, floorId, new Date().toISOString(), id],
       },
       { sql: 'DELETE FROM battle_map_pieces WHERE map_id = ?', params: [id] },
+      // Cada pieza se guarda con el `assetId` que tiene ahora, que es la
+      // versión vigente cuando se colocó. Ahí está el versionado: guardar este
+      // mapa lo pone al día y no toca ningún otro.
       ...piezas.map((p, i) => ({
-        sql: `INSERT INTO battle_map_pieces (map_id, kind, x_cm, y_cm, w_cm, h_cm, rotation, name, sort_order)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        params: [id, p.kind, p.xCm, p.yCm, p.anchoCm, p.altoCm, p.rotacion, p.nombre, i],
+        sql: `INSERT INTO battle_map_pieces (map_id, kind, asset_id, x_cm, y_cm, w_cm, h_cm, rotation, name, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [id, p.kind, p.assetId, p.xCm, p.yCm, p.anchoCm, p.altoCm, p.rotacion, p.nombre, i],
       })),
     ])
   },

@@ -91,7 +91,8 @@ import { estiloDePeana } from '@/domain/factionColor'
 import { aliasDeUnidad } from '@/domain/unitAlias'
 import { EntryDetailCard } from '@/features/army-lists/EntryDetailCard'
 import { SceneryShape } from '@/features/maps/SceneryShape'
-import { estiloDeSuelo } from '@/features/maps/tableSurface'
+import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
+import { FloorAssetRepository } from '@/data/repositories/sceneryAssetRepository'
 import { Tooltip } from '@/shared/ui/Tooltip'
 import type { ArmyListEntry } from '@/domain/types'
 
@@ -168,6 +169,12 @@ export function DeploymentPage() {
   const { data: mapaCargado } = useAsync(
     () => (mapaId != null ? MapRepository.getById(mapaId) : Promise.resolve(null)),
     [mapaId],
+  )
+  // El suelo se pide por el id guardado en el mapa —su versión—, no por el
+  // vigente: desplegar sobre un mapa tiene que enseñar el mapa tal cual es.
+  const { data: sueloDelMapa } = useAsync(
+    () => (mapaCargado?.floorId ? FloorAssetRepository.getById(mapaCargado.floorId) : Promise.resolve(null)),
+    [mapaCargado?.floorId],
   )
 
   useEffect(() => {
@@ -696,7 +703,12 @@ export function DeploymentPage() {
                     // El suelo lo pone el MAPA cargado. Sin mapa, la mesa libre
                     // es el pergamino de siempre: quien despliega sobre una
                     // mesa sin terreno está usando un plano, no un campo.
-                    ...estiloDeSuelo(mapaCargado?.textura ?? 'ninguna'),
+                    ...estiloDeSueloDeMapa(
+                      mapaCargado?.textura ?? 'ninguna',
+                      sueloDelMapa ?? null,
+                      mesaActual.anchoCm,
+                      mesaActual.altoCm,
+                    ),
                   }}
                   onPointerDown={(e) => {
                     if (soloLectura || e.button !== 0) return
@@ -781,7 +793,7 @@ export function DeploymentPage() {
                         transform: `translate(-50%, -50%) rotate(${pieza.rotacion}deg)`,
                       }}
                     >
-                      <SceneryShape kind={pieza.kind} className="h-full w-full" />
+                      <SceneryShape kind={pieza.kind} imagenUrl={pieza.imageUrl} className="h-full w-full" />
                     </div>
                   ))}
 

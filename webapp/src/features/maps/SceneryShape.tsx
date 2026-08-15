@@ -123,6 +123,7 @@ function Ruedo({ d, kind }: { d: string; kind: SceneryKind }) {
 /** La silueta —o la ilustración— del tipo, ajustada a la caja de la pieza. */
 export function SceneryShape({
   kind,
+  imagenUrl,
   className,
   /**
    * `estirar` (por defecto) deforma la silueta hasta llenar su caja, que es lo
@@ -133,10 +134,17 @@ export function SceneryShape({
   ajuste = 'estirar',
 }: {
   kind: SceneryKind
+  /**
+   * Imagen de la BIBLIOTECA para esta pieza (ver scenery_assets). Manda sobre
+   * todo lo demás: es la versión con la que se guardó el mapa, y respetarla es
+   * lo que hace que reemplazar un elemento no cambie los mapas ya hechos.
+   * Sin ella se pinta el tipo de fábrica, como toda la vida.
+   */
+  imagenUrl?: string | null
   className?: string
   ajuste?: 'estirar' | 'contener'
 }) {
-  const ilustracion = ILUSTRACIONES[kind]
+  const ilustracion = imagenUrl ?? ILUSTRACIONES[kind]
   if (ilustracion) {
     // `draggable={false}`: sin esto, el navegador inicia su propio arrastre de
     // imagen y se come el del ratón que mueve la pieza.

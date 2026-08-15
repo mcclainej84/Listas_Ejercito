@@ -13,6 +13,28 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.106 — 14/08/2026 17:20
+
+- **Biblioteca de escenografía, con versionado.** Desde el editor de mapas
+  («Escenografía → Editar…») se pueden **añadir** elementos propios,
+  **reemplazar** la imagen de cualquiera —también los de fábrica— y
+  **retirarlos** de la paleta.
+- **Los mapas ya hechos no se estropean.** Editar no modifica nada: crea una
+  versión nueva. Cada pieza guarda con qué versión se hizo, así que un mapa de
+  la semana pasada sigue viéndose igual, y el que estés editando adopta lo
+  nuevo al guardarlo. Retirar tampoco borra: saca el elemento de la paleta y
+  deja intactos los mapas que lo usaban. Comprobado contra la base: tras
+  reemplazar, la pieza guardada sigue apuntando a la imagen de su versión.
+- **Las imágenes se preparan solas**: se les quita el fondo liso —el que toca
+  el borde, no "todo lo blanco", para no comerse la nieve ni un tejado claro—,
+  se recorta el aire que sobra y se reducen a 512 px. Vale igual con fondo
+  blanco que negro, y si no hay fondo plano no toca nada.
+- **Suelos de mesa propios**: se sube una textura, se elige cada cuántos
+  centímetros se repite y cuánto se ve, con vista previa sobre una mesa de
+  180 × 120. Los de fábrica (liso y hierba) siguen donde estaban.
+
+---
+
 ## 0.105 — 14/08/2026 16:10
 
 - En el Despliegue, el rótulo de la peana pasa a ser **«36 Guerreros Skaven»**:

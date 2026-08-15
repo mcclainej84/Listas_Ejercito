@@ -680,10 +680,63 @@ CREATE TABLE battle_maps (
     -- Dueño del mapa. NULL = de nadie (no debería pasar; se asigna al crearlo).
     user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
     -- Suelo del tablero: 'hierba' o NULL (liso, el pergamino de siempre). Ver
-    -- TEXTURAS en domain/scenery.ts.
+    -- TEXTURAS en domain/scenery.ts. Lo mantiene el suelo de fábrica; un suelo
+    -- propio va en floor_id.
     texture    TEXT,
+    -- Suelo de la biblioteca, con su versión (ver floor_assets). NULL = el de
+    -- fábrica que diga `texture`.
+    floor_id   INTEGER REFERENCES floor_assets(id),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+
+-- ---------------------------------------------------------------------------
+-- BIBLIOTECA DE ESCENOGRAFÍA, VERSIONADA.
+--
+-- Editar un elemento NO modifica su fila: inserta una versión nueva del mismo
+-- `slug`. Cada pieza de un mapa guarda el `asset_id` con el que se guardó, así
+-- que un mapa antiguo conserva su aspecto para siempre y el que se está
+-- editando adopta la versión nueva al guardarlo. Nada se borra jamás de esta
+-- tabla: `retired` solo saca el tipo de la paleta.
+--
+-- `builtin_kind` enlaza con los tipos dibujados en el código (domain/scenery):
+-- una fila con builtin_kind='bosque' y su image_key sustituye la ilustración
+-- de fábrica del bosque de ahí en adelante.
+--
+-- La imagen vive en R2 (image_key), no aquí: ver data/network/images.ts. Como
+-- la clave lleva el hash del contenido, la de una versión antigua nunca se
+-- pisa.
+-- ---------------------------------------------------------------------------
+CREATE TABLE scenery_assets (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug         TEXT NOT NULL,
+    version      INTEGER NOT NULL DEFAULT 1,
+    label        TEXT NOT NULL,
+    image_key    TEXT,
+    builtin_kind TEXT,
+    w_cm         REAL NOT NULL DEFAULT 20,
+    h_cm         REAL NOT NULL DEFAULT 20,
+    retired      INTEGER NOT NULL DEFAULT 0,
+    user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TEXT NOT NULL,
+    UNIQUE (slug, version)
+);
+
+-- Suelos de mesa, con el mismo versionado. La imagen se enlosa cada `tile_cm`
+-- centímetros de mesa y se aclara con `opacity` para no competir con las
+-- peanas ni con el terreno.
+CREATE TABLE floor_assets (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug       TEXT NOT NULL,
+    version    INTEGER NOT NULL DEFAULT 1,
+    label      TEXT NOT NULL,
+    image_key  TEXT,
+    tile_cm    REAL NOT NULL DEFAULT 60,
+    opacity    REAL NOT NULL DEFAULT 0.5,
+    retired    INTEGER NOT NULL DEFAULT 0,
+    user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (slug, version)
 );
 
 -- Cada pieza de escenografía sobre un mapa. `kind` es uno de los tipos
@@ -693,6 +746,11 @@ CREATE TABLE battle_map_pieces (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     map_id     INTEGER NOT NULL REFERENCES battle_maps(id) ON DELETE CASCADE,
     kind       TEXT NOT NULL,
+    -- Versión de la biblioteca con la que se guardó esta pieza (ver
+    -- scenery_assets). Es lo que hace que reemplazar un elemento no cambie los
+    -- mapas ya hechos. NULL = pieza anterior a la biblioteca: se pinta con el
+    -- tipo de fábrica de su `kind`.
+    asset_id   INTEGER REFERENCES scenery_assets(id),
     x_cm       REAL NOT NULL,   -- centro de la pieza
     y_cm       REAL NOT NULL,
     w_cm       REAL NOT NULL,
