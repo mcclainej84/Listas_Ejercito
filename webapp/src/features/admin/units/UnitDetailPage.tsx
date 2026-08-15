@@ -431,65 +431,28 @@ export function UnitDetailPage() {
               siempre completas, sin medias líneas vacías.
               -------------------------------------------------------------- */}
           <Panel title="Datos generales">
-            {/* `items-end` alinea los campos por ABAJO. Sin él, un rótulo que
-                se parte en dos líneas ("Tamaño inicial" en su columna estrecha)
-                empuja su caja hacia abajo y la fila sale escalonada: los tres
-                tamaños quedaban a tres alturas distintas. Alineados por el pie,
-                las cajas están siempre en la misma línea se parta el rótulo o
-                no. */}
+            {/* Rejilla de 12 columnas con los campos repartidos como se leen:
+
+                  fila 1 · Nombre · Coste · Categoría
+                  fila 2 · Etiqueta · Equipo
+                  fila 3 · los tres tamaños y el 0-1   (solo en tropa)
+
+                Los anchos son PROPORCIONALES AL DATO: un nombre necesita sitio
+                y un tamaño son dos dígitos. Las filas se cierran siempre
+                completas, sin medias líneas vacías.
+
+                `items-end` alinea los campos por ABAJO, para que un rótulo que
+                se parta en dos líneas no deje su caja a otra altura que las de
+                al lado. */}
             <div className="grid grid-cols-12 items-end gap-x-3 gap-y-4">
               {/* Fila 1 */}
-              <div className="col-span-12 sm:col-span-5">
+              <div className="col-span-12 sm:col-span-6">
                 <TextField
                   label="Nombre"
                   value={draft.scalar.name}
                   onChange={(e) => updateDraft((d) => ({ ...d, scalar: { ...d.scalar, name: e.target.value } }))}
                 />
               </div>
-              {/* Alias: SOLO se pinta dentro de la peana en el Despliegue. No
-                  interviene en el montaje del ejército ni sale en ningún PDF,
-                  por eso no se valida ni tiene que ser único. En blanco, la
-                  mesa usa las iniciales del nombre. */}
-              <div className="col-span-4 sm:col-span-1">
-                <TextField
-                  label="Alias"
-                  maxLength={ALIAS_MAX}
-                  placeholder={inicialesDe(draft.scalar.name) || '—'}
-                  title="Iniciales para la peana del Despliegue (máx. 3). En blanco se usan las del nombre."
-                  className="text-center uppercase"
-                  error={aliasEscritoRepetido ? ' ' : undefined}
-                  value={draft.scalar.alias ?? ''}
-                  onChange={(e) =>
-                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
-                  }
-                />
-              </div>
-
-              {/* El choque de iniciales se dice DEBAJO y a lo ancho: el campo
-                  mide tres caracteres y ahí no cabe explicar nada.
-
-                  Escritas a mano y repetidas → error, y no deja guardar. Si son
-                  las automáticas del nombre → solo aviso: hoy hay 31 choques
-                  heredados en el catálogo y bloquear el guardado de todos ellos
-                  impediría trabajar en una unidad por algo que no se acaba de
-                  tocar. */}
-              {choqueDeAlias.length > 0 && (
-                <p
-                  className={clsx(
-                    'col-span-12 -mt-2 flex items-start gap-1.5 text-xs',
-                    aliasEscritoRepetido ? 'text-danger' : 'text-bronze',
-                  )}
-                >
-                  <WarningIcon className="mt-px h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    <b>{aliasEfectivo}</b> ya {choqueDeAlias.length === 1 ? 'lo usa' : 'lo usan'}{' '}
-                    {choqueDeAlias.map((u) => u.name).join(', ')} en esta facción.{' '}
-                    {aliasEscritoRepetido
-                      ? 'Escribe otras iniciales para poder guardar.'
-                      : 'Escribe unas iniciales propias para distinguirlas en la mesa.'}
-                  </span>
-                </p>
-              )}
               <div className="col-span-4 sm:col-span-2">
                 <TextField
                   label="Coste (pts)"
@@ -501,7 +464,7 @@ export function UnitDetailPage() {
                   }
                 />
               </div>
-              <div className="col-span-4 sm:col-span-4">
+              <div className="col-span-8 sm:col-span-4">
                 <Select
                   label="Categoría"
                   value={draft.scalar.categoryId ?? ''}
@@ -555,15 +518,21 @@ export function UnitDetailPage() {
               </div>
 
               {/* Fila 3 — solo tropa: un personaje es una sola miniatura, así
-                  que no tiene tamaños ni puede ser 0-1. Ahí esta fila
-                  desaparece entera en vez de quedarse a medias. */}
+                  que no tiene tamaños ni puede ser 0-1, y la fila desaparece
+                  entera en vez de quedarse a medias.
+
+                  Los tres tamaños son de DOS DÍGITOS, así que van en cajas de
+                  ancho fijo y no repartidos por la rejilla: con una columna de
+                  cuatro doceavos cada uno, tres campos de dos cifras ocupaban
+                  media pantalla. El 0-1 va detrás, en la misma línea. */}
               {unit.unitType !== 'personaje' && (
-                <>
-                  <div className="col-span-4 sm:col-span-3">
+                <div className="col-span-12 flex flex-wrap items-end gap-x-3 gap-y-3">
+                  <div className="w-20">
                     <TextField
-                      label="Tamaño mín."
+                      label="Mínimo"
                       type="number"
                       max={99}
+                      className="text-center"
                       value={draft.scalar.minSize ?? ''}
                       onChange={(e) =>
                         updateDraft((d) => ({
@@ -573,11 +542,12 @@ export function UnitDetailPage() {
                       }
                     />
                   </div>
-                  <div className="col-span-4 sm:col-span-3">
+                  <div className="w-20">
                     <TextField
-                      label="Tamaño máx."
+                      label="Máximo"
                       type="number"
                       max={99}
+                      className="text-center"
                       value={draft.scalar.maxSize ?? ''}
                       onChange={(e) =>
                         updateDraft((d) => ({
@@ -587,11 +557,12 @@ export function UnitDetailPage() {
                       }
                     />
                   </div>
-                  <div className="col-span-4 sm:col-span-3">
+                  <div className="w-20">
                     <TextField
-                      label="Tamaño inicial"
+                      label="Inicial"
                       type="number"
                       max={99}
+                      className="text-center"
                       title="Tamaño de partida sugerido al añadir esta unidad a una lista (no es un límite, solo precarga la cantidad)."
                       value={draft.scalar.defaultSize ?? ''}
                       onChange={(e) =>
@@ -602,15 +573,13 @@ export function UnitDetailPage() {
                       }
                     />
                   </div>
-                </>
-              )}
+                  <span className="pb-1.5 text-mini text-ink-soft/70">miniaturas</span>
 
-              {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este tipo
-                  caben en el ejército, no cuántas miniaturas la forman. */}
-              {unit.unitType !== 'personaje' && (
-                <div className="col-span-12 flex items-center pb-1.5 sm:col-span-3">
+                  {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este
+                      tipo caben en el ejército, no cuántas miniaturas la
+                      forman. */}
                   <label
-                    className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft"
+                    className="flex cursor-pointer items-center gap-2 pb-1.5 text-xs text-ink-soft"
                     title="Solo una unidad de este tipo en todo el ejército. No limita el número de miniaturas."
                   >
                     <input
@@ -629,6 +598,60 @@ export function UnitDetailPage() {
             {/* "Notas internas" se oculta de la ficha (se dejó de pedir
                 mostrarla) pero sigue viajando en draft.scalar.notes tal cual se
                 cargó, así que "Guardar cambios" no la borra de la base. */}
+          </Panel>
+
+          {/* --------------------------------------------------------------
+              EL ALIAS TIENE PANEL PROPIO. No son "datos generales" de la
+              unidad: es un dato de dibujo que solo existe para el Despliegue,
+              y metido en la fila del nombre descuadraba la rejilla —un campo
+              de tres caracteres al lado de uno de texto largo— además de
+              mezclar dos cosas que no tienen nada que ver.
+              -------------------------------------------------------------- */}
+          <Panel title="Alias en el Despliegue">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-20">
+                <TextField
+                  label="Iniciales"
+                  maxLength={ALIAS_MAX}
+                  placeholder={inicialesDe(draft.scalar.name) || '—'}
+                  className="text-center uppercase"
+                  error={aliasEscritoRepetido ? ' ' : undefined}
+                  value={draft.scalar.alias ?? ''}
+                  onChange={(e) =>
+                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
+                  }
+                />
+              </div>
+              <p className="min-w-[16rem] flex-1 pb-1 text-xs leading-relaxed text-ink-soft">
+                Lo que se escribe dentro de la peana sobre la mesa, tres caracteres como mucho. En blanco se usan las
+                del nombre (<b>{inicialesDe(draft.scalar.name) || '—'}</b>). No se usa en ningún otro sitio.
+              </p>
+            </div>
+
+            {/* El choque se dice debajo y a lo ancho: en un campo de tres
+                caracteres no cabe explicar nada.
+
+                Escritas a mano y repetidas → error, y no deja guardar. Si son
+                las automáticas del nombre → solo aviso: hay 31 choques
+                heredados en el catálogo y bloquear el guardado de todos ellos
+                impediría trabajar en una unidad por algo que no se ha tocado. */}
+            {choqueDeAlias.length > 0 && (
+              <p
+                className={clsx(
+                  'mt-2 flex items-start gap-1.5 text-xs leading-relaxed',
+                  aliasEscritoRepetido ? 'text-danger' : 'text-bronze',
+                )}
+              >
+                <WarningIcon className="mt-px h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <b>{aliasEfectivo}</b> ya {choqueDeAlias.length === 1 ? 'lo usa' : 'lo usan'}{' '}
+                  {choqueDeAlias.map((u) => u.name).join(', ')} en esta facción.{' '}
+                  {aliasEscritoRepetido
+                    ? 'Escribe otras iniciales para poder guardar.'
+                    : 'Escribe unas iniciales propias para distinguirlas en la mesa.'}
+                </span>
+              </p>
+            )}
           </Panel>
 
           <Panel title="Opciones de equipo">

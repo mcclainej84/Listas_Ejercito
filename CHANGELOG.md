@@ -13,6 +13,21 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.112 — 15/08/2026 15:27
+
+- **El alias sale de «Datos generales» a su propio apartado**, «Alias en el
+  Despliegue». No era un dato general de la unidad: es de dibujo, solo existe
+  para la mesa, y metido en la fila del nombre descuadraba la rejilla —un campo
+  de tres caracteres junto a uno de texto largo—.
+- **La fila de tamaños, compacta**: mínimo, máximo e inicial pasan a cajas de
+  ancho fijo con las cifras centradas, y el «Unidad única (0-1)» va detrás en
+  la misma línea. Antes cada uno ocupaba una cuarta parte del panel para dos
+  dígitos.
+- La rejilla vuelve a cerrar filas completas: Nombre · Coste · Categoría, y
+  Etiqueta · Equipo.
+
+---
+
 ## 0.111 — 15/08/2026 11:18
 
 - **Las peanas del Despliegue llevan siempre el mismo cuerpo de letra**: el que
