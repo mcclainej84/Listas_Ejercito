@@ -88,7 +88,7 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { ArrowLeftIcon, CategoryShield, FileTextIcon, LockIcon, TrashIcon } from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
-import { referenciasDeDespliegue } from '@/domain/deploymentRefs'
+import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
 import { exportDeploymentToPdf } from '@/features/army-lists/exportDeploymentPdf'
 import { abrirPestanaPdf, cerrarPestanaPdf } from '@/features/army-lists/pdfWindow'
 import { renderTableCanvas } from '@/features/maps/renderTableCanvas'
@@ -101,33 +101,6 @@ import type { ArmyListEntry } from '@/domain/types'
 
 function nombreDeLaEntrada(entry: ArmyListEntry): string {
   return entry.alias ?? entry.unit.name
-}
-
-/**
- * El cuerpo de letra de las iniciales, en CENTÍMETROS DE MESA, para todas las
- * peanas a la vez.
- *
- * Es un solo número y no uno por peana a propósito: con cada unidad escrita al
- * tamaño de su recuadro, la mesa se leía como un cartel de rebajas —un carro
- * enorme al lado de un personaje diminuto— y el tamaño de la letra pasaba a
- * significar algo que no significa nada. Todas iguales.
- *
- * Cuál. El mayor que quepa en TODAS: para cada peana se mira lo que admite de
- * ancho (según cuántas letras tenga su alias) y de alto, y se coge el menor de
- * todos. Así la más pequeña de la mesa manda, que es la única forma de que
- * ninguna se salga.
- */
-function cuerpoDeAliasCm(peanas: { texto: string; tamano: TamanoCm }[]): number {
-  let cuerpo = Infinity
-  for (const { texto, tamano } of peanas) {
-    if (!texto) continue
-    // 0,62 em es lo que ocupa de ancho una letra en negrita; 0,72 del alto de
-    // la peana deja aire arriba y abajo.
-    const porAncho = (tamano.anchoCm * 0.82) / (0.62 * texto.length)
-    const porAlto = tamano.altoCm * 0.72
-    cuerpo = Math.min(cuerpo, porAncho, porAlto)
-  }
-  return Number.isFinite(cuerpo) ? cuerpo : 0
 }
 
 /**

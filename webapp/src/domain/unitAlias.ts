@@ -53,3 +53,34 @@ export function inicialesDe(nombre: string): string {
 export function aliasDeUnidad(unidad: { alias: string | null; name: string }): string {
   return unidad.alias ?? inicialesDe(unidad.name)
 }
+
+/** Lo mínimo que hace falta saber de una unidad para comprobar si su alias choca. */
+export interface UnidadConAlias {
+  id: number
+  name: string
+  alias: string | null
+}
+
+/**
+ * Las unidades de la MISMA FACCIÓN que ya usan estas iniciales.
+ *
+ * POR QUÉ SOLO LA FACCIÓN. Un despliegue es un ejército, y un ejército es de
+ * una facción: dos unidades de facciones distintas nunca coinciden en la misma
+ * mesa, así que sus iniciales no se estorban. Exigir que no se repitan en las
+ * 474 unidades del programa con solo tres letras obligaría a inventar
+ * abreviaturas ilegibles —hay 80 choques ahora mismo—; dentro de una facción
+ * son 31, y ahí sí molestan de verdad.
+ *
+ * Se compara el alias EFECTIVO: el escrito a mano o, si no lo hay, las
+ * iniciales del nombre. Es lo que se ve en la peana, y por tanto lo que puede
+ * confundirse.
+ */
+export function unidadesConLasMismasIniciales(
+  iniciales: string,
+  unidadesDeLaFaccion: UnidadConAlias[],
+  exceptoId: number,
+): UnidadConAlias[] {
+  const buscado = iniciales.trim().toUpperCase()
+  if (!buscado) return []
+  return unidadesDeLaFaccion.filter((u) => u.id !== exceptoId && aliasDeUnidad(u).toUpperCase() === buscado)
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { clsx } from 'clsx'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { UnitRepository, type UnitScalarInput } from '@/data/repositories/unitRepository'
 import {
@@ -13,13 +14,13 @@ import { RuleRepository } from '@/data/repositories/ruleRepository'
 import { AppendixRepository } from '@/data/repositories/appendixRepository'
 import { validateUnitScalarInput } from '@/domain/validation'
 import { ARMOR_SAVE_VALUES, formatArmorSave } from '@/domain/unitFormat'
-import { ALIAS_MAX, inicialesDe, normalizarAlias } from '@/domain/unitAlias'
+import { ALIAS_MAX, inicialesDe, normalizarAlias, unidadesConLasMismasIniciales } from '@/domain/unitAlias'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Button } from '@/shared/ui/Button'
-import { CheckIcon, PlusIcon } from '@/shared/ui/icons'
+import { ArrowLeftIcon, CheckIcon, PlusIcon, WarningIcon } from '@/shared/ui/icons'
 import { TextField } from '@/shared/ui/TextField'
 import { Select } from '@/shared/ui/Select'
 import { RelationEditor } from '@/shared/ui/RelationEditor'
@@ -139,6 +140,14 @@ export function UnitDetailPage() {
   const [showAppendices, setShowAppendices] = useState(false)
   const { data: apendices, reload: reloadApendices } = useAsync(() => AppendixRepository.listByUnit(unitId), [unitId])
   const numApendices = apendices?.length ?? 0
+
+  // Las iniciales de la mesa no pueden repetirse dentro de una facción: dos
+  // peanas con las mismas tres letras no hay quien las distinga (ver
+  // domain/unitAlias).
+  const { data: unidadesDeLaFaccion } = useAsync(
+    () => (unit ? UnitRepository.listAliasDeFaccion(unit.factionId) : Promise.resolve([])),
+    [unit?.factionId],
+  )
   const [creatingEquipmentQuery, setCreatingEquipmentQuery] = useState<string | null>(null)
   const [creatingUpgradeQuery, setCreatingUpgradeQuery] = useState<string | null>(null)
   // La unidad puede no tener todavía ficha base (unidad recién creada desde
@@ -356,10 +365,21 @@ export function UnitDetailPage() {
   const mountRelationItems = (mountItems ?? []).map((p) => ({ id: p.id, name: p.name ?? '(sin nombre)' }))
   const chariotRelationItems = (chariotItems ?? []).map((p) => ({ id: p.id, name: p.name ?? '(sin nombre)' }))
 
+  // Las iniciales que se verán en la mesa, y con quién chocan dentro de la
+  // facción. Escritas a mano, un choque impide guardar; automáticas, solo avisa
+  // (ver el comentario junto al aviso).
+  const aliasEfectivo = draft.scalar.alias ?? inicialesDe(draft.scalar.name)
+  const choqueDeAlias = unidadesConLasMismasIniciales(aliasEfectivo, unidadesDeLaFaccion ?? [], unit.id)
+  const aliasEscritoRepetido = draft.scalar.alias != null && choqueDeAlias.length > 0
+
   return (
     <div>
-      <button onClick={() => navigate(-1)} className="mb-3 text-sm text-ink-soft hover:text-ink">
-        ← Volver
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-3 flex items-center gap-1.5 text-sm text-ink-soft transition-colors hover:text-ink"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        Volver
       </button>
 
       <PageHeader
@@ -374,7 +394,12 @@ export function UnitDetailPage() {
             <Button variant="secondary" onClick={() => setShowAppendices(true)}>
               Apéndices{numApendices > 0 ? ` (${numApendices})` : ''}
             </Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              disabled={saving || aliasEscritoRepetido}
+              title={aliasEscritoRepetido ? 'Las iniciales están repetidas en esta facción' : undefined}
+            >
               {savedFlash && !saving && <CheckIcon className="h-4 w-4" />}
               {saving ? 'Guardando…' : savedFlash ? 'Guardado' : 'Guardar cambios'}
             </Button>
@@ -432,12 +457,39 @@ export function UnitDetailPage() {
                   placeholder={inicialesDe(draft.scalar.name) || '—'}
                   title="Iniciales para la peana del Despliegue (máx. 3). En blanco se usan las del nombre."
                   className="text-center uppercase"
+                  error={aliasEscritoRepetido ? ' ' : undefined}
                   value={draft.scalar.alias ?? ''}
                   onChange={(e) =>
                     updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
                   }
                 />
               </div>
+
+              {/* El choque de iniciales se dice DEBAJO y a lo ancho: el campo
+                  mide tres caracteres y ahí no cabe explicar nada.
+
+                  Escritas a mano y repetidas → error, y no deja guardar. Si son
+                  las automáticas del nombre → solo aviso: hoy hay 31 choques
+                  heredados en el catálogo y bloquear el guardado de todos ellos
+                  impediría trabajar en una unidad por algo que no se acaba de
+                  tocar. */}
+              {choqueDeAlias.length > 0 && (
+                <p
+                  className={clsx(
+                    'col-span-12 -mt-2 flex items-start gap-1.5 text-xs',
+                    aliasEscritoRepetido ? 'text-danger' : 'text-bronze',
+                  )}
+                >
+                  <WarningIcon className="mt-px h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    <b>{aliasEfectivo}</b> ya {choqueDeAlias.length === 1 ? 'lo usa' : 'lo usan'}{' '}
+                    {choqueDeAlias.map((u) => u.name).join(', ')} en esta facción.{' '}
+                    {aliasEscritoRepetido
+                      ? 'Escribe otras iniciales para poder guardar.'
+                      : 'Escribe unas iniciales propias para distinguirlas en la mesa.'}
+                  </span>
+                </p>
+              )}
               <div className="col-span-4 sm:col-span-2">
                 <TextField
                   label="Coste (pts)"

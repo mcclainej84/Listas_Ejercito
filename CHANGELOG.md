@@ -13,6 +13,25 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.111 — 15/08/2026 11:18
+
+- **Las peanas del Despliegue llevan siempre el mismo cuerpo de letra**: el que
+  cabe en una peana de 3,5 × 3,5 cm con tres letras (1,54 cm). Antes se
+  calculaba a partir de la peana más pequeña que hubiera puesta, así que el
+  mismo ejército se veía con una letra distinta según lo desplegado. Si alguna
+  peana fuera aún más pequeña, manda ella y se encoge; nunca crece.
+- El PDF del despliegue usa exactamente el mismo cálculo, así que papel y
+  pantalla coinciden.
+- **Aviso de iniciales repetidas** en la ficha de la unidad. Si las escribes a
+  mano y ya las usa otra unidad de la misma facción, sale en rojo diciendo
+  cuál y no deja guardar. Si son las automáticas del nombre, avisa en bronce
+  pero deja seguir: hay 31 choques heredados en el catálogo y bloquear el
+  guardado de todos ellos impediría trabajar.
+- El aviso mira solo DENTRO de la facción: un despliegue es un ejército de una
+  facción, así que dos unidades de facciones distintas nunca comparten mesa.
+
+---
+
 ## 0.110 — 15/08/2026 10:59
 
 - **Fechas de versión corregidas.** Las entradas de 0.98 a 0.109 decían

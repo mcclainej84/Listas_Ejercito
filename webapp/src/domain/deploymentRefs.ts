@@ -15,8 +15,55 @@
 // La leyenda que acompaña al mapa lleva además CANTIDAD, NOMBRE y EQUIPO, que
 // es lo que de verdad distingue dos unidades iguales sobre el papel.
 // ============================================================================
-import { aliasDeUnidad } from '@/domain/unitAlias'
+import { ALIAS_MAX, aliasDeUnidad } from '@/domain/unitAlias'
 import type { ArmyListEntry } from '@/domain/types'
+
+// ---------------------------------------------------------------------------
+// EL CUERPO DE LETRA DE LAS PEANAS
+//
+// Uno solo para toda la mesa, y siempre el mismo: el que cabe en una peana de
+// 3,5 × 3,5 cm con tres letras. Antes se calculaba a partir de la peana más
+// pequeña que hubiera puesta, así que el mismo ejército se veía con una letra
+// distinta según lo que estuviera desplegado en ese momento —y al quitar el
+// personaje de 4 cm, de repente todo crecía—. Con una medida fija, la mesa se
+// lee igual siempre.
+//
+// El "si no son muy grandes" del acuerdo: si alguna peana es tan pequeña que
+// esa letra no le cabe, manda ella y se encoge para todas. Nunca al revés: no
+// crece por mucho sitio que sobre.
+// ---------------------------------------------------------------------------
+
+/** La peana de referencia, en cm. Es la más pequeña de uso corriente. */
+export const PEANA_DE_REFERENCIA_CM = 3.5
+
+/** Lo que ocupa de ancho una letra en negrita, en múltiplos del cuerpo. */
+const ANCHO_POR_LETRA = 0.62
+/** Del alto de la peana, cuánto puede ocupar la letra dejando aire arriba y abajo. */
+const ALTO_UTIL = 0.72
+/** Del ancho de la peana, cuánto pueden ocupar las letras dejando margen a los lados. */
+const ANCHO_UTIL = 0.82
+
+/** El cuerpo que cabe en una peana concreta con un texto concreto, en cm. */
+function cuerpoQueCabe(anchoCm: number, altoCm: number, letras: number): number {
+  if (letras <= 0) return Infinity
+  return Math.min((anchoCm * ANCHO_UTIL) / (ANCHO_POR_LETRA * letras), altoCm * ALTO_UTIL)
+}
+
+/** El cuerpo por defecto: tres letras en una peana de referencia. Sale 1,54 cm. */
+export const CUERPO_ALIAS_CM = cuerpoQueCabe(PEANA_DE_REFERENCIA_CM, PEANA_DE_REFERENCIA_CM, ALIAS_MAX)
+
+/**
+ * El cuerpo de letra para una mesa concreta: el de referencia, salvo que
+ * alguna peana sea demasiado pequeña para él (ahí manda la más apretada).
+ */
+export function cuerpoDeAliasCm(peanas: { texto: string; tamano: { anchoCm: number; altoCm: number } }[]): number {
+  let cuerpo = CUERPO_ALIAS_CM
+  for (const { texto, tamano } of peanas) {
+    if (!texto) continue
+    cuerpo = Math.min(cuerpo, cuerpoQueCabe(tamano.anchoCm, tamano.altoCm, texto.length))
+  }
+  return cuerpo
+}
 
 export interface ReferenciaDeUnidad {
   entryId: number

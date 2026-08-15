@@ -17,6 +17,7 @@
 // peores sitios donde puede aparecer.
 // ============================================================================
 import { RETICULA_CM, type Mesa } from '@/domain/deployment'
+import { cuerpoDeAliasCm } from '@/domain/deploymentRefs'
 import { SCENERY_KINDS_INFO, type FloorAsset, type SceneryPiece, type TexturaMapa } from '@/domain/scenery'
 
 /** Pergamino, línea y tinta: los mismos colores que la pantalla. */
@@ -201,14 +202,11 @@ export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLC
 
   // ---- Peanas ------------------------------------------------------------
   if (peanas.length > 0) {
-    // El mismo criterio que en pantalla: un solo cuerpo de letra para todas,
-    // el mayor que quepa en la más pequeña.
-    let cuerpoCm = Infinity
-    for (const p of peanas) {
-      if (!p.texto) continue
-      cuerpoCm = Math.min(cuerpoCm, (p.anchoCm * 0.82) / (0.62 * p.texto.length), p.altoCm * 0.72)
-    }
-    if (!Number.isFinite(cuerpoCm)) cuerpoCm = 2
+    // El mismo cuerpo de letra que en pantalla, calculado con la misma
+    // función: el papel y la pantalla tienen que decir lo mismo.
+    const cuerpoCm = cuerpoDeAliasCm(
+      peanas.map((p) => ({ texto: p.texto, tamano: { anchoCm: p.anchoCm, altoCm: p.altoCm } })),
+    )
 
     for (const peana of peanas) {
       const w = peana.anchoCm * pxPorCm

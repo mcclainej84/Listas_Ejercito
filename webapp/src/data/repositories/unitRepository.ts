@@ -8,6 +8,7 @@ import {
 } from '@/data/repositories/mappers'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
+import type { UnidadConAlias } from '@/domain/unitAlias'
 import type {
   AttributeProfile,
   AttributeProfileInput,
@@ -207,6 +208,19 @@ function scalarUpdateStatement(unitId: number, scalar: UnitScalarInput): BatchSt
 }
 
 export const UnitRepository = {
+  /**
+   * Nombre y alias de las unidades ACTIVAS de una facción, para comprobar que
+   * unas iniciales no chocan con las de otra (ver domain/unitAlias). Va contra
+   * la copia local, así que no cuesta red.
+   */
+  async listAliasDeFaccion(factionId: number): Promise<UnidadConAlias[]> {
+    return queryLocal('SELECT id, name, alias FROM units WHERE faction_id = ? AND active = 1', [factionId], (row) => ({
+      id: row.id as number,
+      name: row.name as string,
+      alias: (row.alias as string) ?? null,
+    }))
+  },
+
   async listByFaction(factionId: number): Promise<UnitSummary[]> {
     return queryLocal(
       `SELECT u.*, f.name AS faction_name, c.name AS category_name
