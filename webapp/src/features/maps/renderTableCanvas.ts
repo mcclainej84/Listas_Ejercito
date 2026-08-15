@@ -18,6 +18,7 @@
 // ============================================================================
 import { RETICULA_CM, type Mesa } from '@/domain/deployment'
 import { cuerpoDeAliasCm } from '@/domain/deploymentRefs'
+import { DESGASTE } from '@/domain/factionColor'
 import { SCENERY_KINDS_INFO, type FloorAsset, type SceneryPiece, type TexturaMapa } from '@/domain/scenery'
 
 /** Pergamino, línea y tinta: los mismos colores que la pantalla. */
@@ -213,15 +214,79 @@ export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLC
       const h = peana.altoCm * pxPorCm
       const x = peana.xCm * pxPorCm - w / 2
       const y = peana.yCm * pxPorCm - h / 2
+      const lado = Math.max(w, h)
 
+      // El color, y encima el MISMO desgaste que en pantalla: se lee la lista
+      // de manchas de domain/factionColor, así que el papel y la pantalla
+      // enseñan la misma pieza y no dos parecidas.
       ctx.fillStyle = peana.color
       ctx.fillRect(x, y, w, h)
-      // El degradado que da materia al color, como el de la pantalla.
-      const grad = ctx.createLinearGradient(x, y, x + w, y + h)
-      grad.addColorStop(0, 'rgba(255,255,255,.22)')
-      grad.addColorStop(1, 'rgba(0,0,0,.28)')
-      ctx.fillStyle = grad
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(x, y, w, h)
+      ctx.clip()
+
+      for (const m of DESGASTE) {
+        const cx = x + (m.x / 100) * w
+        const cy = y + (m.y / 100) * h
+        const r = Math.max(1, (m.r / 100) * lado)
+        const tinta = m.luz ? '255,255,255' : '0,0,0'
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+        grad.addColorStop(0, `rgba(${tinta},${m.alfa})`)
+        grad.addColorStop(0.7, `rgba(${tinta},0)`)
+        ctx.fillStyle = grad
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+      }
+
+      // Grano a 27°, la misma inclinación que el CSS.
+      ctx.save()
+      ctx.translate(x + w / 2, y + h / 2)
+      ctx.rotate((27 * Math.PI) / 180)
+      ctx.lineWidth = 1
+      const diagonal = Math.hypot(w, h)
+      for (let d = -diagonal; d < diagonal; d += 3) {
+        ctx.strokeStyle = 'rgba(255,255,255,.05)'
+        ctx.beginPath()
+        ctx.moveTo(-diagonal, d)
+        ctx.lineTo(diagonal, d)
+        ctx.stroke()
+        ctx.strokeStyle = 'rgba(0,0,0,.06)'
+        ctx.beginPath()
+        ctx.moveTo(-diagonal, d + 1)
+        ctx.lineTo(diagonal, d + 1)
+        ctx.stroke()
+      }
+      ctx.restore()
+
+      // Viñeteado: el borde se apaga, y así el cuadro no parece recortado.
+      const vineta = ctx.createRadialGradient(
+        x + w * 0.48,
+        y + h * 0.44,
+        lado * 0.25,
+        x + w * 0.48,
+        y + h * 0.44,
+        lado * 0.62,
+      )
+      vineta.addColorStop(0, 'rgba(0,0,0,0)')
+      vineta.addColorStop(1, 'rgba(0,0,0,.40)')
+      ctx.fillStyle = vineta
       ctx.fillRect(x, y, w, h)
+
+      // El canto: luz arriba, sombra abajo.
+      const canto = Math.max(1, h * 0.07)
+      const luz = ctx.createLinearGradient(x, y, x, y + canto)
+      luz.addColorStop(0, 'rgba(255,255,255,.34)')
+      luz.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = luz
+      ctx.fillRect(x, y, w, canto)
+      const sombra = ctx.createLinearGradient(x, y + h - canto, x, y + h)
+      sombra.addColorStop(0, 'rgba(0,0,0,0)')
+      sombra.addColorStop(1, 'rgba(0,0,0,.38)')
+      ctx.fillStyle = sombra
+      ctx.fillRect(x, y + h - canto, w, canto)
+      ctx.restore()
+
       ctx.strokeStyle = BORDE
       ctx.lineWidth = Math.max(1, pxPorCm / 8)
       ctx.strokeRect(x, y, w, h)

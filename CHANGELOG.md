@@ -13,6 +13,21 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.114 — 15/08/2026 16:43
+
+- **Las peanas pasan a tener pintura desgastada** en vez del degradado plano
+  con rayas. Cuatro capas: canto de luz arriba y de sombra abajo, grano fino a
+  27° —a 45° se leía como cuadrícula—, ocho manchas de roce y suciedad
+  repartidas sin simetría, y viñeteado en el borde.
+- Las manchas van en tanto por ciento de la peana, así que se ven igual en una
+  de personaje de 4 cm que en un regimiento de 12 × 10, y **el PNG y el PDF
+  pintan exactamente las mismas**: el canvas de exportación lee la misma lista
+  que la pantalla.
+- El recuadro de color de la ficha de facción usa ya ese acabado, para que
+  enseñe lo que de verdad se va a ver en la mesa.
+
+---
+
 ## 0.113 — 15/08/2026 15:32
 
 - **Repartidas las iniciales repetidas dentro de cada facción**: 35 unidades
