@@ -12,7 +12,7 @@
 // caber en un presupuesto de bytes fijo.
 // ============================================================================
 
-import { cajaDeContenido, quitarFondo } from '@/shared/imageTrim'
+import { cajaDeContenido, difuminarBorde, plumaDeBorde, quitarFondo, sangrarColor } from '@/shared/imageTrim'
 
 export interface ResizedImage {
   bytes: Uint8Array
@@ -243,79 +243,145 @@ export interface ImagenPreparada extends ResizedImage {
   fondoQuitado: boolean
 }
 
+/** Un canvas del tamaño pedido con su contexto, listo para leer y escribir píxeles. */
+function lienzoDeTrabajo(width: number, height: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) throw new Error('No se pudo procesar la imagen (canvas no disponible).')
+  // Reducir de golpe de 4000 px a 512 px con el remuestreo por defecto deja
+  // bordes con dientes de sierra; esto le pide al navegador su mejor filtro.
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  return { canvas, ctx }
+}
+
 /**
- * Deja una imagen lista para ser una pieza de escenografía o un suelo:
+ * ¿La imagen viene YA recortada, con su transparencia puesta? Se mira si hay
+ * algún píxel transparente en el marco: si lo hay, alguien le quitó el fondo
+ * antes — el original del usuario, o nosotros mismos en un pase anterior, que
+ * es lo que ocurre al REPROCESAR la biblioteca.
  *
- *   1. quita el fondo liso que toque el borde (ver shared/imageTrim),
- *   2. recorta el aire que queda alrededor,
- *   3. la reduce a 512 px de lado mayor y la comprime a WebP.
+ * Hace falta saberlo porque `quitarFondo` deduce el color del fondo mirando las
+ * cuatro esquinas, y en una imagen ya recortada esas esquinas son
+ * transparentes; y transparente, dentro de un canvas, se lee como NEGRO,
+ * porque el color se guarda multiplicado por el alfa. Sin esta comprobación se
+ * pondría a borrar todo lo oscuro que tocase el borde y una roca o un tejado en
+ * sombra se irían por el desagüe.
+ */
+function yaVieneRecortada(data: Uint8ClampedArray, width: number, height: number): boolean {
+  for (let x = 0; x < width; x++) {
+    if (data[x * 4 + 3] === 0) return true
+    if (data[((height - 1) * width + x) * 4 + 3] === 0) return true
+  }
+  for (let y = 0; y < height; y++) {
+    if (data[y * width * 4 + 3] === 0) return true
+    if (data[(y * width + width - 1) * 4 + 3] === 0) return true
+  }
+  return false
+}
+
+/**
+ * El molino, común a la imagen que se acaba de elegir y a la que se reprocesa:
  *
- * Los tres pasos existen por lo mismo: sobre la mesa, una pieza se pinta a
+ *   1. la reduce a 512 px de lado mayor,
+ *   2. quita el fondo liso que toque el borde (ver shared/imageTrim),
+ *   3. recorta el aire que queda alrededor,
+ *   4. DIFUMINA EL CANTO de la silueta y le quita el color del fondo viejo,
+ *   5. la comprime a WebP.
+ *
+ * Todos los pasos existen por lo mismo: sobre la mesa, una pieza se pinta a
  * pocos centímetros. Una foto de 4000 px con su fondo blanco se vería como un
  * recorte de papel encima del terreno, y pesaría cien veces lo necesario.
+ *
+ * EL RECORTE VA ANTES DE DIFUMINAR, no después, y no da igual: la anchura del
+ * desvanecido se calcula sobre el tamaño de la pieza de verdad, no sobre el
+ * aire que la rodeaba, así que una piedra pequeña en una foto grande no se lleva
+ * la pluma de la foto.
  *
  * Si la imagen no tiene un fondo plano que quitar, se salta ese paso y sigue
  * con el resto: es mejor eso que devolverle al usuario un error por una imagen
  * perfectamente válida.
  */
+async function prepararPieza(source: CanvasImageSource, srcW: number, srcH: number): Promise<ImagenPreparada> {
+  if (!srcW || !srcH) throw new Error('El archivo seleccionado no es una imagen válida.')
+
+  // Se trabaja ya a tamaño reducido: quitar el fondo de una foto de 4000 px
+  // son 16 millones de píxeles recorridos para tirarlos justo después.
+  const escala = Math.min(1, LADO_ESCENOGRAFIA / Math.max(srcW, srcH))
+  const w = Math.max(1, Math.round(srcW * escala))
+  const h = Math.max(1, Math.round(srcH * escala))
+
+  const grande = lienzoDeTrabajo(w, h)
+  grande.ctx.drawImage(source, 0, 0, w, h)
+
+  const imagen = grande.ctx.getImageData(0, 0, w, h)
+  const borrados = yaVieneRecortada(imagen.data, w, h) ? 0 : quitarFondo(imagen.data, w, h)
+  grande.ctx.putImageData(imagen, 0, 0)
+
+  const caja = cajaDeContenido(imagen.data, w, h)
+  let final = grande
+  if (caja && (caja.ancho < w || caja.alto < h)) {
+    final = lienzoDeTrabajo(caja.ancho, caja.alto)
+    final.ctx.drawImage(grande.canvas, caja.x, caja.y, caja.ancho, caja.alto, 0, 0, caja.ancho, caja.alto)
+  }
+
+  const fw = final.canvas.width
+  const fh = final.canvas.height
+  const pieza = final.ctx.getImageData(0, 0, fw, fh)
+  difuminarBorde(pieza.data, fw, fh, plumaDeBorde(fw, fh))
+  sangrarColor(pieza.data, fw, fh)
+  final.ctx.putImageData(pieza, 0, 0)
+
+  const mime = supportsWebp() ? 'image/webp' : 'image/png'
+  const lossy = mime !== 'image/png'
+  let mejor: Uint8Array | null = null
+  for (const quality of lossy ? [0.88, 0.78, 0.68, 0.55] : [undefined]) {
+    const bytes = await canvasToBytes(final.canvas, mime, quality)
+    if (!mejor || bytes.length < mejor.length) mejor = bytes
+    if (bytes.length <= MAX_SCENERY_BYTES) {
+      mejor = bytes
+      break
+    }
+  }
+  if (!mejor) throw new Error('No se pudo comprimir la imagen.')
+  return { bytes: mejor, mime, proporcion: fw / fh, fondoQuitado: borrados > 0 }
+}
+
+/** Deja lista la imagen que el usuario acaba de elegir para una pieza o un suelo. */
 export async function prepararImagenDeEscenografia(file: File): Promise<ImagenPreparada> {
   if (file.type && !file.type.startsWith('image/')) {
     throw new Error('El archivo seleccionado no es una imagen.')
   }
-  const { source, width: srcW, height: srcH } = await decodeImage(file)
+  const { source, width, height } = await decodeImage(file)
   try {
-    if (!srcW || !srcH) throw new Error('El archivo seleccionado no es una imagen válida.')
+    return await prepararPieza(source, width, height)
+  } finally {
+    closeSource(source)
+  }
+}
 
-    // Se trabaja ya a tamaño reducido: quitar el fondo de una foto de 4000 px
-    // son 16 millones de píxeles recorridos para tirarlos justo después.
-    const escala = Math.min(1, LADO_ESCENOGRAFIA / Math.max(srcW, srcH))
-    const w = Math.max(1, Math.round(srcW * escala))
-    const h = Math.max(1, Math.round(srcH * escala))
-
-    const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) throw new Error('No se pudo procesar la imagen (canvas no disponible).')
-    ctx.imageSmoothingEnabled = true
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(source, 0, 0, w, h)
-
-    const imagen = ctx.getImageData(0, 0, w, h)
-    const borrados = quitarFondo(imagen.data, w, h)
-    ctx.putImageData(imagen, 0, 0)
-
-    const caja = cajaDeContenido(imagen.data, w, h)
-    let final = canvas
-    if (caja && (caja.ancho < w || caja.alto < h)) {
-      const recorte = document.createElement('canvas')
-      recorte.width = caja.ancho
-      recorte.height = caja.alto
-      const rctx = recorte.getContext('2d')
-      if (rctx) {
-        rctx.drawImage(canvas, caja.x, caja.y, caja.ancho, caja.alto, 0, 0, caja.ancho, caja.alto)
-        final = recorte
-      }
-    }
-
-    const mime = supportsWebp() ? 'image/webp' : 'image/png'
-    const lossy = mime !== 'image/png'
-    let mejor: Uint8Array | null = null
-    for (const quality of lossy ? [0.88, 0.78, 0.68, 0.55] : [undefined]) {
-      const bytes = await canvasToBytes(final, mime, quality)
-      if (!mejor || bytes.length < mejor.length) mejor = bytes
-      if (bytes.length <= MAX_SCENERY_BYTES) {
-        mejor = bytes
-        break
-      }
-    }
-    if (!mejor) throw new Error('No se pudo comprimir la imagen.')
-    return {
-      bytes: mejor,
-      mime,
-      proporcion: final.width / final.height,
-      fondoQuitado: borrados > 0,
-    }
+/**
+ * Lo mismo, pero para una imagen que YA está guardada: se descarga de su URL y
+ * se vuelve a pasar por el molino. Es lo que usa el reprocesado de la
+ * biblioteca (ver SceneryLibraryModal) para llevar las piezas antiguas al canto
+ * difuminado sin tener que volver a subirlas una por una.
+ *
+ * SE BAJA CON `fetch` Y SE DECODIFICA DESDE EL BLOB, no con un `<img src=…>`
+ * apuntando a R2. Una imagen traída de otro origen contamina el canvas, y ese
+ * fallo no salta al dibujar sino AL EXPORTAR, que es de las trampas más caras
+ * de depurar que hay en este repositorio (ver la nota de renderTableCanvas).
+ * Bajando el blob, los bytes ya son nuestros y no hay origen que valga.
+ */
+export async function reprocesarImagenDeEscenografia(url: string): Promise<ImagenPreparada> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`No se pudo descargar la imagen (${res.status}).`)
+  const blob = await res.blob()
+  const archivo = new File([blob], 'pieza', { type: blob.type || 'image/webp' })
+  const { source, width, height } = await decodeImage(archivo)
+  try {
+    return await prepararPieza(source, width, height)
   } finally {
     closeSource(source)
   }

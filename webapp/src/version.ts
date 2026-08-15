@@ -27,7 +27,7 @@
 // Hay que anotar el cambio también en CHANGELOG.md, en la raíz del repositorio.
 // ============================================================================
 
-export const APP_VERSION = '0.115'
+export const APP_VERSION = '0.116'
 
 /**
  * Fecha y hora de la última actualización, `YYYY-MM-DDTHH:mm` (hora local de
@@ -35,7 +35,7 @@ export const APP_VERSION = '0.115'
  * a propósito, para que refleje cuándo se hizo el cambio y no cuándo se
  * compiló por última vez.
  */
-export const APP_VERSION_DATE = '2026-08-15T16:45'
+export const APP_VERSION_DATE = '2026-08-15T20:26'
 
 /** "20/07/2026 13:13" — fecha y hora tal y como se muestran en pantalla. */
 export function formatVersionDate(stamp: string = APP_VERSION_DATE): string {

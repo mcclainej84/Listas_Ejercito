@@ -13,6 +13,50 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.116 — 15/08/2026 20:26
+
+- **El canto de las piezas de escenografía ya no se ve.** Al juntar varios
+  tramos de camino sobre la mesa se leía el recorte de cada uno como una línea
+  clara, y la pieza parecía una pegatina puesta encima del terreno. Eran tres
+  fallos sumados en la preparación de la imagen, y van los tres:
+  - **El recorte era binario**: un píxel estaba dentro (alfa 255) o fuera (alfa
+    0), sin nada en medio. Ahora la tolerancia tiene dos escalones y el
+    antialias del dibujo original recibe alfa proporcional.
+  - **Quedaba un hilo de ribete** del color del fondo viejo: eran justo esos
+    píxeles del antialias, que caían fuera de la tolerancia y sobrevivían
+    opacos. Esa era la línea que se veía.
+  - **El canto conservaba color del fondo.** Medido en Chromium sobre el verde
+    de la mesa, se desviaba 45 de media (75 en el peor píxel) del color que
+    debía dar; repintado con el del dibujo, 1,7.
+- **Y se desvanece la silueta** en sus últimos píxeles, con una curva suave, para
+  que la pieza se funda con la mesa. La anchura es proporcional al tamaño de la
+  pieza (1,8 % del lado mayor), no un número fijo de píxeles: como todas se
+  guardan a 512 px, un valor fijo daría un desvanecido distinto según lo que la
+  pieza midiera en centímetros.
+- **Esto cuesta bytes, y conviene saberlo**: la pieza terminada pesa un 14 %
+  más que con el corte a hacha, porque un canto con cincuenta tonos de alfa es
+  información que antes no estaba. A 512 px son unos pocos KB por pieza. (El
+  repintado del canto, por su parte, ahorra un 8 % frente a dejarlo teñido: un
+  color plano se comprime mejor que un degradado.)
+- **Los extremos rectos NO se desvanecen**, solo la silueta. Un canto que llega
+  hasta el borde de su propia imagen es un corte deliberado —el tramo de camino
+  que se acaba en seco para empalmarlo con el siguiente—, y difuminarlo dejaba
+  un claro entre dos tramos pegados. Se probó, y se veía.
+- **Botón "Suavizar bordes" en la biblioteca**: baja la imagen de cada pieza, la
+  vuelve a preparar y guarda una versión nueva de cada una. Es la forma de
+  llevar al canto nuevo lo que ya estaba subido, porque esto se cocina en la
+  imagen guardada y no es un ajuste que se pueda cambiar luego. Los mapas ya
+  hechos no cambian, como siempre. Si la primera falla se para en seco: el
+  motivo suele ser común a todas (el Worker sin desplegar) y no compensa
+  encadenar veinte intentos condenados.
+- **Una imagen que ya viene recortada se deja en paz**: si hay transparencia en
+  su marco, no se busca fondo que quitar. Dentro de un canvas lo transparente se
+  lee como negro, así que la búsqueda habría dado "negro" por color de fondo y
+  se habría comido cualquier roca o tejado en sombra pegado al borde. Esto ya
+  podía pasar antes; ahora no puede.
+
+---
+
 ## 0.115 — 15/08/2026 16:45
 
 - **Fuera el rayado de las peanas.** Se leía como lo que era —un patrón que se

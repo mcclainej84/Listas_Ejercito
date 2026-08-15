@@ -14,10 +14,16 @@
 // recuperar, y se quitó: acaba siendo un cajón de trastos que nadie limpia.
 //
 // LAS IMÁGENES SE PREPARAN SOLAS al elegirlas: se les quita el fondo liso, se
-// recorta el aire que sobra y se reducen a 512 px (ver
-// shared/image#prepararImagenDeEscenografia). Sin eso, una foto de 4 MB con
-// fondo blanco acaba sobre la mesa como un recorte de papel — que es justo lo
-// que pasaba al principio con las ilustraciones que se subían a mano.
+// recorta el aire que sobra, SE LES DIFUMINA EL CANTO y se reducen a 512 px
+// (ver shared/image#prepararImagenDeEscenografia). Sin eso, una foto de 4 MB
+// con fondo blanco acaba sobre la mesa como un recorte de papel — que es justo
+// lo que pasaba al principio con las ilustraciones que se subían a mano.
+//
+// Y COMO TODO ESO SE COCINA EN LA IMAGEN QUE SE GUARDA, las piezas subidas
+// antes se quedaron con su canto duro. De ahí el botón "Suavizar bordes": baja
+// cada imagen, la vuelve a pasar por el molino y guarda una versión nueva. No
+// es un ajuste que se pueda cambiar después desde la ficha, es un pase sobre
+// los píxeles.
 // ============================================================================
 import { useRef, useState } from 'react'
 import { clsx } from 'clsx'
@@ -28,14 +34,19 @@ import {
   type NuevoSuelo,
 } from '@/data/repositories/sceneryAssetRepository'
 import { construirPaleta, type EntradaDePaleta, type FloorAsset, type SceneryAsset } from '@/domain/scenery'
-import { compressImageFile, prepararImagenDeEscenografia, type ImagenPreparada } from '@/shared/image'
+import {
+  compressImageFile,
+  prepararImagenDeEscenografia,
+  reprocesarImagenDeEscenografia,
+  type ImagenPreparada,
+} from '@/shared/image'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { PlusIcon, SwapIcon, TrashIcon } from '@/shared/ui/icons'
+import { FrameIcon, PlusIcon, SwapIcon, TrashIcon } from '@/shared/ui/icons'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 
@@ -136,12 +147,73 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
   const { data: assets, loading, reload } = useAsync(() => SceneryAssetRepository.listVigentes())
   const [editando, setEditando] = useState<SceneryAsset | 'nuevo' | null>(null)
   const [borrando, setBorrando] = useState<SceneryAsset | null>(null)
+  const [suavizando, setSuavizando] = useState(false)
+  const [progreso, setProgreso] = useState<{ hechas: number; total: number } | null>(null)
+  const [resumen, setResumen] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const vigentes = assets ?? []
   const paleta = construirPaleta(vigentes)
   const porSlug = new Map(vigentes.map((a) => [a.slug, a]))
+  /** Las que tienen imagen PROPIA en R2: las únicas que hay algo que reprocesar. */
+  const conImagen = vigentes.filter((a) => !a.retired && a.imageKey && a.imageUrl)
+
+  /**
+   * Vuelve a pasar por el molino la imagen de cada pieza y guarda una versión
+   * nueva de cada una. Ver shared/image#reprocesarImagenDeEscenografia.
+   *
+   * SI LA PRIMERA FALLA SE PARA EN SECO. El motivo casi siempre es común a
+   * todas —el Worker sin desplegar, o R2 sin configurar—, y encadenar veinte
+   * intentos condenados solo sirve para tardar más en enseñar el mismo error.
+   * A partir de la segunda ya se sigue: ahí un fallo suelto es de esa imagen.
+   */
+  async function suavizarBordes() {
+    setSuavizando(false)
+    setError(null)
+    setResumen(null)
+    setBusy(true)
+    setProgreso({ hechas: 0, total: conImagen.length })
+    const fallidas: string[] = []
+    let hechas = 0
+    try {
+      for (const asset of conImagen) {
+        const url = asset.imageUrl
+        if (!url) continue
+        try {
+          const preparada = await reprocesarImagenDeEscenografia(url)
+          await SceneryAssetRepository.reemplazar(
+            asset.slug,
+            {
+              label: asset.label,
+              anchoCm: asset.anchoCm,
+              altoCm: asset.altoCm,
+              imagen: { bytes: preparada.bytes, mime: preparada.mime },
+            },
+            asset.builtinKind,
+            user?.id ?? null,
+          )
+          hechas++
+        } catch (err) {
+          if (hechas === 0) throw err
+          fallidas.push(asset.label)
+        }
+        setProgreso({ hechas: hechas + fallidas.length, total: conImagen.length })
+      }
+      setResumen(
+        fallidas.length === 0
+          ? `Listo: ${hechas} ${hechas === 1 ? 'pieza suavizada' : 'piezas suavizadas'}.`
+          : `${hechas} suavizadas. No se pudo con: ${fallidas.join(', ')}.`,
+      )
+      await reload()
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setProgreso(null)
+      setBusy(false)
+    }
+  }
 
   async function conAviso(accion: () => Promise<unknown>) {
     setBusy(true)
@@ -181,13 +253,30 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs text-ink-soft">{paleta.length} en la paleta</span>
-        <Button variant="secondary" onClick={() => setEditando('nuevo')} disabled={busy}>
-          <PlusIcon className="h-4 w-4" />
-          Nuevo elemento
-        </Button>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs text-ink-soft">
+          {progreso ? `Suavizando… ${progreso.hechas} de ${progreso.total}` : `${paleta.length} en la paleta`}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {conImagen.length > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => setSuavizando(true)}
+              disabled={busy}
+              title="Vuelve a preparar la imagen de cada pieza con el canto difuminado"
+            >
+              <FrameIcon className="h-4 w-4" />
+              Suavizar bordes
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => setEditando('nuevo')} disabled={busy}>
+            <PlusIcon className="h-4 w-4" />
+            Nuevo elemento
+          </Button>
+        </span>
       </div>
+
+      {resumen && <p className="mb-2 text-mini text-ink-soft/80">{resumen}</p>}
 
       <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
         {paleta.map((entrada) => {
@@ -237,6 +326,20 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
       </ul>
 
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+
+      {suavizando && (
+        <ConfirmDialog
+          title="Suavizar los bordes de la biblioteca"
+          message={
+            `Se vuelve a preparar la imagen de las ${conImagen.length} piezas con imagen propia, con el canto ` +
+            'difuminado para que no se les vea el corte al ponerlas sobre la mesa. Cada una pasa a ser una versión ' +
+            'nueva; los mapas ya guardados no cambian.'
+          }
+          confirmLabel="Suavizar"
+          onCancel={() => setSuavizando(false)}
+          onConfirm={suavizarBordes}
+        />
+      )}
 
       {borrando && (
         <ConfirmDialog
