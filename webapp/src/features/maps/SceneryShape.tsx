@@ -35,6 +35,7 @@ const ILUSTRACIONES: Partial<Record<SceneryKind, string>> = {
   bosque: `${import.meta.env.BASE_URL}assets/scenery/bosque.webp`,
   colina: `${import.meta.env.BASE_URL}assets/scenery/colina.webp`,
   colinaRocosa: `${import.meta.env.BASE_URL}assets/scenery/colina_rocosa.webp`,
+  meseta: `${import.meta.env.BASE_URL}assets/scenery/meseta.webp`,
   pantano: `${import.meta.env.BASE_URL}assets/scenery/pantano.webp`,
   laguna: `${import.meta.env.BASE_URL}assets/scenery/laguna.webp`,
   campo: `${import.meta.env.BASE_URL}assets/scenery/campo.webp`,
@@ -61,6 +62,7 @@ const PALETA: Record<SceneryKind, { fondo: string; borde: string; detalle: strin
   // Record de TODOS los tipos y el hueco no compilaría; y si algún día se
   // quitara la imagen, quedaría un vector con su color, no un gris cualquiera.
   colinaRocosa: { fondo: '#5e6f2b', borde: '#6b675e', detalle: '#8d8b83' },
+  meseta: { fondo: '#6a7c30', borde: '#6b675e', detalle: '#8d8b83' },
   rio: { fondo: '#2f5560', borde: '#1d3a44', detalle: '#4b7683' },
   laguna: { fondo: '#274a4c', borde: '#16333a', detalle: '#3f6a6c' },
   pantano: { fondo: '#4b5526', borde: '#2b3312', detalle: '#5f6b33' },

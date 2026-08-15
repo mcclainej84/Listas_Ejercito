@@ -55,6 +55,7 @@ import {
 } from '@/domain/scenery'
 import { FloorAssetRepository, SceneryAssetRepository } from '@/data/repositories/sceneryAssetRepository'
 import { SceneryLibraryModal } from '@/features/maps/SceneryLibraryModal'
+import { descargarCanvas, renderTableCanvas } from '@/features/maps/renderTableCanvas'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
@@ -97,6 +98,7 @@ export function MapEditorPage() {
   const [seleccionada, setSeleccionada] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -187,6 +189,30 @@ export function MapEditorPage() {
       xCm: dentro.xCm,
       yCm: dentro.yCm,
     })
+  }
+
+  /**
+   * El mapa como PNG, a 8 px/cm (1440 × 960 en una mesa normal): nítido en
+   * pantalla y suficiente para imprimirlo en A4. Se pinta desde los datos, no
+   * capturando la pantalla, así que sale igual en cualquier ordenador y con
+   * cualquier tamaño de ventana (ver renderTableCanvas).
+   */
+  async function exportarPng() {
+    setExportando(true)
+    setError(null)
+    try {
+      const canvas = await renderTableCanvas({
+        mesa: mesaActual,
+        textura,
+        suelo: sueloElegido,
+        piezas,
+      })
+      descargarCanvas(canvas, `${(nombre || 'mapa').replace(/[^\w-]+/g, '-').toLowerCase()}.png`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExportando(false)
+    }
   }
 
   function borrar(id: number) {
@@ -321,6 +347,9 @@ export function MapEditorPage() {
             {dirty && <span className="text-xs font-medium text-bronze">● Sin guardar</span>}
             <Button variant="ghost" onClick={() => navigate('/mapas')}>
               Volver a Mapas
+            </Button>
+            <Button variant="secondary" onClick={exportarPng} disabled={exportando}>
+              {exportando ? 'Exportando…' : 'Exportar PNG'}
             </Button>
             <Button variant="primary" onClick={guardar} disabled={!dirty || saving}>
               {saving ? 'Guardando…' : 'Guardar mapa'}

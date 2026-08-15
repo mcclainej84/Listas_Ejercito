@@ -18,6 +18,7 @@ export const SCENERY_KINDS = [
   'bosque',
   'colina',
   'colinaRocosa',
+  'meseta',
   'rio',
   'laguna',
   'pantano',
@@ -57,6 +58,9 @@ export const SCENERY_KINDS_INFO: Record<SceneryKind, SceneryKindInfo> = {
   // Meseta de cantiles: más grande que la colina de tierra y con la proporción
   // de su ilustración (1,39:1), para que nazca sin deformar.
   colinaRocosa: { kind: 'colinaRocosa', label: 'Colina rocosa', anchoCm: 40, altoCm: 29 },
+  // Meseta grande de hierba con un cantil en un lado. Es la pieza más ancha del
+  // catálogo: nace a 45 × 28 cm, la proporción de su ilustración (1,6:1).
+  meseta: { kind: 'meseta', label: 'Meseta', anchoCm: 45, altoCm: 28 },
   rio: { kind: 'rio', label: 'Río', anchoCm: 180, altoCm: 14 },
   laguna: { kind: 'laguna', label: 'Laguna', anchoCm: 28, altoCm: 20 },
   pantano: { kind: 'pantano', label: 'Pantano', anchoCm: 30, altoCm: 22 },

@@ -13,6 +13,26 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.107 — 14/08/2026 18:00
+
+- Nuevo elemento de escenografía: **«Meseta»**, la pradera elevada con cantil
+  que enviaste. Nace a 45 × 28 cm, la proporción de su ilustración.
+- **Exportar el mapa a PNG** desde el editor, a 8 px/cm (1440 × 960 en una mesa
+  normal).
+- **Exportar el despliegue a PDF**: una hoja apaisada con el mapa y el ejército
+  colocado, y otra con el orden de batalla.
+- **Y se sabe quién es cada peana.** Cuando dos unidades comparten iniciales se
+  numeran («GS1», «GS2»); si no las comparte nadie, se quedan como estaban. La
+  leyenda desarrolla cada referencia con su cantidad, su nombre y su equipo,
+  que es lo único que separa dos regimientos del mismo tipo con distinto
+  armamento. Las peanas de la pantalla usan la misma referencia, así que papel
+  y pantalla dicen lo mismo.
+- Los dos exportadores **pintan el mapa desde los datos**, no capturando la
+  pantalla: sale igual en cualquier ordenador y con cualquier tamaño de
+  ventana, con las rotaciones y el suelo exactos.
+
+---
+
 ## 0.106 — 14/08/2026 17:20
 
 - **Biblioteca de escenografía, con versionado.** Desde el editor de mapas

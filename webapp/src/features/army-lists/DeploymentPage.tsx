@@ -87,8 +87,11 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { CategoryShield, LockIcon, TrashIcon } from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
-import { estiloDePeana } from '@/domain/factionColor'
-import { aliasDeUnidad } from '@/domain/unitAlias'
+import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
+import { referenciasDeDespliegue } from '@/domain/deploymentRefs'
+import { exportDeploymentToPdf } from '@/features/army-lists/exportDeploymentPdf'
+import { abrirPestanaPdf, cerrarPestanaPdf } from '@/features/army-lists/pdfWindow'
+import { renderTableCanvas } from '@/features/maps/renderTableCanvas'
 import { EntryDetailCard } from '@/features/army-lists/EntryDetailCard'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
@@ -157,6 +160,7 @@ export function DeploymentPage() {
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [seleccion, setSeleccion] = useState<Set<number>>(new Set())
   const [recuadro, setRecuadro] = useState<RectanguloCm | null>(null)
@@ -263,6 +267,62 @@ export function DeploymentPage() {
   }
 
   /** Vacía la mesa de golpe: todas las unidades vuelven a la reserva. */
+  /**
+   * El despliegue en un PDF: el mapa pintado con las peanas y, en la página
+   * siguiente, la leyenda que dice quién es cada referencia.
+   *
+   * El mapa se pinta desde los datos (renderTableCanvas) y no capturando la
+   * pantalla, así que sale igual sea cual sea el tamaño de la ventana.
+   */
+  async function exportarDespliegue(ventana: Window | null) {
+    // El botón solo existe con la lista cargada, pero TypeScript no lo sabe y
+    // tiene razón en no fiarse.
+    if (!list) return
+    setExportando(true)
+    setError(null)
+    try {
+      const canvas = await renderTableCanvas({
+        mesa: mesaActual,
+        textura: mapaCargado?.textura ?? 'ninguna',
+        suelo: sueloDelMapa ?? null,
+        piezas: mapaCargado?.piezas ?? [],
+        peanas: enMesa.map((entry) => {
+          const pos = posiciones.get(entry.id)!
+          const tamano = tamanoDe(entry)
+          const color = entry.unit.faction.color ?? COLOR_FACCION_POR_DEFECTO
+          return {
+            xCm: pos.xCm,
+            yCm: pos.yCm,
+            anchoCm: tamano.anchoCm,
+            altoCm: tamano.altoCm,
+            color,
+            colorTexto: textoSobre(color),
+            texto: refPorEntrada.get(entry.id) ?? '',
+          }
+        }),
+      })
+      exportDeploymentToPdf(
+        {
+          nombreLista: list.name,
+          faccion: list.faction.name,
+          mapa: canvas,
+          anchoCm: mesaActual.anchoCm,
+          altoCm: mesaActual.altoCm,
+          nombreMapa: mapaCargado?.name ?? null,
+          referencias,
+          puntosDesplegados,
+          puntosTotales,
+        },
+        ventana,
+      )
+    } catch (err) {
+      cerrarPestanaPdf(ventana)
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExportando(false)
+    }
+  }
+
   function retirarTodas() {
     setPosiciones(new Map())
     setSeleccion(new Set())
@@ -499,9 +559,18 @@ export function DeploymentPage() {
   const seleccionadas = entradas.filter((e) => seleccion.has(e.id) && posiciones.has(e.id))
   const puntosDesplegados = enMesa.reduce((suma, e) => suma + computeEntryCost(e.unit, e), 0)
   const puntosTotales = entradas.reduce((suma, e) => suma + computeEntryCost(e.unit, e), 0)
-  /** Cuerpo de letra de las iniciales, igual para toda la mesa. */
+  /**
+   * La REFERENCIA de cada unidad desplegada: sus iniciales, numeradas si otra
+   * unidad de la mesa comparte las mismas (ver domain/deploymentRefs). Es lo
+   * que se pinta en la peana y lo que desarrolla la leyenda del PDF, así que
+   * pantalla y papel dicen exactamente lo mismo.
+   */
+  const referencias = referenciasDeDespliegue(enMesa, new Map(enMesa.map((e) => [e.id, computeEntryCost(e.unit, e)])))
+  const refPorEntrada = new Map(referencias.map((r) => [r.entryId, r.ref]))
+
+  /** Cuerpo de letra de las referencias, igual para toda la mesa. */
   const cuerpoAliasCm = cuerpoDeAliasCm(
-    enMesa.map((entry) => ({ texto: aliasDeUnidad(entry.unit), tamano: tamanoDe(entry) })),
+    enMesa.map((entry) => ({ texto: refPorEntrada.get(entry.id) ?? '', tamano: tamanoDe(entry) })),
   )
   /** Marcas de la regla, cada 30 cm. La del 0 sobra: es el propio borde. */
   const marcasX = Array.from({ length: Math.floor(mesaActual.anchoCm / RETICULA_CM) }, (_, i) => (i + 1) * RETICULA_CM)
@@ -553,6 +622,19 @@ export function DeploymentPage() {
             {dirty && <span className="text-xs font-medium text-bronze">● Sin guardar</span>}
             <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}`)}>
               Volver al ejército
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={exportando || enMesa.length === 0}
+              onClick={() => {
+                // La pestaña se abre AQUÍ, en el propio clic: pintar el mapa y
+                // armar el PDF tarda lo suyo y para entonces el navegador ya no
+                // deja abrir nada (ver pdfWindow).
+                const ventana = abrirPestanaPdf()
+                void exportarDespliegue(ventana)
+              }}
+            >
+              {exportando ? 'Exportando…' : 'Exportar'}
             </Button>
             {!soloLectura && (
               <Button variant="primary" onClick={handleSave} disabled={!dirty || saving}>
@@ -924,7 +1006,7 @@ export function DeploymentPage() {
                             className="pointer-events-none flex h-full w-full items-center justify-center leading-none font-bold [text-shadow:0_1px_1px_rgba(0,0,0,.35)]"
                             style={{ fontSize: `${(cuerpoAliasCm / mesaActual.anchoCm) * 100}cqw` }}
                           >
-                            {aliasDeUnidad(entry.unit)}
+                            {refPorEntrada.get(entry.id)}
                           </span>
                         </div>
 
