@@ -13,6 +13,17 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.115 — 15/08/2026 16:45
+
+- **Fuera el rayado de las peanas.** Se leía como lo que era —un patrón que se
+  repite—, sobre todo en las grandes. El desgaste queda solo con manchas.
+- **Y las manchas, más irregulares**: dieciséis elipses de tamaños y
+  proporciones distintas, ninguna redonda, más cuatro motas sueltas que rompen
+  del todo la sensación de degradado. Claras arriba a la izquierda (roce),
+  oscuras abajo a la derecha (suciedad).
+
+---
+
 ## 0.114 — 15/08/2026 16:43
 
 - **Las peanas pasan a tener pintura desgastada** en vez del degradado plano

@@ -230,34 +230,22 @@ export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLC
       for (const m of DESGASTE) {
         const cx = x + (m.x / 100) * w
         const cy = y + (m.y / 100) * h
-        const r = Math.max(1, (m.r / 100) * lado)
+        const rx = Math.max(1, (m.rx / 100) * w)
+        const ry = Math.max(1, (m.ry / 100) * h)
         const tinta = m.luz ? '255,255,255' : '0,0,0'
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+        // Elipse, no círculo: se escala el lienzo y se pinta dentro un
+        // degradado redondo, que es como se consiguen elipses degradadas en
+        // canvas. Las manchas redondas perfectas se notan.
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.scale(1, ry / rx)
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, rx)
         grad.addColorStop(0, `rgba(${tinta},${m.alfa})`)
-        grad.addColorStop(0.7, `rgba(${tinta},0)`)
+        grad.addColorStop(0.72, `rgba(${tinta},0)`)
         ctx.fillStyle = grad
-        ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+        ctx.fillRect(-rx, -rx, rx * 2, rx * 2)
+        ctx.restore()
       }
-
-      // Grano a 27°, la misma inclinación que el CSS.
-      ctx.save()
-      ctx.translate(x + w / 2, y + h / 2)
-      ctx.rotate((27 * Math.PI) / 180)
-      ctx.lineWidth = 1
-      const diagonal = Math.hypot(w, h)
-      for (let d = -diagonal; d < diagonal; d += 3) {
-        ctx.strokeStyle = 'rgba(255,255,255,.05)'
-        ctx.beginPath()
-        ctx.moveTo(-diagonal, d)
-        ctx.lineTo(diagonal, d)
-        ctx.stroke()
-        ctx.strokeStyle = 'rgba(0,0,0,.06)'
-        ctx.beginPath()
-        ctx.moveTo(-diagonal, d + 1)
-        ctx.lineTo(diagonal, d + 1)
-        ctx.stroke()
-      }
-      ctx.restore()
 
       // Viñeteado: el borde se apaga, y así el cuadro no parece recortado.
       const vineta = ctx.createRadialGradient(

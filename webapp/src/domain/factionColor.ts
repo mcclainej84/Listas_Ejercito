@@ -56,37 +56,49 @@ export function textoSobre(color: string | null | undefined): '#f6efdc' | '#1c1a
  * EL DESGASTE de una peana: dónde está rozada la pintura y dónde se ha
  * ensuciado.
  *
- * Es una lista de manchas en TANTO POR CIENTO de la peana, no en píxeles, para
- * que valga igual en una de 4 cm que en un carro de 5 × 10 y para que la
- * pantalla y el PNG/PDF exportados pinten exactamente lo mismo (ver
- * renderTableCanvas, que lee esta misma lista).
+ * SIN RAYAS. La primera versión llevaba un rayado fino de grano y se leía como
+ * lo que era —un patrón—, sobre todo en las peanas grandes, donde la repetición
+ * canta. Aquí solo hay manchas: elipses de tamaños y proporciones dispares,
+ * ninguna igual a otra, colocadas a ojo sin simetría ni retícula. Es lo que
+ * hace que parezca desgaste y no textura de relleno.
  *
- * Las posiciones están elegidas a mano, sin simetría ni repartos regulares: en
- * cuanto el desgaste se ordena deja de parecer desgaste y parece un patrón.
- * Los claros van arriba y hacia la izquierda (donde da la luz y donde más se
- * roza) y los oscuros abajo y a la derecha, que es donde se acumula la
- * suciedad.
+ * Van en TANTO POR CIENTO de la peana, no en píxeles, para que valgan igual en
+ * una de 4 cm que en un carro de 5 × 10, y para que la pantalla y el PNG/PDF
+ * pinten lo mismo (renderTableCanvas lee esta misma lista).
  */
 export interface ManchaDeDesgaste {
   /** Centro, en % del ancho y del alto. */
   x: number
   y: number
-  /** Radio, en % del lado mayor. */
-  r: number
+  /** Radios horizontal y vertical, en % de la peana. Distintos entre sí: una mancha redonda perfecta se nota. */
+  rx: number
+  ry: number
   /** true = pintura perdida (aclara); false = suciedad (oscurece). */
   luz: boolean
   alfa: number
 }
 
 export const DESGASTE: ManchaDeDesgaste[] = [
-  { x: 17, y: 20, r: 38, luz: true, alfa: 0.22 },
-  { x: 73, y: 14, r: 26, luz: true, alfa: 0.13 },
-  { x: 44, y: 55, r: 42, luz: true, alfa: 0.09 },
-  { x: 7, y: 63, r: 18, luz: true, alfa: 0.15 },
-  { x: 86, y: 78, r: 34, luz: false, alfa: 0.3 },
-  { x: 29, y: 88, r: 26, luz: false, alfa: 0.22 },
-  { x: 63, y: 41, r: 16, luz: false, alfa: 0.16 },
-  { x: 95, y: 33, r: 14, luz: false, alfa: 0.18 },
+  // Desconchones grandes, arriba y a la izquierda: donde da la luz y donde más
+  // se roza al manejar la miniatura.
+  { x: 14, y: 17, rx: 41, ry: 29, luz: true, alfa: 0.24 },
+  { x: 68, y: 11, rx: 23, ry: 34, luz: true, alfa: 0.14 },
+  { x: 39, y: 47, rx: 47, ry: 22, luz: true, alfa: 0.1 },
+  { x: 88, y: 26, rx: 15, ry: 25, luz: true, alfa: 0.13 },
+  { x: 6, y: 71, rx: 19, ry: 13, luz: true, alfa: 0.16 },
+  { x: 52, y: 92, rx: 26, ry: 11, luz: true, alfa: 0.08 },
+  // Suciedad, abajo y a la derecha.
+  { x: 84, y: 81, rx: 37, ry: 26, luz: false, alfa: 0.32 },
+  { x: 27, y: 89, rx: 22, ry: 31, luz: false, alfa: 0.24 },
+  { x: 61, y: 38, rx: 13, ry: 19, luz: false, alfa: 0.15 },
+  { x: 97, y: 55, rx: 11, ry: 17, luz: false, alfa: 0.2 },
+  { x: 45, y: 68, rx: 17, ry: 9, luz: false, alfa: 0.14 },
+  { x: 8, y: 41, rx: 9, ry: 14, luz: false, alfa: 0.12 },
+  // Motas sueltas: las que rompen del todo la sensación de degradado.
+  { x: 33, y: 28, rx: 6, ry: 4, luz: false, alfa: 0.18 },
+  { x: 76, y: 62, rx: 4, ry: 6, luz: true, alfa: 0.16 },
+  { x: 58, y: 19, rx: 5, ry: 3, luz: false, alfa: 0.14 },
+  { x: 21, y: 57, rx: 3, ry: 5, luz: true, alfa: 0.14 },
 ]
 
 /** El viñeteado del borde: lo que hace que la pieza no parezca recortada. */
@@ -95,31 +107,22 @@ export const VINETA = 'radial-gradient(118% 108% at 48% 44%, rgba(0,0,0,0) 50%, 
 /**
  * El color con TEXTURA, para pintar una peana en el Despliegue.
  *
- * PINTURA DESGASTADA, no un degradado. El color plano con un rayado encima
- * parecía una etiqueta de plástico; una miniatura de verdad tiene la pintura
- * rozada por las esquinas, un poco de suciedad en los bordes y luz irregular.
- * Eso son cuatro capas, de arriba abajo:
- *
- *   1. el bisel: una línea de luz arriba y una de sombra abajo, para que el
- *      cuadro tenga canto;
- *   2. el grano, a 27° (no a 45, que se lee como cuadrícula);
- *   3. las manchas de desgaste y suciedad (ver DESGASTE);
- *   4. el viñeteado del borde.
- *
- * Debajo de todo, el color de la facción.
+ * PINTURA DESGASTADA. Tres capas sobre el color: el canto (una línea de luz
+ * arriba y una de sombra abajo, para que el cuadro tenga grosor), las manchas
+ * de roce y suciedad, y el viñeteado del borde. Nada que se repita: ni rayas
+ * ni tramas, que a este tamaño se leen como patrón y no como pintura.
  */
 export function estiloDePeana(color: string | null | undefined): React.CSSProperties {
   const base = color ?? COLOR_FACCION_POR_DEFECTO
-  const manchas = DESGASTE.map(
-    (m) =>
-      `radial-gradient(${m.r}% ${m.r}% at ${m.x}% ${m.y}%, rgba(${m.luz ? '255,255,255' : '0,0,0'},${m.alfa}), rgba(${m.luz ? '255,255,255' : '0,0,0'},0) 70%)`,
-  )
+  const manchas = DESGASTE.map((m) => {
+    const tinta = m.luz ? '255,255,255' : '0,0,0'
+    return `radial-gradient(${m.rx}% ${m.ry}% at ${m.x}% ${m.y}%, rgba(${tinta},${m.alfa}), rgba(${tinta},0) 72%)`
+  })
   return {
     backgroundColor: base,
     backgroundImage: [
-      'linear-gradient(rgba(255,255,255,.34), rgba(255,255,255,0) 7%)',
-      'linear-gradient(rgba(0,0,0,0) 91%, rgba(0,0,0,.38))',
-      'repeating-linear-gradient(27deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.06) 1px 3px)',
+      'linear-gradient(rgba(255,255,255,.32), rgba(255,255,255,0) 7%)',
+      'linear-gradient(rgba(0,0,0,0) 91%, rgba(0,0,0,.36))',
       ...manchas,
       VINETA,
     ].join(','),
