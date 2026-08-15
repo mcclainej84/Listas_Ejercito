@@ -19,9 +19,43 @@ import type { ReferenciaDeUnidad } from '@/domain/deploymentRefs'
 /** Márgenes de la página, en mm. */
 const MARGEN = 12
 
+/** "#rrggbb" → [r, g, b], que es como los quiere jsPDF. */
+function rgb(color: string): [number, number, number] {
+  const m = /^#?([0-9a-f]{6})$/i.exec(color.trim())
+  if (!m) return [107, 106, 99]
+  const n = parseInt(m[1], 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/**
+ * La LEYENDA DEL COLOR: un cuadro del color de la facción con su nombre al
+ * lado. Sobre la mesa cada peana se pinta de ese color, así que en el papel
+ * hace falta decir de quién es — más aún cuando en la misma partida hay dos
+ * ejércitos y lo único que los separa a simple vista es el color.
+ *
+ * Devuelve lo que ha ocupado de alto, para que quien la dibuje siga colocando
+ * debajo.
+ */
+function dibujarLeyenda(doc: jsPDF, x: number, y: number, color: string, faccion: string): number {
+  const lado = 5
+  doc.setFillColor(...rgb(color))
+  doc.setDrawColor(43, 32, 19)
+  doc.setLineWidth(0.2)
+  doc.rect(x, y, lado, lado, 'FD')
+  doc.setFont('times', 'bold')
+  doc.setFontSize(9.5)
+  doc.setTextColor(43, 32, 19)
+  doc.text(faccion, x + lado + 2, y + lado - 1)
+  return lado
+}
+
 export interface DatosDelDespliegue {
   nombreLista: string
   faccion: string
+  /** Color de la facción, "#rrggbb": el mismo con el que se pintan sus peanas. */
+  colorFaccion: string
+  /** Claro u oscuro, para escribir encima del color (ver domain/factionColor). */
+  colorTexto: string
   /** El mapa ya pintado (ver features/maps/renderTableCanvas). */
   mapa: HTMLCanvasElement
   anchoCm: number
@@ -48,7 +82,6 @@ export function exportDeploymentToPdf(datos: DatosDelDespliegue, ventana: Window
   doc.setFontSize(9)
   doc.setTextColor(90, 76, 54)
   const subtitulo = [
-    datos.faccion,
     `mesa de ${datos.anchoCm} × ${datos.altoCm} cm`,
     datos.nombreMapa ?? 'mesa libre',
     `${datos.puntosDesplegados} de ${datos.puntosTotales} pts desplegados`,
@@ -56,6 +89,11 @@ export function exportDeploymentToPdf(datos: DatosDelDespliegue, ventana: Window
     .filter(Boolean)
     .join(' · ')
   doc.text(subtitulo, MARGEN, MARGEN + 9)
+
+  // La leyenda va a la DERECHA de la cabecera, en la misma línea que el
+  // subtítulo: es un dato de la hoja, no una nota al pie.
+  const anchoFaccion = doc.getTextWidth(datos.faccion) + 9
+  dibujarLeyenda(doc, anchoPagina - MARGEN - anchoFaccion, MARGEN + 4, datos.colorFaccion, datos.faccion)
 
   doc.setDrawColor(138, 113, 63)
   doc.setLineWidth(0.3)
@@ -93,6 +131,8 @@ export function exportDeploymentToPdf(datos: DatosDelDespliegue, ventana: Window
     MARGEN,
     MARGEN + 9,
   )
+  const anchoFaccion2 = doc.getTextWidth(datos.faccion) + 9
+  dibujarLeyenda(doc, anchoPagina - MARGEN - anchoFaccion2, MARGEN, datos.colorFaccion, datos.faccion)
 
   autoTable(doc, {
     startY: MARGEN + 12,
@@ -114,6 +154,12 @@ export function exportDeploymentToPdf(datos: DatosDelDespliegue, ventana: Window
     // centrar a mano (el mismo tropiezo que en el PDF de la lista).
     didParseCell: (data) => {
       if (data.section === 'head') data.cell.styles.halign = 'center'
+      // La referencia se pinta con el color de la facción, igual que la peana:
+      // así la fila de la tabla y el cuadro del mapa se reconocen a la vez.
+      if (data.section === 'body' && data.column.index === 0) {
+        data.cell.styles.fillColor = rgb(datos.colorFaccion)
+        data.cell.styles.textColor = rgb(datos.colorTexto)
+      }
     },
   })
 

@@ -13,6 +13,22 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.113 — 15/08/2026 15:32
+
+- **Repartidas las iniciales repetidas dentro de cada facción**: 35 unidades
+  tenían las mismas que otra de su ejército y ahora llevan las suyas
+  (Montaraces MOS, Matadragones MTD, Guardia Uhn ai GAI, Carro del Caos CCA…).
+  Se conserva las suyas la unidad más antigua de cada choque y se buscan
+  alternativas legibles para el resto —«Guerreros Sagrados» pasa a GSA, no a
+  GS2—. Comprobado: no queda ninguna repetición dentro de ninguna facción.
+- Entre facciones distintas SÍ pueden repetirse, y no pasa nada: el color de la
+  peana ya las separa.
+- **El PDF del despliegue lleva leyenda de facción**: un cuadro con su color y
+  su nombre, en las dos hojas. Y la columna de referencia de la tabla va
+  pintada de ese mismo color, así que la fila y la peana se reconocen a la vez.
+
+---
+
 ## 0.112 — 15/08/2026 15:27
 
 - **El alias sale de «Datos generales» a su propio apartado**, «Alias en el

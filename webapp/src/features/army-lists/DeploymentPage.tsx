@@ -279,6 +279,8 @@ export function DeploymentPage() {
         {
           nombreLista: list.name,
           faccion: list.faction.name,
+          colorFaccion: list.faction.color ?? COLOR_FACCION_POR_DEFECTO,
+          colorTexto: textoSobre(list.faction.color),
           mapa: canvas,
           anchoCm: mesaActual.anchoCm,
           altoCm: mesaActual.altoCm,
