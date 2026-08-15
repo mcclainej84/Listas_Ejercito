@@ -133,10 +133,16 @@ export const SceneryAssetRepository = {
   },
 
   /**
-   * Retira o devuelve a la paleta. Es una versión más, no un borrado: los
-   * mapas que ya lo usaban siguen igual, y volver a ofrecerlo es otra versión.
+   * Borra un elemento de la paleta. NO SE PUEDE DESHACER desde el programa, y
+   * es a propósito: una lista de "borrados" que se pueden devolver convierte la
+   * paleta en un cajón de trastos y nadie limpia nunca.
+   *
+   * En la BASE sigue existiendo, y tiene que seguir: es una versión más con
+   * `retired`, porque los mapas que ya lo usaban apuntan a su versión y sin ella
+   * se quedarían con un hueco. Lo que desaparece es de la paleta, no del
+   * historial.
    */
-  async marcarRetirado(asset: SceneryAsset, retirado: boolean, userId: number | null): Promise<number> {
+  async borrar(asset: SceneryAsset, userId: number | null): Promise<number> {
     const siguiente = (await proximaVersion('scenery_assets', asset.slug)) ?? 1
     return exec(
       `INSERT INTO scenery_assets (slug, version, label, image_key, builtin_kind, w_cm, h_cm, retired, user_id, created_at)
@@ -149,7 +155,7 @@ export const SceneryAssetRepository = {
         asset.builtinKind,
         asset.anchoCm,
         asset.altoCm,
-        retirado ? 1 : 0,
+        1,
         userId,
         new Date().toISOString(),
       ],
@@ -231,7 +237,8 @@ export const FloorAssetRepository = {
     return insertarSuelo(slug, siguiente, cambios, false, userId)
   },
 
-  async marcarRetirado(suelo: FloorAsset, retirado: boolean, userId: number | null): Promise<number> {
+  /** Mismo criterio que en la escenografía: se borra de la paleta y no se devuelve. */
+  async borrar(suelo: FloorAsset, userId: number | null): Promise<number> {
     const siguiente = (await proximaVersion('floor_assets', suelo.slug)) ?? 1
     return exec(
       `INSERT INTO floor_assets (slug, version, label, image_key, tile_cm, opacity, retired, user_id, created_at)
@@ -243,7 +250,7 @@ export const FloorAssetRepository = {
         suelo.imageKey,
         suelo.tileCm,
         suelo.opacity,
-        retirado ? 1 : 0,
+        1,
         userId,
         new Date().toISOString(),
       ],

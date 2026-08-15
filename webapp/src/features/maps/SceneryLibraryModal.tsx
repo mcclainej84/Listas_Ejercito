@@ -1,12 +1,17 @@
 // ============================================================================
-// La BIBLIOTECA: añadir, reemplazar y retirar elementos de escenografía y
+// La BIBLIOTECA: añadir, reemplazar y borrar elementos de escenografía y
 // suelos de mesa.
 //
 // LO QUE HAY QUE ENTENDER AL USARLA, y por eso se dice en pantalla: aquí no se
 // modifica nada. Reemplazar la imagen de un bosque crea una versión nueva; los
 // mapas ya guardados siguen con la suya y solo cambian los que se hagan (o se
-// vuelvan a guardar) a partir de ahora. Retirar tampoco borra: saca el elemento
-// de la paleta y deja intactos los mapas que lo usaban.
+// vuelvan a guardar) a partir de ahora.
+//
+// BORRAR SÍ ES DEFINITIVO —de la paleta—, y por eso se pregunta antes. En la
+// base el elemento sigue existiendo, porque los mapas que lo usaban apuntan a
+// su versión y sin ella se quedarían con un hueco; lo que no hay es forma de
+// devolverlo a la paleta. Se probó con una lista de "retirados" y un botón de
+// recuperar, y se quitó: acaba siendo un cajón de trastos que nadie limpia.
 //
 // LAS IMÁGENES SE PREPARAN SOLAS al elegirlas: se les quita el fondo liso, se
 // recorta el aire que sobra y se reducen a 512 px (ver
@@ -29,6 +34,7 @@ import { useSession } from '@/shared/session/useSession'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 
@@ -102,7 +108,7 @@ export function SceneryLibraryModal({ onClose, onSaved }: { onClose: () => void;
 
 /**
  * Un tipo de FÁBRICA que todavía no se ha tocado no tiene fila en la
- * biblioteca. Para poder reemplazarlo o retirarlo como a cualquier otro, se
+ * biblioteca. Para poder reemplazarlo o borrarlo como a cualquier otro, se
  * finge una "versión cero" con sus datos del código: al guardar nacerá su
  * versión 1 de verdad (ver proximaVersion en el repositorio).
  */
@@ -123,17 +129,18 @@ function versionBase(entrada: EntradaDePaleta, asset: SceneryAsset | null): Scen
     }
   )
 }
+
 function PanelElementos({ onSaved }: { onSaved: () => void }) {
   const { user } = useSession()
   const { data: assets, loading, reload } = useAsync(() => SceneryAssetRepository.listVigentes())
   const [editando, setEditando] = useState<SceneryAsset | 'nuevo' | null>(null)
+  const [borrando, setBorrando] = useState<SceneryAsset | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const vigentes = assets ?? []
   const paleta = construirPaleta(vigentes)
   const porSlug = new Map(vigentes.map((a) => [a.slug, a]))
-  const retirados = vigentes.filter((a) => a.retired)
 
   async function conAviso(accion: () => Promise<unknown>) {
     setBusy(true)
@@ -212,14 +219,10 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    conAviso(() =>
-                      SceneryAssetRepository.marcarRetirado(versionBase(entrada, asset), true, user?.id ?? null),
-                    )
-                  }
+                  onClick={() => setBorrando(versionBase(entrada, asset))}
                   className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
                 >
-                  Retirar
+                  Borrar
                 </button>
               </span>
             </li>
@@ -227,28 +230,25 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
         })}
       </ul>
 
-      {retirados.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.14em] text-ink-soft uppercase">Retirados</p>
-          <ul className="flex flex-wrap gap-1.5">
-            {retirados.map((a) => (
-              <li key={a.slug} className="flex items-center gap-1.5 rounded-sm border border-rule-dark/25 px-2 py-1">
-                <span className="text-xs text-ink-soft">{a.label}</span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => conAviso(() => SceneryAssetRepository.marcarRetirado(a, false, user?.id ?? null))}
-                  className="text-mini text-ink-soft underline-offset-2 hover:text-maroon hover:underline disabled:opacity-40"
-                >
-                  Devolver a la paleta
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+
+      {borrando && (
+        <ConfirmDialog
+          title={`Borrar "${borrando.label}"`}
+          message={
+            'Desaparece de la paleta y no se puede recuperar. Los mapas que ya lo usan no cambian: siguen ' +
+            'pintándolo igual.'
+          }
+          confirmLabel="Borrar"
+          onCancel={() => setBorrando(null)}
+          onConfirm={() =>
+            conAviso(async () => {
+              await SceneryAssetRepository.borrar(borrando, user?.id ?? null)
+              setBorrando(null)
+            })
+          }
+        />
+      )}
     </div>
   )
 }
@@ -393,11 +393,11 @@ function PanelSuelos({ onSaved }: { onSaved: () => void }) {
   const { user } = useSession()
   const { data: suelos, loading, reload } = useAsync(() => FloorAssetRepository.listVigentes())
   const [editando, setEditando] = useState<FloorAsset | 'nuevo' | null>(null)
+  const [borrando, setBorrando] = useState<FloorAsset | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const lista = (suelos ?? []).filter((f) => !f.retired)
-  const retirados = (suelos ?? []).filter((f) => f.retired)
 
   async function conAviso(accion: () => Promise<unknown>) {
     setBusy(true)
@@ -470,38 +470,35 @@ function PanelSuelos({ onSaved }: { onSaved: () => void }) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => conAviso(() => FloorAssetRepository.marcarRetirado(suelo, true, user?.id ?? null))}
+                onClick={() => setBorrando(suelo)}
                 className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
               >
-                Retirar
+                Borrar
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {retirados.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.14em] text-ink-soft uppercase">Retirados</p>
-          <ul className="flex flex-wrap gap-1.5">
-            {retirados.map((f) => (
-              <li key={f.slug} className="flex items-center gap-1.5 rounded-sm border border-rule-dark/25 px-2 py-1">
-                <span className="text-xs text-ink-soft">{f.label}</span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => conAviso(() => FloorAssetRepository.marcarRetirado(f, false, user?.id ?? null))}
-                  className="text-mini text-ink-soft underline-offset-2 hover:text-maroon hover:underline disabled:opacity-40"
-                >
-                  Devolver
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+
+      {borrando && (
+        <ConfirmDialog
+          title={`Borrar "${borrando.label}"`}
+          message={
+            'Desaparece de la lista de suelos y no se puede recuperar. Los mapas que ya lo usan no cambian: ' +
+            'siguen con este suelo.'
+          }
+          confirmLabel="Borrar"
+          onCancel={() => setBorrando(null)}
+          onConfirm={() =>
+            conAviso(async () => {
+              await FloorAssetRepository.borrar(borrando, user?.id ?? null)
+              setBorrando(null)
+            })
+          }
+        />
+      )}
     </div>
   )
 }

@@ -13,6 +13,19 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.108 — 14/08/2026 18:20
+
+- En la biblioteca de escenografía, «Retirar» pasa a ser **«Borrar»** y
+  **pregunta antes**, diciendo lo que va a pasar: desaparece de la paleta y los
+  mapas que ya lo usan siguen igual.
+- **Fuera la lista de «Retirados»** y su botón de recuperar, en elementos y en
+  suelos. Lo borrado no vuelve.
+- En la base de datos el elemento sigue estando, y tiene que seguir: los mapas
+  que lo usaban apuntan a su versión y sin ella se quedarían con un hueco. Lo
+  que desaparece es de la paleta, no del historial.
+
+---
+
 ## 0.107 — 14/08/2026 18:00
 
 - Nuevo elemento de escenografía: **«Meseta»**, la pradera elevada con cantil
