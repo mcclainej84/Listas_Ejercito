@@ -150,7 +150,11 @@ export const ImportRepository = {
       const key = normalizeName(displayName)
       let id = equipmentIdByName.get(key)
       if (id == null) {
-        id = await EquipmentRepository.create({ name: displayName, cost: opt.cost, category: equipmentCategory(displayName) })
+        id = await EquipmentRepository.create({
+          name: displayName,
+          cost: opt.cost,
+          category: equipmentCategory(displayName),
+        })
         equipmentIdByName.set(key, id)
       }
       return id
@@ -175,7 +179,12 @@ export const ImportRepository = {
 
       let unitId = item.existingUnitId
       if (unitId == null) {
-        unitId = await UnitRepository.create({ factionId, name: p.name, unitType: p.unitType, categoryId: parsedCategoryId })
+        unitId = await UnitRepository.create({
+          factionId,
+          name: p.name,
+          unitType: p.unitType,
+          categoryId: parsedCategoryId,
+        })
         created++
       } else {
         updated++
@@ -188,9 +197,12 @@ export const ImportRepository = {
       //    pisar datos que el usuario no quería tocar.
       await UnitRepository.updateScalarFields(unitId, {
         name: fields.name ? p.name : detail.name,
+        // El alias es de dibujo (la peana del Despliegue) y no viene en lo
+        // importado: se conserva tal cual estaba.
+        alias: detail.alias,
         categoryId: fields.category ? parsedCategoryId : detail.categoryId,
         typeTagId: detail.typeTagId,
-        baseCost: fields.cost ? p.baseCost ?? 0 : detail.baseCost,
+        baseCost: fields.cost ? (p.baseCost ?? 0) : detail.baseCost,
         minSize: fields.size ? p.minSize : detail.minSize,
         maxSize: fields.size ? p.maxSize : detail.maxSize,
         defaultSize: detail.defaultSize,
@@ -214,9 +226,14 @@ export const ImportRepository = {
         const eqOpts = p.options.filter((o) => EQUIPMENT_SOURCES.has(o.source))
         const ids: number[] = []
         for (const o of eqOpts) ids.push(await equipmentId(o))
-        const stmts: BatchStatement[] = [{ sql: 'DELETE FROM unit_equipment_options WHERE unit_id = ?', params: [unitId] }]
+        const stmts: BatchStatement[] = [
+          { sql: 'DELETE FROM unit_equipment_options WHERE unit_id = ?', params: [unitId] },
+        ]
         for (const id of ids)
-          stmts.push({ sql: 'INSERT OR IGNORE INTO unit_equipment_options (unit_id, equipment_id) VALUES (?, ?)', params: [unitId, id] })
+          stmts.push({
+            sql: 'INSERT OR IGNORE INTO unit_equipment_options (unit_id, equipment_id) VALUES (?, ?)',
+            params: [unitId, id],
+          })
         await execCatalogBatch(stmts)
       }
 
@@ -225,9 +242,14 @@ export const ImportRepository = {
         const upOpts = p.options.filter((o) => UPGRADE_SOURCES.has(o.source))
         const ids: number[] = []
         for (const o of upOpts) ids.push(await upgradeId(o))
-        const stmts: BatchStatement[] = [{ sql: 'DELETE FROM unit_upgrade_options WHERE unit_id = ?', params: [unitId] }]
+        const stmts: BatchStatement[] = [
+          { sql: 'DELETE FROM unit_upgrade_options WHERE unit_id = ?', params: [unitId] },
+        ]
         for (const id of ids)
-          stmts.push({ sql: 'INSERT OR IGNORE INTO unit_upgrade_options (unit_id, upgrade_id) VALUES (?, ?)', params: [unitId, id] })
+          stmts.push({
+            sql: 'INSERT OR IGNORE INTO unit_upgrade_options (unit_id, upgrade_id) VALUES (?, ?)',
+            params: [unitId, id],
+          })
         await execCatalogBatch(stmts)
       }
 
@@ -249,7 +271,10 @@ export const ImportRepository = {
         for (const r of p.specialRules) ids.push(await ruleId(r))
         const stmts: BatchStatement[] = [{ sql: 'DELETE FROM unit_special_rules WHERE unit_id = ?', params: [unitId] }]
         for (const id of ids)
-          stmts.push({ sql: 'INSERT OR IGNORE INTO unit_special_rules (unit_id, rule_id) VALUES (?, ?)', params: [unitId, id] })
+          stmts.push({
+            sql: 'INSERT OR IGNORE INTO unit_special_rules (unit_id, rule_id) VALUES (?, ?)',
+            params: [unitId, id],
+          })
         await execCatalogBatch(stmts)
       }
 
@@ -281,7 +306,8 @@ async function applyCommandGroup(
   for (const o of cmdOpts) {
     const n = o.name.toLowerCase()
     if (/m[uú]sico/.test(n)) resolved.push({ roleCode: 'MUSICO', cost: o.cost, customName: null, profile: null })
-    else if (/portaestandarte|estandarte/.test(n)) resolved.push({ roleCode: 'PORTAESTANDARTE', cost: o.cost, customName: null, profile: null })
+    else if (/portaestandarte|estandarte/.test(n))
+      resolved.push({ roleCode: 'PORTAESTANDARTE', cost: o.cost, customName: null, profile: null })
     else {
       // Cualquier otra entrada del grupo de mando es el Campeón (con su nombre propio, p.ej. "Paladín del Bosque").
       const customName = /campe[oó]n/.test(n) ? null : o.name

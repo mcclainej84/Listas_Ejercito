@@ -42,7 +42,11 @@ CREATE TABLE factions (
     emblem_data  BLOB,               -- emblema subido por el usuario (anula el de fábrica si existe)
     emblem_mime  TEXT,
     description  TEXT,
-    sort_order   INTEGER NOT NULL DEFAULT 0
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    -- Color de la facción, "#rrggbb". Es su distintivo en el Despliegue, donde
+    -- cada peana se pinta de este color: el emblema, a ese tamaño, no se
+    -- distingue de otro. NULL = sin asignar (se cae a un gris neutro).
+    color        TEXT
 );
 
 -- ----------------------------------------------------------------------------
@@ -79,7 +83,13 @@ CREATE TABLE unit_type_tags (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     code       TEXT NOT NULL UNIQUE,
     name       TEXT NOT NULL,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    -- Peana ESTÁNDAR de las unidades con esta etiqueta, en cm de mesa, para el
+    -- Despliegue. Se edita en Categorías y Etiquetas. Los valores por defecto
+    -- son los del reglamento: 12 × 10 un regimiento, 5 × 10 un carro y 4 × 4
+    -- personajes y máquinas.
+    base_width_cm  REAL NOT NULL DEFAULT 12,
+    base_height_cm REAL NOT NULL DEFAULT 10
 );
 
 -- ----------------------------------------------------------------------------
@@ -284,6 +294,11 @@ CREATE TABLE units (
     type_tag_id       INTEGER REFERENCES unit_type_tags(id),  -- etiqueta informativa (Infantería/Caballería/Monstruo...), ver unit_type_tags
     unit_type         TEXT NOT NULL DEFAULT 'tropa' CHECK (unit_type IN ('tropa', 'personaje')),
     name              TEXT NOT NULL,
+    -- Iniciales que se pintan DENTRO de la peana en el Despliegue ("RO" para
+    -- Ratas Ogro), 3 caracteres. No se usa para nada más —ni listas, ni PDF,
+    -- ni búsquedas—, así que puede repetirse entre unidades. NULL = sin poner:
+    -- la mesa saca entonces las iniciales del nombre (ver domain/unitAlias).
+    alias             TEXT,
     base_cost         INTEGER NOT NULL DEFAULT 0,   -- coste por miniatura (o coste único si max_size=1)
 
     -- --- Campos de validación (constructor de listas) ---
@@ -356,6 +371,25 @@ CREATE TABLE unit_profiles (
     cost       INTEGER,
     PRIMARY KEY (unit_id, profile_id, role)
 );
+
+-- APÉNDICES de una unidad: bloques de texto con formato que se escriben a mano
+-- (reglas propias, trasfondo, aclaraciones) y salen al final de su ficha.
+--
+-- Tabla aparte y no una columna de units porque son VARIOS por unidad y se
+-- ordenan. `body_html` guarda HTML —el texto lleva negritas, cursivas y
+-- listas—, saneado antes de entrar: lo único que puede contener está acotado
+-- en shared/richText.ts, no se guarda nunca lo que pegue el navegador tal cual.
+--
+-- Se COPIAN entre unidades, no se comparten: copiar duplica el texto, así que
+-- editar el de una no toca el de la otra (fue una decisión explícita).
+CREATE TABLE unit_appendices (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_id    INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    title      TEXT NOT NULL,
+    body_html  TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_unit_appendices_unit ON unit_appendices(unit_id);
 
 -- Reglas especiales de una unidad (N:M)
 CREATE TABLE unit_special_rules (
@@ -591,7 +625,16 @@ CREATE TABLE army_lists (
     updated_at   TEXT NOT NULL,
     -- Dueño de la lista: cada usuario ve solo las suyas. NULL = listas creadas
     -- antes de que existieran los usuarios (se muestran a todo el mundo).
-    user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE
+    user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    -- Medidas de la mesa en el Despliegue, en cm. No todo el mundo juega en
+    -- 180 × 120, así que va por lista y no como constante del programa.
+    table_width_cm  REAL NOT NULL DEFAULT 180,
+    table_height_cm REAL NOT NULL DEFAULT 120,
+    -- Mapa cargado en el Despliegue. NULL = mesa libre (la de siempre, con sus
+    -- medidas ajustables). Con mapa, las medidas las manda él y su escenografía
+    -- se pinta de fondo sin poder tocarse. ON DELETE SET NULL: si alguien borra
+    -- el mapa, la lista vuelve a mesa libre en vez de quedar rota.
+    battle_map_id   INTEGER REFERENCES battle_maps(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);
@@ -617,8 +660,49 @@ CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);
 CREATE TABLE army_list_deployments (
     entry_id INTEGER PRIMARY KEY REFERENCES army_list_entries(id) ON DELETE CASCADE,
     x_cm     REAL NOT NULL,
-    y_cm     REAL NOT NULL
+    y_cm     REAL NOT NULL,
+    -- Tamaño de ESTA peana si se ha ajustado a mano arrastrando su esquina.
+    -- NULL = usar el estándar de su etiqueta (unit_type_tags.base_*_cm).
+    w_cm     REAL,
+    h_cm     REAL
 );
+
+-- ----------------------------------------------------------------------------
+-- MAPAS: mesas con escenografía (bosques, colinas, ríos…), independientes de
+-- los ejércitos. Se dibujan en vista aérea y en CENTÍMETROS REALES, las mismas
+-- unidades que el Despliegue, para que los dos hablen de la misma mesa.
+-- ----------------------------------------------------------------------------
+CREATE TABLE battle_maps (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    width_cm   REAL NOT NULL DEFAULT 180,
+    height_cm  REAL NOT NULL DEFAULT 120,
+    -- Dueño del mapa. NULL = de nadie (no debería pasar; se asigna al crearlo).
+    user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    -- Suelo del tablero: 'hierba' o NULL (liso, el pergamino de siempre). Ver
+    -- TEXTURAS en domain/scenery.ts.
+    texture    TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- Cada pieza de escenografía sobre un mapa. `kind` es uno de los tipos
+-- cerrados de domain/scenery.ts: no se crean tipos desde la interfaz porque
+-- cada uno tiene su forma dibujada a mano.
+CREATE TABLE battle_map_pieces (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    map_id     INTEGER NOT NULL REFERENCES battle_maps(id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL,
+    x_cm       REAL NOT NULL,   -- centro de la pieza
+    y_cm       REAL NOT NULL,
+    w_cm       REAL NOT NULL,
+    h_cm       REAL NOT NULL,
+    rotation   REAL NOT NULL DEFAULT 0,   -- grados, sentido horario
+    name       TEXT,            -- nombre propio; NULL = el del tipo
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_battle_map_pieces_map ON battle_map_pieces(map_id);
 
 CREATE TABLE army_list_shares (
     army_list_id INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,

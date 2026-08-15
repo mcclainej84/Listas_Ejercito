@@ -4,7 +4,11 @@ import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
 import { byteLength, bytesToDataUrl, type ByteSource } from '@/shared/image'
 import type { Faction } from '@/domain/types'
 
-function resolveEmblemUrl(imagePath: string | null, emblemData: ByteSource | null, emblemMime: string | null): string | null {
+function resolveEmblemUrl(
+  imagePath: string | null,
+  emblemData: ByteSource | null,
+  emblemMime: string | null,
+): string | null {
   if (emblemData && byteLength(emblemData) > 0 && emblemMime) {
     return bytesToDataUrl(emblemData, emblemMime)
   }
@@ -27,6 +31,7 @@ function mapFaction(row: Record<string, unknown>): Faction {
     sortOrder: row.sort_order as number,
     emblemUrl: resolveEmblemUrl(imagePath, emblemData, emblemMime),
     hasCustomEmblem: byteLength(emblemData) > 0,
+    color: (row.color as string) ?? null,
   }
 }
 
@@ -35,6 +40,8 @@ export interface FactionInput {
   slug: string
   imagePath?: string | null
   description?: string | null
+  /** "#rrggbb" o null para dejarla sin color asignado. */
+  color?: string | null
 }
 
 /** Facción con lo que hay dentro, para poder resumirla sin abrirla. */
@@ -82,9 +89,9 @@ export const FactionRepository = {
 
   async create(input: FactionInput): Promise<number> {
     const id = await execCatalog(
-      `INSERT INTO factions (name, slug, image_path, description, sort_order)
-       VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM factions))`,
-      [input.name, input.slug, input.imagePath ?? null, input.description ?? null],
+      `INSERT INTO factions (name, slug, image_path, description, color, sort_order)
+       VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM factions))`,
+      [input.name, input.slug, input.imagePath ?? null, input.description ?? null, input.color ?? null],
     )
     await ChangeLogRepository.record('faccion', 'crear', `Creó la facción "${input.name}"`, id)
     return id
@@ -92,8 +99,8 @@ export const FactionRepository = {
 
   async update(id: number, input: FactionInput): Promise<void> {
     await execCatalog(
-      `UPDATE factions SET name = ?, slug = ?, image_path = ?, description = ? WHERE id = ?`,
-      [input.name, input.slug, input.imagePath ?? null, input.description ?? null, id],
+      `UPDATE factions SET name = ?, slug = ?, image_path = ?, description = ?, color = ? WHERE id = ?`,
+      [input.name, input.slug, input.imagePath ?? null, input.description ?? null, input.color ?? null, id],
     )
     await ChangeLogRepository.record('faccion', 'editar', `Editó la facción "${input.name}"`, id)
   },
@@ -106,7 +113,12 @@ export const FactionRepository = {
     const existing = await FactionRepository.getById(id)
     if (!existing) return
     await execCatalog('DELETE FROM factions WHERE id = ?', [id])
-    await ChangeLogRepository.record('faccion', 'borrar', `Borró la facción "${existing.name}" y todas sus unidades`, id)
+    await ChangeLogRepository.record(
+      'faccion',
+      'borrar',
+      `Borró la facción "${existing.name}" y todas sus unidades`,
+      id,
+    )
   },
 
   /** Sube/reemplaza el emblema personalizado de una facción (ya redimensionado/comprimido en el navegador). Anula el de fábrica mientras exista. */

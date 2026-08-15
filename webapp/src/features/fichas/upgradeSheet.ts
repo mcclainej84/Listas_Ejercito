@@ -34,6 +34,7 @@ const NO_FACTION: Faction = {
   sortOrder: 0,
   emblemUrl: null,
   hasCustomEmblem: false,
+  color: null,
 }
 
 /** Ficha de presentación en blanco (las opciones no tienen fila propia en unit_sheets). */
@@ -72,6 +73,7 @@ export function upgradeAsUnitDetail(
     // Id negativo para no chocar nunca con el de una unidad real.
     id: -upgrade.id,
     factionId: 0,
+    alias: null,
     categoryId: null,
     typeTagId: null,
     unitType: 'personaje',
@@ -124,6 +126,7 @@ export function mountAsUnitDetail(
   return {
     id: -(MOUNT_KEY_OFFSET + profile.id),
     factionId: 0,
+    alias: null,
     categoryId: null,
     typeTagId: null,
     // 'personaje' por el mismo motivo que en las opciones: sin línea de

@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { clsx } from 'clsx'
 import { createPortal } from 'react-dom'
 
 interface TooltipProps {
@@ -14,6 +15,19 @@ interface TooltipProps {
    * columnas de una palabra.
    */
   maxWidth?: string
+  /**
+   * Dónde sale el globo. `arriba` (por defecto) es lo normal para un icono;
+   * `derecha` lo saca al lado, centrado en vertical, que es lo que hace falta
+   * en una columna lateral estrecha: encima se salía de la pantalla por la
+   * izquierda y aparecía recortado.
+   */
+  posicion?: 'arriba' | 'derecha'
+  /**
+   * `oscuro` (por defecto) para ayudas cortas. `claro` para fichas con
+   * estructura: un bloque grande de texto en negativo cansa y desentona con el
+   * pergamino del resto del programa.
+   */
+  tono?: 'oscuro' | 'claro'
 }
 
 /**
@@ -33,13 +47,24 @@ interface TooltipProps {
  * - Lleva `touch-action: manipulation` y responde al toque, para que en móvil
  *   se pueda consultar tocando el icono.
  */
-export function Tooltip({ label, children, className = 'inline-flex', maxWidth = '18rem' }: TooltipProps) {
+export function Tooltip({
+  label,
+  children,
+  className = 'inline-flex',
+  maxWidth = '18rem',
+  posicion = 'arriba',
+  tono = 'oscuro',
+}: TooltipProps) {
   const [coords, setCoords] = useState<{ x: number; y: number } | null>(null)
   const anchorRef = useRef<HTMLSpanElement>(null)
 
   function show() {
     const rect = anchorRef.current?.getBoundingClientRect()
     if (!rect) return
+    if (posicion === 'derecha') {
+      setCoords({ x: rect.right + 10, y: rect.top + rect.height / 2 })
+      return
+    }
     setCoords({ x: rect.left + rect.width / 2, y: rect.top })
   }
 
@@ -67,8 +92,14 @@ export function Tooltip({ label, children, className = 'inline-flex', maxWidth =
         createPortal(
           <span
             role="tooltip"
-            className="pointer-events-none fixed z-[100] -translate-x-1/2 -translate-y-full rounded-sm border border-rule-dark/50 bg-ink px-2 py-1 text-mini leading-snug text-parchment shadow-lg"
-            style={{ left: coords.x, top: coords.y - 6, maxWidth }}
+            className={clsx(
+              'pointer-events-none fixed z-[100] rounded-sm border shadow-lg',
+              posicion === 'derecha' ? '-translate-y-1/2' : '-translate-x-1/2 -translate-y-full',
+              tono === 'claro'
+                ? 'border-rule-dark/50 bg-parchment text-ink shadow-black/25'
+                : 'border-rule-dark/50 bg-ink px-2 py-1 text-mini leading-snug text-parchment',
+            )}
+            style={{ left: coords.x, top: posicion === 'derecha' ? coords.y : coords.y - 6, maxWidth }}
           >
             {label}
           </span>,

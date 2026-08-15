@@ -37,11 +37,7 @@ import { clsx } from 'clsx'
 import { UnitRepository, type UnitSummary } from '@/data/repositories/unitRepository'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
-import {
-  UnitSheetRepository,
-  type SheetImageChange,
-  type SheetTarget,
-} from '@/data/repositories/unitSheetRepository'
+import { UnitSheetRepository, type SheetImageChange, type SheetTarget } from '@/data/repositories/unitSheetRepository'
 import {
   MAX_SECTION_WIDTH,
   MIN_SECTION_WIDTH,
@@ -77,6 +73,7 @@ import type { UnitDetail, UnitSheet } from '@/domain/types'
 import { UpgradeRepository } from '@/data/repositories/lookupRepositories'
 import { MountRepository } from '@/data/repositories/profileCatalogRepository'
 import { UnitSheetCard } from '@/features/fichas/UnitSheetCard'
+import { SheetAppendices } from '@/features/fichas/SheetAppendices'
 import { commandGroupText, monturaItems, optionsList, unifiedProfileRows } from '@/features/fichas/sheetContent'
 import { mountAsUnitDetail, upgradeAsUnitDetail } from '@/features/fichas/upgradeSheet'
 import { exportSheetsToPng, type SheetToExport } from '@/features/fichas/exportPng'
@@ -849,9 +846,7 @@ export function FichasPage() {
                   de una columna que hay que desplazar. */}
               {draft && (
                 <div className="ml-auto flex items-center gap-2">
-                  {dirty && (
-                    <span className="text-xs font-medium text-maroon">Cambios sin guardar</span>
-                  )}
+                  {dirty && <span className="text-xs font-medium text-maroon">Cambios sin guardar</span>}
                   {dirty && (
                     <Button variant="ghost" onClick={discardDraft} disabled={saving}>
                       Descartar
@@ -869,7 +864,10 @@ export function FichasPage() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr_320px]">
               <Panel title="Ficha">
                 {!selectedDetail ? (
-                  <EmptyState title="Elige una ficha" description="Selecciónala en «Tus hojas» para editar su presentación." />
+                  <EmptyState
+                    title="Elige una ficha"
+                    description="Selecciónala en «Tus hojas» para editar su presentación."
+                  />
                 ) : loadingDetail || !draft ? (
                   <Spinner />
                 ) : (
@@ -898,11 +896,20 @@ export function FichasPage() {
                     >
                       <div>
                         <div className="flex flex-wrap gap-2">
-                          <IconButton icon={<ImageIcon />} onClick={() => illuInputRef.current?.click()} disabled={busy}>
+                          <IconButton
+                            icon={<ImageIcon />}
+                            onClick={() => illuInputRef.current?.click()}
+                            disabled={busy}
+                          >
                             {busy ? 'Procesando…' : draft.illuUrl ? 'Cambiar imagen' : 'Elegir imagen'}
                           </IconButton>
                           {draft.illuUrl && (
-                            <IconButton icon={<TrashIcon className="h-3.5 w-3.5" />} onClick={handleRemoveIllu} disabled={busy} danger>
+                            <IconButton
+                              icon={<TrashIcon className="h-3.5 w-3.5" />}
+                              onClick={handleRemoveIllu}
+                              disabled={busy}
+                              danger
+                            >
                               Quitar
                             </IconButton>
                           )}
@@ -946,7 +953,10 @@ export function FichasPage() {
                               />
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <IconButton icon={<FlipHorizontalIcon />} onClick={() => patchDraft({ illuFlipped: !draft.illuFlipped })}>
+                              <IconButton
+                                icon={<FlipHorizontalIcon />}
+                                onClick={() => patchDraft({ illuFlipped: !draft.illuFlipped })}
+                              >
                                 Voltear
                               </IconButton>
                               <IconButton icon={<UndoIcon />} onClick={handleIlluResetFraming}>
@@ -1045,8 +1055,8 @@ export function FichasPage() {
                     >
                       <div>
                         <p className="mb-2 text-[10.5px] text-ink-soft">
-                          Estrecha un apartado para dejarle sitio a la ilustración. El texto salta de línea y se justifica
-                          con el ancho que le des.
+                          Estrecha un apartado para dejarle sitio a la ilustración. El texto salta de línea y se
+                          justifica con el ancho que le des.
                         </p>
                         <div className="space-y-2">
                           {visibleSections.map((section) => {
@@ -1093,7 +1103,11 @@ export function FichasPage() {
                     >
                       <div>
                         <div className="flex flex-wrap gap-2">
-                          <IconButton icon={<ShieldIcon />} onClick={() => emblemInputRef.current?.click()} disabled={busy}>
+                          <IconButton
+                            icon={<ShieldIcon />}
+                            onClick={() => emblemInputRef.current?.click()}
+                            disabled={busy}
+                          >
                             {draft.hasCustomEmblem ? 'Cambiar emblema de esta hoja' : 'Usar otro emblema en esta hoja'}
                           </IconButton>
                           {draft.hasCustomEmblem && (
@@ -1131,6 +1145,7 @@ export function FichasPage() {
                       editable
                       onIlluDragEnd={(posX, posY) => patchDraft({ illuPosX: posX, illuPosY: posY })}
                     />
+                    <SheetAppendices unitId={selectedDetail.id} grayscale={grayscale} />
                     <label
                       className={clsx(
                         'flex cursor-pointer items-center gap-2 rounded-sm border px-3 py-2 text-xs transition-colors',
@@ -1182,7 +1197,9 @@ export function FichasPage() {
                           <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
                             {group.title} <span className="text-ink-soft/70">({visible.length})</span>
                           </span>
-                          <span className={clsx('text-sm text-ink-soft transition-transform', open && 'rotate-90')}>›</span>
+                          <span className={clsx('text-sm text-ink-soft transition-transform', open && 'rotate-90')}>
+                            ›
+                          </span>
                         </button>
 
                         {open && (
@@ -1211,7 +1228,10 @@ export function FichasPage() {
                                 />
                                 <span className="flex-1 truncate text-ink">{entry.name}</span>
                                 {entry.key === selectedKey && dirty && (
-                                  <span className="shrink-0 text-[10px] font-semibold text-maroon" title="Cambios sin guardar">
+                                  <span
+                                    className="shrink-0 text-[10px] font-semibold text-maroon"
+                                    title="Cambios sin guardar"
+                                  >
                                     ●
                                   </span>
                                 )}
@@ -1244,19 +1264,39 @@ export function FichasPage() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button variant="primary" className="justify-center" onClick={handleExportPng} disabled={runningExport !== null}>
+                  <Button
+                    variant="primary"
+                    className="justify-center"
+                    onClick={handleExportPng}
+                    disabled={runningExport !== null}
+                  >
                     <DownloadIcon className="h-3.5 w-3.5" />
                     {runningExport === 'png' ? 'Generando…' : 'PNG'}
                   </Button>
-                  <Button variant="secondary" className="justify-center" onClick={handleExportWordText} disabled={runningExport !== null}>
+                  <Button
+                    variant="secondary"
+                    className="justify-center"
+                    onClick={handleExportWordText}
+                    disabled={runningExport !== null}
+                  >
                     <DownloadIcon className="h-3.5 w-3.5" />
                     {runningExport === 'word-texto' ? 'Generando…' : 'Word texto'}
                   </Button>
-                  <Button variant="secondary" className="justify-center" onClick={handleExportWordImages} disabled={runningExport !== null}>
+                  <Button
+                    variant="secondary"
+                    className="justify-center"
+                    onClick={handleExportWordImages}
+                    disabled={runningExport !== null}
+                  >
                     <DownloadIcon className="h-3.5 w-3.5" />
                     {runningExport === 'word-imagenes' ? 'Generando…' : 'Word imág.'}
                   </Button>
-                  <Button variant="secondary" className="justify-center" onClick={handleExportReference} disabled={runningExport !== null}>
+                  <Button
+                    variant="secondary"
+                    className="justify-center"
+                    onClick={handleExportReference}
+                    disabled={runningExport !== null}
+                  >
                     <DownloadIcon className="h-3.5 w-3.5" />
                     {runningExport === 'referencia' ? 'Generando…' : 'Hoja ref.'}
                   </Button>

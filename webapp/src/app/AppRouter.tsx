@@ -18,6 +18,8 @@ import { FichasPage } from '@/features/fichas/FichasPage'
 import { ArmyListsPage } from '@/features/army-lists/ArmyListsPage'
 import { ArmyListBuilderPage } from '@/features/army-lists/ArmyListBuilderPage'
 import { DeploymentPage } from '@/features/army-lists/DeploymentPage'
+import { MapsListPage } from '@/features/maps/MapsListPage'
+import { MapEditorPage } from '@/features/maps/MapEditorPage'
 
 // HashRouter (en vez de BrowserRouter): GitHub Pages no reescribe rutas del
 // lado del servidor, así que cualquier ruta "bonita" con BrowserRouter daría
@@ -174,6 +176,22 @@ const router = createHashRouter([
         element: (
           <PasswordGate>
             <DeploymentPage />
+          </PasswordGate>
+        ),
+      },
+      {
+        path: '/mapas',
+        element: (
+          <PasswordGate>
+            <MapsListPage />
+          </PasswordGate>
+        ),
+      },
+      {
+        path: '/mapas/:id',
+        element: (
+          <PasswordGate>
+            <MapEditorPage />
           </PasswordGate>
         ),
       },

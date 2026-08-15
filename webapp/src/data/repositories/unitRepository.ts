@@ -60,6 +60,9 @@ function mapUnit(row: Record<string, unknown>): Unit {
     typeTagId: (row.type_tag_id as number) ?? null,
     unitType,
     name: row.name as string,
+    // La columna puede no existir todavía si la D1 no se ha migrado: en ese
+    // caso, sin alias (en la mesa se caerá a las iniciales del nombre).
+    alias: (row.alias as string) ?? null,
     baseCost: row.base_cost as number,
     minSize: (row.min_size as number) ?? null,
     maxSize: (row.max_size as number) ?? null,
@@ -94,6 +97,8 @@ export interface UnitSummary extends Unit {
 
 export interface UnitScalarInput {
   name: string
+  /** Iniciales para la peana del Despliegue, 3 caracteres como mucho. null = sin poner (ver domain/unitAlias). */
+  alias: string | null
   categoryId: number | null
   typeTagId: number | null
   baseCost: number
@@ -179,11 +184,12 @@ export interface UnitBatchSaveInput {
 function scalarUpdateStatement(unitId: number, scalar: UnitScalarInput): BatchStatement {
   return {
     sql: `UPDATE units
-             SET name = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?,
+             SET name = ?, alias = ?, category_id = ?, type_tag_id = ?, base_cost = ?, min_size = ?, max_size = ?,
                  default_size = ?, is_unique = ?, equipment_text = ?, armor_save = ?, notes = ?, is_wizard = ?
            WHERE id = ?`,
     params: [
       scalar.name,
+      scalar.alias,
       scalar.categoryId,
       scalar.typeTagId,
       scalar.baseCost,
@@ -385,6 +391,8 @@ export const UnitRepository = {
             code: row.code as string,
             name: row.name as string,
             sortOrder: row.sort_order as number,
+            baseWidthCm: (row.base_width_cm as number) ?? 12,
+            baseHeightCm: (row.base_height_cm as number) ?? 10,
           }))
         : Promise.resolve(null),
     ])

@@ -10,6 +10,7 @@ import { TextField } from '@/shared/ui/TextField'
 import { TextArea } from '@/shared/ui/TextArea'
 import { TrashIcon, StarIcon } from '@/shared/ui/icons'
 import { FactionFeaturedRulesModal } from '@/features/user/FactionFeaturedRulesModal'
+import { COLOR_FACCION_POR_DEFECTO, estiloDeMuestra } from '@/domain/factionColor'
 import type { Faction } from '@/domain/types'
 
 function slugify(text: string): string {
@@ -33,6 +34,11 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
   const [description, setDescription] = useState(faction?.description ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // El <input type="color"> del navegador no admite "sin color": si la facción
+  // no tiene ninguno se le enseña el gris por defecto, pero se guarda null
+  // mientras no lo toque, para no inventarle un color que nadie ha elegido.
+  const [color, setColor] = useState<string | null>(faction?.color ?? null)
 
   // El emblema se guarda al momento (no espera al botón "Guardar"), porque
   // es una acción independiente de los datos de texto y así el usuario ve el
@@ -114,7 +120,12 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
     setSaving(true)
     setError(null)
     try {
-      const input = { name: name.trim(), slug: slugify(name), description: description.trim() || null }
+      const input = {
+        name: name.trim(),
+        slug: slugify(name),
+        description: description.trim() || null,
+        color,
+      }
       if (faction) {
         await FactionRepository.update(faction.id, input)
       } else {
@@ -165,11 +176,7 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
               </div>
               <div className="flex flex-col gap-1.5">
                 <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={emblemBusy}
-                  >
+                  <Button variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={emblemBusy}>
                     {emblemBusy ? 'Procesando…' : hasCustomEmblem ? 'Cambiar emblema' : 'Subir emblema'}
                   </Button>
                   {hasCustomEmblem && (
@@ -196,8 +203,40 @@ export function FactionFormModal({ faction, onClose, onSaved }: FactionFormModal
               </div>
             </div>
           ) : (
-            <p className="text-xs text-ink-soft italic">Guarda la facción primero; después podrás subirle un emblema.</p>
+            <p className="text-xs text-ink-soft italic">
+              Guarda la facción primero; después podrás subirle un emblema.
+            </p>
           )}
+        </div>
+
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink">Color</p>
+          <div className="flex items-center gap-3">
+            <label
+              className="h-9 w-9 shrink-0 cursor-pointer rounded-sm border border-rule-dark/40 shadow-inner"
+              style={estiloDeMuestra(color)}
+              title="Elegir color de la facción"
+            >
+              <input
+                type="color"
+                value={color ?? COLOR_FACCION_POR_DEFECTO}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-xs text-ink-soft">{color ?? 'Sin color'}</span>
+              {color && (
+                <button
+                  type="button"
+                  onClick={() => setColor(null)}
+                  className="self-start text-micro text-ink-soft underline-offset-2 hover:text-maroon hover:underline"
+                >
+                  Quitar color
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {faction && user && (

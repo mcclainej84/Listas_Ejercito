@@ -117,8 +117,22 @@ export const UnitTypeTagRepository = {
         code: row.code as string,
         name: row.name as string,
         sortOrder: row.sort_order as number,
+        // `?? 12/10` y no `as number`: si el Worker todavía no tiene la
+        // migración, la columna llega undefined y sin esto el Despliegue
+        // pintaría peanas de tamaño NaN.
+        baseWidthCm: (row.base_width_cm as number) ?? 12,
+        baseHeightCm: (row.base_height_cm as number) ?? 10,
       }),
     )
+  },
+
+  /** Cambia la peana estándar de una etiqueta (ver Categorías y Etiquetas). */
+  async setBaseSize(id: number, widthCm: number, heightCm: number): Promise<void> {
+    await execCatalog('UPDATE unit_type_tags SET base_width_cm = ?, base_height_cm = ? WHERE id = ?', [
+      widthCm,
+      heightCm,
+      id,
+    ])
   },
 
   /** Cuántas unidades usan cada etiqueta — para avisar antes de borrar. */

@@ -29,7 +29,7 @@ const EDITOR_ITEMS: NavItem[] = [
   { to: '/admin/opciones', label: 'Equipo y opciones' },
   { to: '/admin/monturas', label: 'Montura/Dotación' },
   { to: '/admin/carros', label: 'Carros' },
-  { to: '/admin/sendas', label: 'Sendas de magia' },
+  { to: '/admin/sendas', label: 'Sendas de Magia' },
   { to: '/admin/taxonomia', label: 'Categorías y Etiquetas' },
   { to: '/admin/importar', label: 'Importar desde Libro' },
   { to: '/admin/log', label: 'Log' },
@@ -38,6 +38,7 @@ const EDITOR_ITEMS: NavItem[] = [
 const TOOL_ITEMS: NavItem[] = [
   { to: '/hojas', label: 'Hojas de Unidad' },
   { to: '/ejercitos', label: 'Ejércitos' },
+  { to: '/mapas', label: 'Mapas' },
 ]
 
 function NavLinkItem({ item }: { item: NavItem }) {

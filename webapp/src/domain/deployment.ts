@@ -1,16 +1,23 @@
 // ============================================================================
 // Despliegue: colocar las unidades de una lista sobre la mesa antes de jugar.
 //
-// TODO VA EN CENTÍMETROS REALES, no en píxeles. La mesa mide 180 × 120 y una
-// unidad está en (34, 12) de mesa, no "a 217 píxeles del borde". El lienzo se
-// dibuja a los píxeles que haga falta según la pantalla, pero lo que se guarda
-// —y lo que significa algo— son los centímetros: el mismo plan se ve igual en
-// un portátil y en un móvil, y las distancias se pueden leer con una regla.
+// TODO VA EN CENTÍMETROS REALES, no en píxeles. La mesa mide lo que diga la
+// lista y una unidad está en (34, 12) de mesa, no "a 217 píxeles del borde". El
+// lienzo se dibuja a los píxeles que haga falta según la pantalla, pero lo que
+// se guarda —y lo que significa algo— son los centímetros: el mismo plan se ve
+// igual en un portátil y en un móvil, y las distancias se pueden leer con una
+// regla.
 // ============================================================================
 
-/** Medidas de la mesa, en centímetros. */
+/** Medidas de la mesa por defecto, en centímetros. */
 export const MESA_ANCHO_CM = 180
 export const MESA_ALTO_CM = 120
+
+/** Hasta dónde se puede agrandar la mesa. Por debajo no se baja de la de serie. */
+export const MESA_ANCHO_MAX_CM = 240
+export const MESA_ALTO_MAX_CM = 180
+export const MESA_ANCHO_MIN_CM = 60
+export const MESA_ALTO_MIN_CM = 60
 
 /** Ancho × fondo de una peana sobre la mesa, en cm. */
 export interface TamanoCm {
@@ -18,53 +25,62 @@ export interface TamanoCm {
   altoCm: number
 }
 
+/** Medidas de la mesa de una lista, en cm. */
+export interface Mesa {
+  anchoCm: number
+  altoCm: number
+}
+
+export const MESA_POR_DEFECTO: Mesa = { anchoCm: MESA_ANCHO_CM, altoCm: MESA_ALTO_CM }
+
 /**
- * Tamaños de peana, en cm de mesa y a escala real.
+ * Tamaño de peana cuando no hay etiqueta que lo diga.
  *
- * Salen de las peanas del juego: 12 × 10 es el frente típico de un regimiento,
- * 5 × 10 la peana de carro (50 × 100 mm) y 4 × 4 la de personaje o máquina
- * (40 × 40 mm). Al ir a escala, dos unidades pegadas en el lienzo están
- * pegadas de verdad sobre la mesa.
+ * El estándar de cada etiqueta vive ahora en la base (unit_type_tags.base_*_cm)
+ * y se edita en Categorías y Etiquetas. Esto es solo la última red: una unidad
+ * sin etiqueta ninguna.
  */
 export const TAMANO_UNIDAD: TamanoCm = { anchoCm: 12, altoCm: 10 }
 export const TAMANO_PERSONAJE: TamanoCm = { anchoCm: 4, altoCm: 4 }
-export const TAMANO_CARRO: TamanoCm = { anchoCm: 5, altoCm: 10 }
 
-/** Etiquetas que van con peana pequeña de 4 × 4, como los personajes. */
-const CODIGOS_PEANA_PEQUENA = ['MAQUINA_GUERRA', 'ASEDIO']
-/** Etiquetas de carro. También cuenta llevar un carro elegido en la entrada. */
-const CODIGOS_CARRO = ['CARRO']
+/** Límites al redimensionar una peana a mano. Nada de peanas de 0 ni más grandes que la mesa. */
+export const PEANA_MIN_CM = 2
+export const PEANA_MAX_CM = 60
 
 /**
  * Qué peana le toca a una entrada de la lista.
  *
- * Se mira, por este orden: si es personaje, si lleva carro (por etiqueta o
- * porque se le ha elegido uno en la lista) y si es máquina de guerra. Lo demás
- * es un regimiento.
+ * Manda la ETIQUETA, con su tamaño configurable. Sin etiqueta se distingue solo
+ * entre personaje (una miniatura, 4 × 4) y tropa (un regimiento, 12 × 10), que
+ * es lo poco que se puede deducir sin más datos.
  *
- * El carro va ANTES que la máquina de guerra porque una unidad puede tener las
- * dos cosas y sobre la mesa lo que ocupa es el carro.
+ * `tamanoPropio` gana a todo: es el tamaño que el usuario le ha dado a ESA
+ * peana arrastrando su esquina, y una preferencia explícita pesa más que
+ * cualquier estándar.
  */
 export function tamanoDeEntrada(opciones: {
   unitType: string
-  typeTagCode: string | null | undefined
-  llevaCarro: boolean
+  tamanoEtiqueta: TamanoCm | null | undefined
+  tamanoPropio: TamanoCm | null | undefined
 }): TamanoCm {
-  const { unitType, typeTagCode, llevaCarro } = opciones
-  if (llevaCarro || (typeTagCode != null && CODIGOS_CARRO.includes(typeTagCode))) return TAMANO_CARRO
-  if (unitType === 'personaje') return TAMANO_PERSONAJE
-  if (typeTagCode != null && CODIGOS_PEANA_PEQUENA.includes(typeTagCode)) return TAMANO_PERSONAJE
-  return TAMANO_UNIDAD
+  const { unitType, tamanoEtiqueta, tamanoPropio } = opciones
+  if (tamanoPropio) return tamanoPropio
+  if (tamanoEtiqueta) return tamanoEtiqueta
+  return unitType === 'personaje' ? TAMANO_PERSONAJE : TAMANO_UNIDAD
 }
 
 /** Retícula de ayuda del lienzo, en cm. Coincide con las 12" de una mesa de reglamento. */
 export const RETICULA_CM = 30
 
-/** Dónde está una entrada sobre la mesa. `x`/`y` son el CENTRO de la peana, en cm. */
+/** Dónde está una entrada sobre la mesa, y de qué tamaño. `x`/`y` son el CENTRO de la peana, en cm. */
 export interface DeploymentPosition {
   entryId: number
   xCm: number
   yCm: number
+  /** Ancho a medida, o null para usar el estándar de la etiqueta. */
+  anchoCm: number | null
+  /** Fondo a medida, o null para usar el estándar de la etiqueta. */
+  altoCm: number | null
 }
 
 /**
@@ -74,12 +90,12 @@ export interface DeploymentPosition {
  * esto, arrastrar hasta el borde dejaría media unidad fuera del tablero, que es
  * una posición que no existe en una partida.
  */
-export function limitarAMesa(xCm: number, yCm: number, tamano: TamanoCm): { xCm: number; yCm: number } {
-  const margenX = tamano.anchoCm / 2
-  const margenY = tamano.altoCm / 2
+export function limitarAMesa(xCm: number, yCm: number, tamano: TamanoCm, mesa: Mesa): { xCm: number; yCm: number } {
+  const margenX = Math.min(tamano.anchoCm / 2, mesa.anchoCm / 2)
+  const margenY = Math.min(tamano.altoCm / 2, mesa.altoCm / 2)
   return {
-    xCm: Math.min(MESA_ANCHO_CM - margenX, Math.max(margenX, xCm)),
-    yCm: Math.min(MESA_ALTO_CM - margenY, Math.max(margenY, yCm)),
+    xCm: Math.min(mesa.anchoCm - margenX, Math.max(margenX, xCm)),
+    yCm: Math.min(mesa.altoCm - margenY, Math.max(margenY, yCm)),
   }
 }
 
@@ -88,8 +104,11 @@ export function redondearCm(valor: number): number {
   return Math.round(valor * 2) / 2
 }
 
-/** Una peana ya colocada, con su tamaño resuelto. Lo que necesita `alinearFrentes`. */
-export interface PeanaEnMesa extends DeploymentPosition {
+/** Una peana ya colocada, con su tamaño resuelto. */
+export interface PeanaEnMesa {
+  entryId: number
+  xCm: number
+  yCm: number
   tamano: TamanoCm
 }
 
@@ -114,12 +133,12 @@ export interface PeanaEnMesa extends DeploymentPosition {
  * arrastraría entera hasta la primera, y el ejemplo del usuario dice justo lo
  * contrario (la unidad Z se queda donde está).
  */
-export function alinearFrentes(peanas: PeanaEnMesa[]): DeploymentPosition[] {
+export function alinearFrentes(peanas: PeanaEnMesa[], mesa: Mesa): Array<{ entryId: number; xCm: number; yCm: number }> {
   const frenteDe = (p: PeanaEnMesa) => p.yCm - p.tamano.altoCm / 2
   const traseraDe = (p: PeanaEnMesa) => p.yCm + p.tamano.altoCm / 2
 
   const pendientes = [...peanas].sort((a, b) => frenteDe(a) - frenteDe(b))
-  const resultado: DeploymentPosition[] = []
+  const resultado: Array<{ entryId: number; xCm: number; yCm: number }> = []
 
   while (pendientes.length > 0) {
     const lider = pendientes.shift()!
@@ -138,7 +157,7 @@ export function alinearFrentes(peanas: PeanaEnMesa[]): DeploymentPosition[] {
     }
 
     for (const peana of alineadas) {
-      const dentro = limitarAMesa(peana.xCm, frente + peana.tamano.altoCm / 2, peana.tamano)
+      const dentro = limitarAMesa(peana.xCm, frente + peana.tamano.altoCm / 2, peana.tamano, mesa)
       resultado.push({ entryId: peana.entryId, xCm: redondearCm(dentro.xCm), yCm: redondearCm(dentro.yCm) })
     }
   }
@@ -159,14 +178,15 @@ export function limitarDesplazamiento(
   peanas: PeanaEnMesa[],
   dxCm: number,
   dyCm: number,
+  mesa: Mesa,
 ): { dxCm: number; dyCm: number } {
   let dx = dxCm
   let dy = dyCm
   for (const p of peanas) {
-    const margenX = p.tamano.anchoCm / 2
-    const margenY = p.tamano.altoCm / 2
-    dx = Math.max(margenX - p.xCm, Math.min(MESA_ANCHO_CM - margenX - p.xCm, dx))
-    dy = Math.max(margenY - p.yCm, Math.min(MESA_ALTO_CM - margenY - p.yCm, dy))
+    const margenX = Math.min(p.tamano.anchoCm / 2, mesa.anchoCm / 2)
+    const margenY = Math.min(p.tamano.altoCm / 2, mesa.altoCm / 2)
+    dx = Math.max(margenX - p.xCm, Math.min(mesa.anchoCm - margenX - p.xCm, dx))
+    dy = Math.max(margenY - p.yCm, Math.min(mesa.altoCm - margenY - p.yCm, dy))
   }
   return { dxCm: dx, dyCm: dy }
 }
@@ -191,4 +211,9 @@ export function peanaDentroDelRectangulo(peana: PeanaEnMesa, rect: RectanguloCm)
     peana.yCm - peana.tamano.altoCm / 2 < aba &&
     peana.yCm + peana.tamano.altoCm / 2 > arr
   )
+}
+
+/** Encierra un valor entre dos límites. */
+export function acotar(valor: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, valor))
 }

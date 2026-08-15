@@ -12,7 +12,7 @@ import { UnitRepository } from '@/data/repositories/unitRepository'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { computeCategoryInsertIndex } from '@/domain/armyValidation'
 import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput, EntryMagicPath } from '@/domain/types'
-import type { DeploymentPosition } from '@/domain/deployment'
+import { MESA_ALTO_CM, MESA_ANCHO_CM, type DeploymentPosition } from '@/domain/deployment'
 
 function mapArmyList(row: Record<string, unknown>): ArmyList {
   return {
@@ -23,6 +23,10 @@ function mapArmyList(row: Record<string, unknown>): ArmyList {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     userId: (row.user_id as number) ?? null,
+    // `?? 180/120` para que una migración a medias no deje la mesa en NaN.
+    tableWidthCm: (row.table_width_cm as number) ?? MESA_ANCHO_CM,
+    tableHeightCm: (row.table_height_cm as number) ?? MESA_ALTO_CM,
+    battleMapId: (row.battle_map_id as number) ?? null,
   }
 }
 
@@ -218,6 +222,20 @@ export const ArmyListRepository = {
     ])
   },
 
+  /** Carga un mapa en el despliegue de una lista, o lo quita (null = mesa libre). */
+  async setBattleMap(armyListId: number, battleMapId: number | null): Promise<void> {
+    await exec('UPDATE army_lists SET battle_map_id = ? WHERE id = ?', [battleMapId, armyListId])
+  },
+
+  /** Cambia las medidas de la mesa de una lista (ver Despliegue). */
+  async setTableSize(armyListId: number, anchoCm: number, altoCm: number): Promise<void> {
+    await exec('UPDATE army_lists SET table_width_cm = ?, table_height_cm = ? WHERE id = ?', [
+      anchoCm,
+      altoCm,
+      armyListId,
+    ])
+  },
+
   // ---- Despliegue -------------------------------------------------------
 
   /**
@@ -227,12 +245,18 @@ export const ArmyListRepository = {
   async getDeployment(armyListId: number): Promise<DeploymentPosition[]> {
     try {
       return await query<DeploymentPosition>(
-        `SELECT d.entry_id, d.x_cm, d.y_cm
+        `SELECT d.entry_id, d.x_cm, d.y_cm, d.w_cm, d.h_cm
            FROM army_list_deployments d
            JOIN army_list_entries e ON e.id = d.entry_id
           WHERE e.army_list_id = ?`,
         [armyListId],
-        (r) => ({ entryId: r.entry_id as number, xCm: r.x_cm as number, yCm: r.y_cm as number }),
+        (r) => ({
+          entryId: r.entry_id as number,
+          xCm: r.x_cm as number,
+          yCm: r.y_cm as number,
+          anchoCm: (r.w_cm as number) ?? null,
+          altoCm: (r.h_cm as number) ?? null,
+        }),
       )
     } catch {
       return []
@@ -254,8 +278,8 @@ export const ArmyListRepository = {
         params: [armyListId],
       },
       ...posiciones.map((p) => ({
-        sql: 'INSERT OR REPLACE INTO army_list_deployments (entry_id, x_cm, y_cm) VALUES (?, ?, ?)',
-        params: [p.entryId, p.xCm, p.yCm],
+        sql: 'INSERT OR REPLACE INTO army_list_deployments (entry_id, x_cm, y_cm, w_cm, h_cm) VALUES (?, ?, ?, ?, ?)',
+        params: [p.entryId, p.xCm, p.yCm, p.anchoCm, p.altoCm],
       })),
     ])
   },

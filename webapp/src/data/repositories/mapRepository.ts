@@ -1,0 +1,147 @@
+// ============================================================================
+// Mapas de batalla y su escenografía.
+//
+// LOS MAPAS SON PÚBLICOS: los ve y los puede cargar cualquiera. Una mesa no es
+// información privada como una lista de ejército —es el terreno donde se juega,
+// y lo normal es que los dos jugadores usen el mismo—. Lo que sigue siendo del
+// dueño es EDITARLO y borrarlo (ver `userId`).
+//
+// Van por `exec`/`query` (red) y no por `execCatalog`, que además replica en la
+// copia local: un mapa no lo necesita, no se consulta al pintar cada ficha.
+//
+// La escenografía se guarda BORRANDO Y REESCRIBIENDO entera la del mapa. Mover
+// una pieza cambia dos números y añadir otra crea una fila: llevar la cuenta
+// de qué cambió para hacer INSERT/UPDATE/DELETE por separado sería mucho
+// trabajo para una tabla que en el peor caso tiene veinte filas.
+// ============================================================================
+import { exec, execBatch, query, queryOne } from '@/data/sqlite/client'
+import {
+  esTextura,
+  isSceneryKind,
+  type MapaDetalle,
+  type MapaResumen,
+  type SceneryPiece,
+  type TexturaMapa,
+} from '@/domain/scenery'
+
+/**
+ * La textura guardada, o 'ninguna'. Es null en todo mapa hecho antes de que
+ * existiera la opción, y también mientras el Worker no se haya desplegado (la
+ * columna no viaja en la respuesta): en los dos casos, tablero liso.
+ */
+function mapTextura(valor: unknown): TexturaMapa {
+  return esTextura(valor) ? valor : 'ninguna'
+}
+
+function mapPiece(row: Record<string, unknown>): SceneryPiece | null {
+  const kind = row.kind
+  // Una pieza de un tipo que ya no existe se omite en vez de romper el mapa
+  // entero: es un dato viejo, no un fallo del programa.
+  if (!isSceneryKind(kind)) return null
+  return {
+    id: row.id as number,
+    kind,
+    xCm: row.x_cm as number,
+    yCm: row.y_cm as number,
+    anchoCm: row.w_cm as number,
+    altoCm: row.h_cm as number,
+    rotacion: (row.rotation as number) ?? 0,
+    nombre: (row.name as string) ?? null,
+  }
+}
+
+export interface MapaInput {
+  name: string
+  anchoCm: number
+  altoCm: number
+}
+
+export const MapRepository = {
+  /**
+   * TODOS los mapas, del más reciente al más antiguo, sean de quien sean. Cada
+   * uno trae el nombre de su autor para poder distinguir los propios.
+   */
+  async listAll(): Promise<MapaResumen[]> {
+    try {
+      return await query(
+        `SELECT m.*, (SELECT COUNT(*) FROM battle_map_pieces p WHERE p.map_id = m.id) AS piezas,
+                (SELECT u.username FROM users u WHERE u.id = m.user_id) AS owner_name
+           FROM battle_maps m
+          ORDER BY m.updated_at DESC`,
+        [],
+        (row) => ({
+          id: row.id as number,
+          name: row.name as string,
+          anchoCm: row.width_cm as number,
+          altoCm: row.height_cm as number,
+          userId: (row.user_id as number) ?? null,
+          ownerName: (row.owner_name as string) ?? null,
+          updatedAt: row.updated_at as string,
+          textura: mapTextura(row.texture),
+          piezas: row.piezas as number,
+        }),
+      )
+    } catch {
+      // Worker sin desplegar: mejor una sección vacía que una pantalla de
+      // error (ver schemaHealth, que ya avisa de lo que falta).
+      return []
+    }
+  },
+
+  async create(input: MapaInput, userId: number): Promise<number> {
+    const now = new Date().toISOString()
+    return exec(
+      'INSERT INTO battle_maps (name, width_cm, height_cm, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [input.name.trim(), input.anchoCm, input.altoCm, userId, now, now],
+    )
+  },
+
+  async rename(id: number, name: string): Promise<void> {
+    await exec('UPDATE battle_maps SET name = ?, updated_at = ? WHERE id = ?', [
+      name.trim(),
+      new Date().toISOString(),
+      id,
+    ])
+  },
+
+  async remove(id: number): Promise<void> {
+    // Las piezas caen solas por ON DELETE CASCADE.
+    await exec('DELETE FROM battle_maps WHERE id = ?', [id])
+  },
+
+  async getById(id: number): Promise<MapaDetalle | null> {
+    const cabecera = await queryOne('SELECT * FROM battle_maps WHERE id = ?', [id], (row) => ({
+      id: row.id as number,
+      name: row.name as string,
+      anchoCm: row.width_cm as number,
+      altoCm: row.height_cm as number,
+      userId: (row.user_id as number) ?? null,
+      updatedAt: row.updated_at as string,
+      textura: mapTextura(row.texture),
+    }))
+    if (!cabecera) return null
+
+    const filas = await query(
+      'SELECT * FROM battle_map_pieces WHERE map_id = ? ORDER BY sort_order, id',
+      [id],
+      mapPiece,
+    )
+    return { ...cabecera, piezas: filas.filter((p): p is SceneryPiece => p !== null) }
+  },
+
+  /** Guarda de una vez las medidas del mapa, su textura y TODA su escenografía. */
+  async save(id: number, anchoCm: number, altoCm: number, textura: TexturaMapa, piezas: SceneryPiece[]): Promise<void> {
+    await execBatch([
+      {
+        sql: 'UPDATE battle_maps SET width_cm = ?, height_cm = ?, texture = ?, updated_at = ? WHERE id = ?',
+        params: [anchoCm, altoCm, textura, new Date().toISOString(), id],
+      },
+      { sql: 'DELETE FROM battle_map_pieces WHERE map_id = ?', params: [id] },
+      ...piezas.map((p, i) => ({
+        sql: `INSERT INTO battle_map_pieces (map_id, kind, x_cm, y_cm, w_cm, h_cm, rotation, name, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [id, p.kind, p.xCm, p.yCm, p.anchoCm, p.altoCm, p.rotacion, p.nombre, i],
+      })),
+    ])
+  },
+}

@@ -123,11 +123,7 @@ function SpellFormModal({
     >
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Nivel"
-            value={String(draft.level)}
-            onChange={(e) => patch({ level: Number(e.target.value) })}
-          >
+          <Select label="Nivel" value={String(draft.level)} onChange={(e) => patch({ level: Number(e.target.value) })}>
             {MAGIC_LEVELS.map((level) => (
               <option key={level} value={level}>
                 Nivel {level}
@@ -145,7 +141,12 @@ function SpellFormModal({
         <TextField label="Nombre" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
 
         <div className="grid grid-cols-2 gap-3">
-          <OptionalField label="Alcance" value={draft.range} onChange={(v) => patch({ range: v })} placeholder="60 cm." />
+          <OptionalField
+            label="Alcance"
+            value={draft.range}
+            onChange={(v) => patch({ range: v })}
+            placeholder="60 cm."
+          />
           <OptionalField label="Impactos" value={draft.hits} onChange={(v) => patch({ hits: v })} placeholder="1D6" />
           <OptionalField label="Daño" value={draft.damage} onChange={(v) => patch({ damage: v })} placeholder="F4" />
           <OptionalField
@@ -214,7 +215,7 @@ export function MagicPathsPage() {
   return (
     <div>
       <PageHeader
-        title="Sendas de magia"
+        title="Sendas de Magia"
         description="Las sendas que puede conocer un hechicero, con sus hechizos. Se asignan a cada personaje desde el apartado «Magia» de su ficha."
         actions={
           <Button variant="primary" onClick={() => setCreatingPath(true)}>
@@ -236,8 +237,7 @@ export function MagicPathsPage() {
                 return (
                   <div key={group}>
                     <p className="mb-1 text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
-                      {MAGIC_GROUP_LABELS[group]}{' '}
-                      <span className="text-ink-soft/60">({groupPaths.length})</span>
+                      {MAGIC_GROUP_LABELS[group]} <span className="text-ink-soft/60">({groupPaths.length})</span>
                     </p>
                     <ul className="space-y-1">
                       {groupPaths.map((path) => {
@@ -416,11 +416,7 @@ export function MagicPathsPage() {
         >
           <div className="space-y-3">
             <TextField label="Nombre" value={newPathName} onChange={(e) => setNewPathName(e.target.value)} />
-            <Select
-              label="Grupo"
-              value={newPathGroup}
-              onChange={(e) => setNewPathGroup(e.target.value as MagicGroup)}
-            >
+            <Select label="Grupo" value={newPathGroup} onChange={(e) => setNewPathGroup(e.target.value as MagicGroup)}>
               {MAGIC_GROUPS.map((group) => (
                 <option key={group} value={group}>
                   {MAGIC_GROUP_LABELS[group]}

@@ -111,6 +111,9 @@ const SNAPSHOT_TABLES = [
   'magic_spells',
   'unit_magic_paths',
   'category_composition_rules',
+  // Apéndices: texto largo con formato, pero se lee siempre junto a la ficha
+  // de la unidad, así que viaja con el resto del catálogo.
+  'unit_appendices',
 ] as const
 
 /** Representación serializable en JSON de un BLOB (ver shared/image.ts en el frontend: mismo esquema base64). */
@@ -119,7 +122,9 @@ interface Base64Blob {
 }
 
 function isBase64Blob(value: unknown): value is Base64Blob {
-  return typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  return (
+    typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  )
 }
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -209,10 +214,7 @@ async function onImage(request: Request, env: Env, url: URL): Promise<Response> 
     return jsonResponse({ error: 'Clave de imagen no válida.' }, 400)
   }
   if (!env.IMAGES) {
-    return jsonResponse(
-      { error: 'El almacén de imágenes (R2) no está configurado en este Worker.' },
-      503,
-    )
+    return jsonResponse({ error: 'El almacén de imágenes (R2) no está configurado en este Worker.' }, 503)
   }
 
   if (request.method === 'GET' || request.method === 'HEAD') {
@@ -417,7 +419,9 @@ async function onMutate(request: Request, env: Env): Promise<Response> {
   // el resultado de esta escritura, para que la siguiente lectura del mismo
   // cliente (con ese bookmark) vea el cambio aunque la sirva una réplica.
   const session = env.DB.withSession(getIncomingBookmark(request))
-  const prepared = statements.map((statement) => session.prepare(statement.sql).bind(...decodeParams(statement.params ?? [])))
+  const prepared = statements.map((statement) =>
+    session.prepare(statement.sql).bind(...decodeParams(statement.params ?? [])),
+  )
   const batchResults = await session.batch(prepared)
   const results = batchResults.map((r) => ({
     insertId: r.meta.last_row_id,
@@ -636,6 +640,102 @@ const MIGRATIONS: string[] = [
   // ¿Esta persona ve también el DESPLIEGUE, o solo la lista? Por defecto no:
   // enseñarle el ejército a un rival no debería enseñarle dónde vas a colocar.
   'ALTER TABLE army_list_shares ADD COLUMN share_deployment INTEGER NOT NULL DEFAULT 0',
+  // Tamaño de peana ESTÁNDAR de cada etiqueta, en cm (ver domain/deployment).
+  // Se siembra con los valores que estaban escritos a fuego en el código.
+  'ALTER TABLE unit_type_tags ADD COLUMN base_width_cm REAL NOT NULL DEFAULT 12',
+  'ALTER TABLE unit_type_tags ADD COLUMN base_height_cm REAL NOT NULL DEFAULT 10',
+  `UPDATE unit_type_tags SET base_width_cm = 4, base_height_cm = 4
+    WHERE code IN ('PERSONAJE','HECHICERO','ARCHIMAGO','MAQUINA_GUERRA','ASEDIO')`,
+  "UPDATE unit_type_tags SET base_width_cm = 5, base_height_cm = 10 WHERE code = 'CARRO'",
+  // Medidas de la mesa de CADA lista: no todo el mundo juega en 180 × 120.
+  'ALTER TABLE army_lists ADD COLUMN table_width_cm REAL NOT NULL DEFAULT 180',
+  'ALTER TABLE army_lists ADD COLUMN table_height_cm REAL NOT NULL DEFAULT 120',
+  // Tamaño de una peana CONCRETA sobre la mesa, si se ha ajustado a mano.
+  // NULL = usar el estándar de su etiqueta.
+  'ALTER TABLE army_list_deployments ADD COLUMN w_cm REAL',
+  'ALTER TABLE army_list_deployments ADD COLUMN h_cm REAL',
+  // MAPAS: mesas con escenografía, independientes de los ejércitos. Se guardan
+  // en cm reales como el despliegue, para que hablen de la misma mesa.
+  `CREATE TABLE IF NOT EXISTS battle_maps (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     name       TEXT NOT NULL,
+     width_cm   REAL NOT NULL DEFAULT 180,
+     height_cm  REAL NOT NULL DEFAULT 120,
+     user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS battle_map_pieces (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     map_id     INTEGER NOT NULL REFERENCES battle_maps(id) ON DELETE CASCADE,
+     kind       TEXT NOT NULL,
+     x_cm       REAL NOT NULL,
+     y_cm       REAL NOT NULL,
+     w_cm       REAL NOT NULL,
+     h_cm       REAL NOT NULL,
+     rotation   REAL NOT NULL DEFAULT 0,
+     name       TEXT,
+     sort_order INTEGER NOT NULL DEFAULT 0
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_battle_map_pieces_map ON battle_map_pieces(map_id)',
+  // Mapa cargado en el despliegue de una lista. NULL = mesa libre, la de
+  // siempre, con sus medidas ajustables a mano.
+  'ALTER TABLE army_lists ADD COLUMN battle_map_id INTEGER REFERENCES battle_maps(id) ON DELETE SET NULL',
+  // Color de facción: el distintivo con el que se reconoce a un ejército de un
+  // vistazo (ver domain/factionColor). NULL = todavía sin asignar.
+  'ALTER TABLE factions ADD COLUMN color TEXT',
+  // Textura del tablero de un mapa: 'hierba' o NULL (tablero liso, que es como
+  // estaban todos los mapas hechos antes de que existiera la opción).
+  'ALTER TABLE battle_maps ADD COLUMN texture TEXT',
+  // Apéndices de una unidad: bloques de texto con formato (título + HTML
+  // saneado) que se escriben a mano y se pintan al final de su ficha. Van en
+  // tabla aparte y no en una columna de units porque son VARIOS por unidad y
+  // se reordenan. `body_html` guarda HTML porque el texto lleva negritas,
+  // cursivas y listas; lo que puede entrar está acotado en shared/richText.
+  `CREATE TABLE IF NOT EXISTS unit_appendices (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     unit_id    INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+     title      TEXT NOT NULL,
+     body_html  TEXT NOT NULL DEFAULT '',
+     sort_order INTEGER NOT NULL DEFAULT 0
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_unit_appendices_unit ON unit_appendices(unit_id)',
+  // Iniciales que se pintan dentro de la peana en el Despliegue ("RO" para
+  // Ratas Ogro), 3 caracteres. NULL = sin poner: la mesa saca entonces las
+  // iniciales del nombre (ver domain/unitAlias). No se usa para nada más, así
+  // que no lleva ni índice ni restricción de unicidad.
+  'ALTER TABLE units ADD COLUMN alias TEXT',
+  // Colores de partida de las facciones. NO salen del emblema: los 22 son
+  // ilustraciones sepia sobre pergamino (tonos en la franja 23°–47°, nueve de
+  // ellos casi grises), así que muestreándolos saldrían 22 marrones iguales.
+  // Se eligen por lo que cada facción es y se comprobó que el par más parecido
+  // queda a 17,6 de distancia perceptiva (CIE76), mediana 60.
+  // `WHERE color IS NULL` deja intacto lo que el usuario haya cambiado a mano.
+  `UPDATE factions SET color = CASE name
+     WHEN 'Imperio'          THEN '#a8262a'
+     WHEN 'Bretonia'         THEN '#2b56a8'
+     WHEN 'Enanos'           THEN '#c25c17'
+     WHEN 'Altos Elfos'      THEN '#4d9ed6'
+     WHEN 'Elfos Oscuros'    THEN '#6a2a8c'
+     WHEN 'Elfos Silvanos'   THEN '#2f7a3c'
+     WHEN 'Orcos y Goblins'  THEN '#8fbf22'
+     WHEN 'Skaven'           THEN '#8a6b3d'
+     WHEN 'Condes Vampiro'   THEN '#2f2a45'
+     WHEN 'Reyes Funerarios' THEN '#d9b83a'
+     WHEN 'Hombres Lagarto'  THEN '#12867c'
+     WHEN 'Hombres Bestia'   THEN '#4a3218'
+     WHEN 'Hordas del Caos'  THEN '#8e1f5e'
+     WHEN 'Enanos del Caos'  THEN '#6d2a08'
+     WHEN 'Norsca'           THEN '#1d6e94'
+     WHEN 'Enanos Norses'    THEN '#8fa3ad'
+     WHEN 'Mercenarios'      THEN '#6d5a86'
+     WHEN 'Estalia'          THEN '#e8801a'
+     WHEN 'Akenhara'         THEN '#c99a6a'
+     WHEN 'Kerit Khanan'     THEN '#2f4a2a'
+     WHEN 'Bestias'          THEN '#a4515f'
+     WHEN 'Asedio'           THEN '#5a646d'
+     ELSE color END
+   WHERE color IS NULL`,
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

@@ -29,7 +29,10 @@ interface SchemaCheck {
 const CHECKS: SchemaCheck[] = [
   { label: 'Log de cambios', probe: 'SELECT id FROM change_log LIMIT 1' },
   { label: 'Reglas especiales de monturas', probe: 'SELECT rule_id FROM profile_special_rules LIMIT 1' },
-  { label: 'Monturas en la sección Hojas de Unidad', probe: 'SELECT include_in_sheets FROM attribute_profiles LIMIT 1' },
+  {
+    label: 'Monturas en la sección Hojas de Unidad',
+    probe: 'SELECT include_in_sheets FROM attribute_profiles LIMIT 1',
+  },
   { label: 'Unidades activas/inactivas', probe: 'SELECT active FROM units LIMIT 1' },
   { label: 'Opciones de unidad con ficha', probe: 'SELECT profile_id FROM upgrades LIMIT 1' },
   // Presentación de las hojas. Cada vez que se añade una de estas, hay que
@@ -55,6 +58,16 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Ejércitos compartidos', probe: 'SELECT user_id FROM army_list_shares LIMIT 1' },
   { label: 'Despliegue sobre la mesa', probe: 'SELECT x_cm FROM army_list_deployments LIMIT 1' },
   { label: 'Compartir el despliegue', probe: 'SELECT share_deployment FROM army_list_shares LIMIT 1' },
+  { label: 'Peana estándar por etiqueta', probe: 'SELECT base_width_cm FROM unit_type_tags LIMIT 1' },
+  { label: 'Medidas de la mesa', probe: 'SELECT table_width_cm FROM army_lists LIMIT 1' },
+  { label: 'Peanas redimensionadas', probe: 'SELECT w_cm FROM army_list_deployments LIMIT 1' },
+  { label: 'Color de facción', probe: 'SELECT color FROM factions LIMIT 1' },
+  { label: 'Alias de unidad', probe: 'SELECT alias FROM units LIMIT 1' },
+  { label: 'Apéndices de unidad', probe: 'SELECT body_html FROM unit_appendices LIMIT 1' },
+  { label: 'Mapas', probe: 'SELECT width_cm FROM battle_maps LIMIT 1' },
+  { label: 'Textura del mapa', probe: 'SELECT texture FROM battle_maps LIMIT 1' },
+  { label: 'Escenografía de los mapas', probe: 'SELECT kind FROM battle_map_pieces LIMIT 1' },
+  { label: 'Mapa cargado en el despliegue', probe: 'SELECT battle_map_id FROM army_lists LIMIT 1' },
   { label: 'Reglas destacadas por facción', probe: 'SELECT rule_id FROM faction_featured_rules LIMIT 1' },
 ]
 

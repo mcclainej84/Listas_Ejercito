@@ -10,8 +10,10 @@ import {
 } from '@/data/repositories/lookupRepositories'
 import { MountRepository, ChariotRepository } from '@/data/repositories/profileCatalogRepository'
 import { RuleRepository } from '@/data/repositories/ruleRepository'
+import { AppendixRepository } from '@/data/repositories/appendixRepository'
 import { validateUnitScalarInput } from '@/domain/validation'
 import { ARMOR_SAVE_VALUES, formatArmorSave } from '@/domain/unitFormat'
+import { ALIAS_MAX, inicialesDe, normalizarAlias } from '@/domain/unitAlias'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
@@ -22,6 +24,7 @@ import { Select } from '@/shared/ui/Select'
 import { RelationEditor } from '@/shared/ui/RelationEditor'
 import { AttributeTable, EditableAttributeTable, extractProfileInput } from '@/shared/ui/AttributeTable'
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
+import { AppendicesModal } from '@/features/admin/units/AppendicesModal'
 import { EquipmentCreateModal } from '@/features/admin/units/EquipmentCreateModal'
 import { UpgradeCreateModal } from '@/features/admin/units/UpgradeCreateModal'
 import type { AttributeProfile, AttributeProfileInput, CommandRole, EquipmentOption, UnitDetail } from '@/domain/types'
@@ -64,6 +67,7 @@ interface UnitDraft {
 function scalarFromUnit(unit: UnitDetail): UnitScalarInput {
   return {
     name: unit.name,
+    alias: unit.alias,
     categoryId: unit.categoryId,
     typeTagId: unit.typeTagId,
     baseCost: unit.baseCost,
@@ -131,6 +135,9 @@ export function UnitDetailPage() {
   const [saving, setSaving] = useState(false)
   const [issues, setIssues] = useState<string[]>([])
   const [savedFlash, setSavedFlash] = useState(false)
+  const [showAppendices, setShowAppendices] = useState(false)
+  const { data: apendices, reload: reloadApendices } = useAsync(() => AppendixRepository.listByUnit(unitId), [unitId])
+  const numApendices = apendices?.length ?? 0
   const [creatingEquipmentQuery, setCreatingEquipmentQuery] = useState<string | null>(null)
   const [creatingUpgradeQuery, setCreatingUpgradeQuery] = useState<string | null>(null)
   // La unidad puede no tener todavía ficha base (unidad recién creada desde
@@ -360,6 +367,12 @@ export function UnitDetailPage() {
         actions={
           <div className="flex items-center gap-3">
             {dirty && !saving && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}
+            {/* Los apéndices se guardan en su propia ventana, aparte del
+                borrador de la ficha (ver AppendicesModal): son textos largos y
+                no deben depender de que aquí se pulse "Guardar cambios". */}
+            <Button variant="secondary" onClick={() => setShowAppendices(true)}>
+              Apéndices{numApendices > 0 ? ` (${numApendices})` : ''}
+            </Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Guardando…' : savedFlash ? '✓ Guardado' : 'Guardar cambios'}
             </Button>
@@ -391,13 +404,36 @@ export function UnitDetailPage() {
               siempre completas, sin medias líneas vacías.
               -------------------------------------------------------------- */}
           <Panel title="Datos generales">
-            <div className="grid grid-cols-12 gap-x-3 gap-y-4">
+            {/* `items-end` alinea los campos por ABAJO. Sin él, un rótulo que
+                se parte en dos líneas ("Tamaño inicial" en su columna estrecha)
+                empuja su caja hacia abajo y la fila sale escalonada: los tres
+                tamaños quedaban a tres alturas distintas. Alineados por el pie,
+                las cajas están siempre en la misma línea se parta el rótulo o
+                no. */}
+            <div className="grid grid-cols-12 items-end gap-x-3 gap-y-4">
               {/* Fila 1 */}
-              <div className="col-span-12 sm:col-span-6">
+              <div className="col-span-12 sm:col-span-5">
                 <TextField
                   label="Nombre"
                   value={draft.scalar.name}
                   onChange={(e) => updateDraft((d) => ({ ...d, scalar: { ...d.scalar, name: e.target.value } }))}
+                />
+              </div>
+              {/* Alias: SOLO se pinta dentro de la peana en el Despliegue. No
+                  interviene en el montaje del ejército ni sale en ningún PDF,
+                  por eso no se valida ni tiene que ser único. En blanco, la
+                  mesa usa las iniciales del nombre. */}
+              <div className="col-span-4 sm:col-span-1">
+                <TextField
+                  label="Alias"
+                  maxLength={ALIAS_MAX}
+                  placeholder={inicialesDe(draft.scalar.name) || '—'}
+                  title="Iniciales para la peana del Despliegue (máx. 3). En blanco se usan las del nombre."
+                  className="text-center uppercase"
+                  value={draft.scalar.alias ?? ''}
+                  onChange={(e) =>
+                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
+                  }
                 />
               </div>
               <div className="col-span-4 sm:col-span-2">
@@ -411,7 +447,7 @@ export function UnitDetailPage() {
                   }
                 />
               </div>
-              <div className="col-span-8 sm:col-span-4">
+              <div className="col-span-4 sm:col-span-4">
                 <Select
                   label="Categoría"
                   value={draft.scalar.categoryId ?? ''}
@@ -469,7 +505,7 @@ export function UnitDetailPage() {
                   desaparece entera en vez de quedarse a medias. */}
               {unit.unitType !== 'personaje' && (
                 <>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="col-span-4 sm:col-span-3">
                     <TextField
                       label="Tamaño mín."
                       type="number"
@@ -483,7 +519,7 @@ export function UnitDetailPage() {
                       }
                     />
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="col-span-4 sm:col-span-3">
                     <TextField
                       label="Tamaño máx."
                       type="number"
@@ -497,7 +533,7 @@ export function UnitDetailPage() {
                       }
                     />
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="col-span-4 sm:col-span-3">
                     <TextField
                       label="Tamaño inicial"
                       type="number"
@@ -518,7 +554,7 @@ export function UnitDetailPage() {
               {/* Ojo: el 0-1 no es tamaño. Limita cuántas UNIDADES de este tipo
                   caben en el ejército, no cuántas miniaturas la forman. */}
               {unit.unitType !== 'personaje' && (
-                <div className="col-span-12 flex items-end pb-2 sm:col-span-6">
+                <div className="col-span-12 flex items-center pb-1.5 sm:col-span-3">
                   <label
                     className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft"
                     title="Solo una unidad de este tipo en todo el ejército. No limita el número de miniaturas."
@@ -797,6 +833,15 @@ export function UnitDetailPage() {
           </Panel>
         </div>
       </div>
+
+      {showAppendices && (
+        <AppendicesModal
+          unitId={unitId}
+          unitName={unit.name}
+          onClose={() => setShowAppendices(false)}
+          onChanged={reloadApendices}
+        />
+      )}
 
       {creatingEquipmentQuery !== null && (
         <EquipmentCreateModal

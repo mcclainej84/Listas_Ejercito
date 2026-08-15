@@ -21,6 +21,13 @@ export interface Faction {
   emblemUrl: string | null
   /** true si el usuario ha subido un emblema propio (permite ofrecer "quitar" para volver al de fábrica). */
   hasCustomEmblem: boolean
+  /**
+   * Color distintivo, "#rrggbb". Es con lo que se pinta cada peana en el
+   * Despliegue: a ese tamaño el emblema no se distingue de otro, el color sí.
+   * null = sin asignar; la UI cae a COLOR_FACCION_POR_DEFECTO (ver
+   * domain/factionColor).
+   */
+  color: string | null
 }
 
 export interface UnitCategory {
@@ -41,6 +48,9 @@ export interface UnitTypeTag {
   code: string
   name: string
   sortOrder: number
+  /** Peana estándar de las unidades con esta etiqueta, en cm de mesa (ver domain/deployment). */
+  baseWidthCm: number
+  baseHeightCm: number
 }
 
 /**
@@ -145,6 +155,18 @@ export interface Unit {
   typeTagId: number | null
   unitType: UnitType
   name: string
+  /**
+   * Iniciales con las que se reconoce la unidad DENTRO de su peana en el
+   * Despliegue ("RO" para Ratas Ogro), 3 caracteres como mucho.
+   *
+   * No interviene en NADA más: no se busca por él, no sale en las listas ni en
+   * los PDF ni en las hojas de unidad, y dos unidades pueden compartirlo sin
+   * que pase nada. Es una etiqueta de dibujo, no un identificador.
+   *
+   * null = sin poner; en la mesa se cae a las iniciales del nombre
+   * (ver aliasDeUnidad en domain/unitAlias).
+   */
+  alias: string | null
   baseCost: number
   minSize: number | null
   maxSize: number | null
@@ -177,6 +199,22 @@ export interface Unit {
   sortOrder: number
   /** Activa (true) o desactivada (false): las desactivadas no se ofrecen al montar ejércitos, pero siguen en Administración. Por defecto activa. */
   active: boolean
+}
+
+/**
+ * APÉNDICE de una unidad: un bloque de texto con formato (reglas propias,
+ * trasfondo, aclaraciones) que se escribe a mano y sale al final de su ficha.
+ * Una unidad puede tener varios y se ordenan.
+ *
+ * `bodyHtml` es HTML, pero SANEADO: solo párrafos, negrita, cursiva y listas
+ * (ver shared/richText). Nunca se guarda lo que pegue el navegador tal cual.
+ */
+export interface UnitAppendix {
+  id: number
+  unitId: number
+  title: string
+  bodyHtml: string
+  sortOrder: number
 }
 
 /** Unidad con todas sus relaciones cargadas — para la ficha de detalle/edición. */
@@ -321,6 +359,11 @@ export interface ArmyList {
   updatedAt: string
   /** Dueño de la lista: los ejércitos son privados de cada usuario. null = sin asignar todavía. */
   userId: number | null
+  /** Medidas de la mesa en el Despliegue, en cm. Solo cuentan si no hay mapa cargado. */
+  tableWidthCm: number
+  tableHeightCm: number
+  /** Mapa cargado en el Despliegue; null = mesa libre. */
+  battleMapId: number | null
 }
 
 /**

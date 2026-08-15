@@ -71,6 +71,7 @@ const CATALOG_TABLES = [
   'magic_spells',
   'unit_magic_paths',
   'category_composition_rules',
+  'unit_appendices',
 ] as const
 
 type CatalogSnapshot = Partial<Record<(typeof CATALOG_TABLES)[number], Record<string, unknown>[]>>
@@ -81,7 +82,9 @@ interface Base64Blob {
 }
 
 function isBase64Blob(value: unknown): value is Base64Blob {
-  return typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  return (
+    typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  )
 }
 
 function base64ToBytes(b64: string): Uint8Array {

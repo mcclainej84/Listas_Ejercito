@@ -13,6 +13,357 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.105 — 14/08/2026 16:10
+
+- En el Despliegue, el rótulo de la peana pasa a ser **«36 Guerreros Skaven»**:
+  cantidad y nombre, como se dice en voz alta.
+- **Ventana de apéndices, rehecha.** «Nuevo» y «Copiar de…» comparten ahora un
+  único bloque partido por un filete: mismo alto, mismo cuerpo de letra y el
+  mismo ancho exacto. Antes eran dos botones de familias distintas, uno más
+  alto que el otro.
+- La ventana **ocupa bastante menos**: de 64 a 48 rem de ancho, columna de
+  apéndices más estrecha y sin alto mínimo forzado.
+- La lista está más tranquila: el apéndice abierto se marca con el filete
+  granate que ya usa el orden de batalla, y las flechas de ordenar y la
+  papelera solo asoman al pasar por encima (o al llegar con el tabulador).
+- Una sola línea de ayuda bajo el editor, y la que toca en cada caso: si está
+  vacío, que no saldrá en la ficha; si tiene texto, que se puede pegar.
+
+---
+
+## 0.104 — 14/08/2026 15:45
+
+- **En el Despliegue, posar el ratón sobre una peana dice quién es**: nombre y
+  cuántas miniaturas, al momento. Con la mesa llena de cuadros de tres letras
+  era la única forma de reconocer una unidad sin ir a buscarla a la lista. Sale
+  encima de la peana, o debajo si está pegada al borde de arriba.
+- **Los mapas pueden tener suelo de hierba.** En el editor, un apartado
+  «Suelo» con dos muestras: Liso (el pergamino de siempre) y Hierba.
+- La hierba es deliberadamente **muy suave**: manchas verdes al 10 % y un
+  rayado finísimo sobre el mismo pergamino. Encima van la retícula, la línea
+  central, el terreno y hasta veinte peanas de colores; un fondo con contraste
+  de verdad competiría con todo eso.
+- Se ve igual en los tres sitios donde se pinta una mesa: el editor, la
+  miniatura del listado y el Despliegue al cargar ese mapa.
+
+---
+
+## 0.103 — 14/08/2026 15:20
+
+- **Apéndices de unidad.** Botón «Apéndices» en la ficha de la unidad, con el
+  número que tiene. Desde ahí se añaden, editan, borran y ordenan; una unidad
+  puede tener los que haga falta, cada uno con su título.
+- **Editor con formato**: negrita, cursiva y listas (con puntos o numeradas).
+  El texto va justificado siempre, así que no hay nada que decidir por párrafo.
+- **Se puede pegar**, y lo pegado llega limpio: solo sobreviven párrafos,
+  negrita, cursiva y listas. Un texto traído de Word o de un PDF pierde sus
+  tipografías, colores y tamaños, que era lo que ensuciaba la ficha sin remedio.
+- **«Copiar de…»** trae una copia de un apéndice de cualquier otra unidad, con
+  buscador por título, unidad o facción. Es una COPIA: a partir de ahí son
+  independientes y editar uno no cambia el otro.
+- Los apéndices se guardan por su cuenta, no con el «Guardar cambios» de la
+  ficha; y cambiar de apéndice con algo escrito sin guardar avisa antes.
+- Salen también **debajo de la hoja en la sección Fichas** —debajo y no dentro:
+  la hoja tiene alto máximo y recorta lo que se sale, así que un apéndice largo
+  la habría partido por la mitad.
+
+---
+
+## 0.102 — 14/08/2026 14:50
+
+- **Arreglada la alineación de «Datos generales»** en la ficha de unidad. Los
+  campos se alinean ahora por abajo: un rótulo que se parte en dos líneas
+  («Tamaño inicial» en su columna) empujaba su caja y dejaba los tres tamaños a
+  tres alturas distintas. Los tres tienen además la misma anchura.
+- «Sendas de magia» pasa a **«Sendas de Magia»** (menú y título del editor).
+- **En el Despliegue, todas las iniciales van del mismo tamaño.** Antes cada
+  una se escribía al tamaño de su peana y la mesa parecía un cartel de
+  rebajas. Ahora se calcula el mayor cuerpo que quepa en todas y se usa ese; se
+  mide en centímetros de mesa, así que no cambia al redimensionar la ventana.
+- **Fuera el nombre debajo de la peana**: con las iniciales dentro sobra, y el
+  detalle sigue saliendo al pasar el ratón por la fila del orden de batalla.
+
+---
+
+## 0.101 — 14/08/2026 14:35
+
+- **Categorías y Etiquetas**: fuera el código en mayúsculas de cada fila. Era
+  el mismo nombre otra vez (Personajes / PERSONAJE); el código sigue estando y
+  sigue sin poder editarse, solo que ya no se enseña.
+- «Etiquetas de tipo — peana en el Despliegue» pasa a llamarse **«Etiquetas»**.
+- **La peana ahora es una columna, no dos cajitas sueltas**: cabecera de
+  columnas (Nombre · Peana · Uso), cifras alineadas y campos que solo se
+  dibujan al apuntarlos.
+- Y guarda **al salir del campo o con Intro**, no en cada tecla. Antes, cambiar
+  12 por 5 escribía tres veces en la base pasando por valores que nadie quiso,
+  con la lista recargándose bajo el cursor. Con Escape se descarta.
+
+---
+
+## 0.100 — 14/08/2026 14:20
+
+- Nuevo tipo de escenografía **«Colina rocosa»**: la meseta de cantiles que
+  enviaste. Nace a 40 × 29 cm, la proporción de la ilustración. Van once tipos
+  por ilustración y seis por vector.
+
+---
+
+## 0.99 — 14/08/2026 14:05
+
+- **Alias de unidad**: las iniciales que se pintan DENTRO de la peana en el
+  Despliegue («RO» para Ratas Ogro). Máximo 3 caracteres.
+- Se edita en la ficha de la unidad, junto al nombre. **No se usa para nada
+  más**: ni al montar el ejército, ni en las listas, ni en los PDF, ni en las
+  hojas de unidad. Puede repetirse entre unidades.
+- En blanco, la mesa saca **las iniciales del nombre** («Lobos gigantes» → LG,
+  «Grifo» → GRI), y son esas las que aparecen en gris en el campo. Así una
+  unidad recién creada ya tiene su alias sin tener que escribirlo, y renombrarla
+  no deja unas iniciales viejas colgando.
+- El texto va en SVG para que **encoja con el recuadro**: cabe igual en una
+  peana de personaje de 4 cm que en un carro de 5 × 10, y no hay que recalcular
+  nada al cambiar el tamaño de la mesa o de la pantalla. El cuerpo de letra
+  depende del número de letras, para no desaprovechar el hueco con una sola.
+- El color de las letras sale del color de la facción: claro sobre los oscuros,
+  tinta sobre los claros.
+
+---
+
+## 0.98 — 14/08/2026 13:40
+
+- **Cada facción tiene su color.** Se ve —y se cambia— en un recuadro pequeño
+  al editar la facción.
+- **En el Despliegue, las peanas se pintan de ese color** y ocupan el recuadro
+  entero, en lugar del emblema: a 40 px de peana un emblema no se distinguía de
+  otro, y dejaba pergamino alrededor. El color no es plano, lleva un entramado
+  fino y un degradado para que tenga materia sobre el terreno pintado. El
+  nombre se escribe en claro u oscuro según el color, para que se lea también
+  sobre los amarillos.
+- Los 22 colores **no salen de los emblemas**: son ilustraciones sepia sobre
+  pergamino, con los tonos en la franja 23°–47° y nueve de ellos casi grises;
+  muestreándolos habrían salido 22 marrones iguales. Se han elegido por lo que
+  cada facción es (el rojo del Imperio, el azul de Bretonia, el verde de los
+  Orcos) y se ha comprobado que el par más parecido queda a 17,6 de distancia
+  perceptiva (CIE76), con mediana 60.
+
+---
+
+## 0.97 — 30/07/2026 12:15
+
+- Nuevo tipo **«Casa cuadrada»**, con la ilustración que enviaste. Van diez
+  tipos por ilustración y seis por vector.
+
+---
+
+## 0.96 — 30/07/2026 12:05
+
+- **Arreglado: cambiar el tamaño de una pieza girada no funcionaba.** El
+  tirador está en la esquina y gira con la pieza, así que el ratón se mueve en
+  los ejes de la mesa mientras lo que se estira son el ancho y el fondo de la
+  pieza, que a 40° apuntan a otro sitio. Ahora se deshace el giro antes de
+  medir, y redimensionar se comporta igual esté como esté puesta.
+
+---
+
+## 0.95 — 30/07/2026 11:50
+
+- Nuevo tipo de escenografía **«Casa»**, con la ilustración que enviaste. Nace
+  con la proporción de la propia imagen, así que sale sin deformar y solo hay
+  que colocarla.
+
+---
+
+## 0.94 — 30/07/2026 11:40
+
+- Nuevo botón **«Retirar todas de la mesa»** en el Despliegue: devuelve de
+  golpe a la reserva todo lo desplegado. No pide confirmación porque no borra
+  nada — basta con no guardar para deshacerlo.
+- **La ficha emergente sale ahora a la derecha de la fila** y centrada en
+  vertical, en vez de encima: en una columna lateral estrecha se salía por la
+  izquierda y aparecía cortada.
+- Y **cambia de aspecto**: pergamino en vez de un bloque negro, con cabecera de
+  emblema y nombre, y las filas separadas por filetes. Se queda solo con lo que
+  se elige al montar la lista —**equipo, montura, mando y opciones**—; fuera el
+  perfil, las reglas especiales y los puntos, que no cambian al desplegar.
+
+## 0.93 — 30/07/2026 11:20
+
+- Fuera el botón **«Rocas»** de la paleta, que Peñasco, Roca y Lajas cubren
+  mejor. Los mapas que ya tuvieran una pieza de ese tipo la siguen mostrando:
+  se deja de ofrecer, no se borra.
+
+---
+
+## 0.92 — 30/07/2026 11:10
+
+- **Tres tipos de piedra nuevos** con sus ilustraciones: **Peñasco**, **Roca** y
+  **Lajas**. Venían con fondo negro opaco; el recorte de fondo ahora funciona
+  igual con fondos claros y oscuros, deduciendo el color de las esquinas.
+- **Los siete tipos que siguen siendo vectoriales —río, rocas, ruinas,
+  edificio, muro, puente y camino— se han redibujado al estilo de las
+  ilustraciones**: ruedo de hierba irregular alrededor, siluetas trazadas a
+  pulso en vez de círculos y rectángulos perfectos, grano de ruido, sombra
+  suave, y la paleta muestreada de las propias ilustraciones. No pasan por
+  pintados a mano, pero dejan de parecer de otro programa.
+
+---
+
+## 0.91 — 30/07/2026 10:45
+
+- «Campo de cultivo» pasa a llamarse **«Sembrado»** y se dibuja con la
+  ilustración que enviaste. Van cinco tipos por ilustración y siete por vector.
+
+---
+
+## 0.90 — 30/07/2026 10:35
+
+- **Colina**, **pantano** y **laguna** pasan a dibujarse con las ilustraciones
+  cenitales que enviaste, como ya hacía el bosque. Van cuatro tipos por
+  ilustración y ocho por vector.
+- **Arreglado el fondo blanco** de la laguna y el pantano: sus archivos venían
+  sin transparencia, con el damero de fondo pintado dentro. Se recorta con un
+  relleno desde los bordes, que borra solo lo claro conectado con el borde y
+  respeta las piedras y la vegetación clara del interior.
+
+---
+
+## 0.86 — 30/07/2026 09:45
+
+- **El despliegue puede usar un mapa.** En el panel de la derecha se elige
+  entre «Mesa libre (sin mapa)» —la de siempre, con sus barras de tamaño— o
+  cualquiera de los mapas guardados. Con un mapa cargado, **sus medidas mandan**
+  (las barras desaparecen) y su **escenografía se pinta de fondo sin poder
+  tocarse**: aquí se despliega el ejército, no se rehace el terreno. Solo se
+  mueven las tropas.
+- **Los mapas son públicos.** En la sección Mapas salen los de todos los
+  usuarios y cualquiera puede abrirlos y cargarlos en su despliegue; editarlos
+  y borrarlos sigue siendo cosa de su autor, así que la papelera solo aparece
+  en los propios.
+- Al cambiar de mapa, las unidades que se quedarían fuera se reencajan por el
+  borde más cercano: dos mapas no tienen por qué medir lo mismo. Y si alguien
+  borra un mapa que estabas usando, la lista vuelve a mesa libre en vez de
+  quedarse rota.
+
+## 0.85 — 30/07/2026 09:15
+
+- El tablero de Mapas y Despliegue se dibuja un **5 % más pequeño**.
+
+---
+
+## 0.84 — 30/07/2026 09:00
+
+- **El tablero aprovecha ya toda la pantalla.** Lo que lo estrangulaba no era
+  el alto sino un tope de ancho que le había puesto; fuera ese tope, con menos
+  alto reservado y las dos columnas laterales algo más estrechas, la mesa gana
+  cerca de un 40 % en 1080p.
+
+- El **bosque** de los mapas pasa a dibujarse con la **ilustración cenital** que
+  enviaste, en vez del vector. Los tipos que tengan imagen la usan; los demás
+  siguen con su silueta, y las dos vías se estiran igual al redimensionar la
+  pieza. En el catálogo de la izquierda la muestra se ve sin deformar.
+
+## 0.83 — 30/07/2026 08:35
+
+- En Mapas y Despliegue: **fuera los botones de tamaño de mesa** (180 × 120 y
+  240 × 180), que quedan solo las barras; **fuera las barras negras** que
+  cortaban la cabecera y los filetes del marcador, sustituidos por un único
+  filete fino; y **fuera los textos que explicaban qué hacer** en el panel
+  derecho.
+- La pantalla es algo **más pequeña**: se centra con un ancho máximo y la mesa
+  reserva más alto, así que el tablero encoge.
+
+## 0.82 — 30/07/2026 08:10
+
+- **El tablero se centra y las reglas caen sobre él.** En Mapas y en
+  Despliegue, las reglas graduadas ocupaban el ancho entero de la columna
+  mientras el tablero —limitado por alto— solo una parte, así que las marcas no
+  coincidían con sus líneas y el conjunto quedaba escorado a la izquierda.
+  Ahora el ancho lo manda el tablero, reglas incluidas, y el bloque va
+  centrado.
+- El segundo filete del tablero pasa a dibujarse por fuera, sin ocupar sitio:
+  el relleno que lo separaba descuadraba la regla unos píxeles.
+
+## 0.81 — 30/07/2026 07:45
+
+- **Arreglado: el mapa y el despliegue salían diminutos y pegados a la
+  izquierda**, con media pantalla vacía. Los márgenes negativos que ensanchan
+  estas dos pantallas solo estiran un elemento de ancho automático; con
+  `w-full`, el ancho quedaba fijado al del resto del programa y lo único que
+  hacían era desplazarlo. Ahora ocupan la ventana entera y la mesa aprovecha
+  todo el espacio disponible en 1080p.
+
+## 0.80 — 30/07/2026 07:20
+
+- **Nueva sección «Mapas»** en el menú de arriba: mesas con escenografía,
+  independientes de los ejércitos. Se crean, se abren, se renombran y se
+  borran, y cada tarjeta del listado enseña una **miniatura del mapa de
+  verdad** — con seis mesas guardadas, la forma del terreno es lo que se
+  reconoce, no el nombre.
+- El **editor de mapas** es hermano del Despliegue y funciona igual: mesa a
+  escala con reglas graduadas, tamaño con dos barras (hasta 240 × 180), y
+  edición en memoria que se persiste con «Guardar mapa».
+- **Doce tipos de escenografía** vistos desde arriba: bosque, colina, río,
+  laguna, pantano, rocas, ruinas, edificio, campo de cultivo, muro, puente y
+  camino. Cada uno **dibujado con su forma y su color** —curvas de nivel para
+  la colina, surcos para el campo, bloques angulosos para las rocas— para
+  distinguirlos de un vistazo sin leer etiquetas. Nacen con el tamaño que
+  suelen tener de verdad, así que se colocan y ya está.
+- Cada pieza se **arrastra, se gira, se cambia de tamaño** con el tirador de la
+  esquina, se duplica, se le puede poner nombre propio y se quita. Las flechas
+  la mueven al centímetro.
+
+## 0.79 — 30/07/2026 06:45
+
+- El Despliegue **cabe en una pantalla de 1080p sin desplazarse**. La página se
+  planta en 84 rem en vez de estirarse hasta el borde del monitor, y la mesa se
+  limita también **por alto** conservando su proporción: antes, un tablero de
+  240 × 180 se salía por abajo.
+- En el orden de batalla, cada fila enseña solo **el nombre y cuántas
+  miniaturas son**. Fuera el tamaño de peana, el equipo y los puntos: en una
+  lista de veinte unidades, cada dato de más es una línea que hay que saltarse.
+- Todo eso pasa a una **ficha emergente al pasar el ratón** con el detalle
+  completo: facción, categoría y etiqueta, miniaturas y puntos, perfil, equipo,
+  opciones, grupo de mando, montura, carro y reglas especiales (las de la
+  montura elegida incluidas).
+
+## 0.78 — 30/07/2026 06:10
+
+- **El orden de batalla ya no se vacía.** Desplegar una unidad la deja en la
+  lista: lo que cambia es su marca de estado —cuadro relleno si está en la
+  mesa, hueco si sigue en reserva—. Con medio ejército puesto, antes no había
+  forma de ver qué llevabas.
+- **La lista y la mesa están unidas en los dos sentidos**: elegir una peana
+  marca su fila y la trae a la vista; pulsar una fila ya desplegada elige su
+  peana (sin recolocarla).
+- Cada fila muestra ahora **peana en cm, cantidad, puntos y equipo**, que es lo
+  único que distingue cuatro regimientos con el mismo emblema. El tamaño sale
+  en bronce cuando está ajustado a mano.
+- El **tamaño de la mesa se ajusta con dos barras** en vez de casillas, con su
+  cifra al lado y atajos para 180 × 120 y 240 × 180.
+- **Rediseño de la pantalla**: cabecera entre filetes con marcador de unidades
+  y puntos desplegados, reglas graduadas cada 30 cm en los bordes del tablero,
+  línea central a trazos, mesa con doble filete y sombra interior, y rótulos de
+  sección en versalitas.
+
+## 0.77 — 30/07/2026 05:30
+
+- **Despliegue rehecho.** Ocupa ahora **todo el ancho de la ventana**, con las
+  unidades a la izquierda, la mesa en el centro y un panel de ajustes a la
+  derecha. Encerrada en la columna del resto del programa, la mesa quedaba del
+  tamaño de un sello.
+- **Las medidas de la mesa se configuran** por ejército: 180 × 120 de salida y
+  hasta 240 × 180. Hay atajos para los dos tamaños más comunes. Al encoger la
+  mesa, lo que se quedaría fuera se reencaja por el borde más cercano en vez de
+  perderse.
+- **Cada peana se puede redimensionar** arrastrando el cuadrito de su esquina
+  inferior derecha (aparece al seleccionarla). Crece desde el centro, así que
+  no se desplaza mientras se estira. Un botón la devuelve al tamaño de su
+  etiqueta.
+- En **Categorías y Etiquetas**, cada etiqueta tiene ahora su **peana estándar
+  en cm**, editable. Vienen con lo que había escrito en el código: 12 × 10 la
+  tropa, 5 × 10 los carros y 4 × 4 personajes, hechiceros, máquinas de guerra y
+  asedio. El tamaño de una peana sale, por este orden, de lo que se haya puesto
+  a mano, del estándar de su etiqueta, y por último del tipo de unidad.
+
 ## 0.76 — 30/07/2026 04:40
 
 - Los **personajes se ordenan por coste de MAYOR a MENOR**, tanto al añadirlos
