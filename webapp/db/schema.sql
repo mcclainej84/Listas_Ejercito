@@ -677,8 +677,12 @@ CREATE TABLE battle_maps (
     name       TEXT NOT NULL,
     width_cm   REAL NOT NULL DEFAULT 180,
     height_cm  REAL NOT NULL DEFAULT 120,
-    -- Dueño del mapa. NULL = de nadie (no debería pasar; se asigna al crearlo).
+    -- Quién lo hizo. Los mapas son COMUNES: cualquiera los usa, los edita y los
+    -- borra; esto solo dice de quién salió y a quién pertenece si se oculta.
     user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    -- Oculto: fuera del listado de todos menos de su autor. Es la única forma
+    -- de tener un mapa a medias sin que le estorbe a nadie.
+    hidden     INTEGER NOT NULL DEFAULT 0,
     -- Suelo del tablero: 'hierba' o NULL (liso, el pergamino de siempre). Ver
     -- TEXTURAS en domain/scenery.ts. Lo mantiene el suelo de fábrica; un suelo
     -- propio va en floor_id.

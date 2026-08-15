@@ -3,7 +3,12 @@ import { clsx } from 'clsx'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { useFavoriteFactionId } from '@/shared/session/useFavoriteFactionId'
 import { sortFactionsFavoriteFirst } from '@/shared/session/sortFactionsFavoriteFirst'
-import { ImportRepository, ALL_FIELDS, type ImportDiffItem, type ImportFields } from '@/data/repositories/importRepository'
+import {
+  ImportRepository,
+  ALL_FIELDS,
+  type ImportDiffItem,
+  type ImportFields,
+} from '@/data/repositories/importRepository'
 import { parseArmyBook } from '@/features/admin/import/armyBookParser'
 import { extractTextFromFile } from '@/features/admin/import/extractText'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -66,7 +71,11 @@ export function ImportBookPage() {
   useEffect(() => {
     if (factionId == null && factions && factions.length > 0) {
       // La favorita si existe; si no, la primera.
-      setFactionId(favoriteFactionId != null && factions.some((f) => f.id === favoriteFactionId) ? favoriteFactionId : factions[0].id)
+      setFactionId(
+        favoriteFactionId != null && factions.some((f) => f.id === favoriteFactionId)
+          ? favoriteFactionId
+          : factions[0].id,
+      )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [factions, factionId, favoriteFactionId])
@@ -92,7 +101,9 @@ export function ImportBookPage() {
       const text = await extractTextFromFile(file)
       const parsed = parseArmyBook(text)
       if (parsed.length === 0) {
-        setError('No se han detectado unidades en el archivo. ¿Tiene el formato de lista de ejército esperado (secciones COMANDANTES/HÉROES/UNIDADES… con perfiles M HA HP…)?')
+        setError(
+          'No se han detectado unidades en el archivo. ¿Tiene el formato de lista de ejército esperado (secciones COMANDANTES/HÉROES/UNIDADES… con perfiles M HA HP…)?',
+        )
         setStatus('idle')
         return
       }
@@ -114,7 +125,9 @@ export function ImportBookPage() {
     setError(null)
     setProgress({ done: 0, total: chosen.length })
     try {
-      const res = await ImportRepository.applyImport(factionId, chosen, fields, (done, total) => setProgress({ done, total }))
+      const res = await ImportRepository.applyImport(factionId, chosen, fields, (done, total) =>
+        setProgress({ done, total }),
+      )
       // Al terminar, se vuelve al estado inicial (como al abrir la pantalla),
       // dejando solo un aviso breve de lo importado.
       setFlash(`✓ Importado: ${res.created} nuevas, ${res.updated} actualizadas.`)
@@ -229,7 +242,9 @@ export function ImportBookPage() {
 
           <div className="mb-4 rounded-sm border border-rule-dark/40 bg-parchment/60 px-4 py-3.5">
             <div className="mb-2.5 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Qué actualizar de cada unidad</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                Qué actualizar de cada unidad
+              </p>
               <div className="flex items-center gap-1 text-mini text-ink-soft">
                 <button
                   onClick={() => setFields({ ...ALL_FIELDS })}
@@ -240,7 +255,9 @@ export function ImportBookPage() {
                 </button>
                 <span className="text-rule-dark/50">·</span>
                 <button
-                  onClick={() => setFields(Object.fromEntries(FIELD_LABELS.map(([k]) => [k, false])) as unknown as ImportFields)}
+                  onClick={() =>
+                    setFields(Object.fromEntries(FIELD_LABELS.map(([k]) => [k, false])) as unknown as ImportFields)
+                  }
                   disabled={status !== 'ready'}
                   className="rounded-sm px-1.5 py-0.5 hover:text-ink disabled:opacity-50"
                 >
@@ -279,8 +296,8 @@ export function ImportBookPage() {
               })}
             </div>
             <p className="mt-2.5 text-mini text-ink-soft">
-              Solo se tocan los campos marcados; el resto de la ficha se conserva. En las unidades nuevas se crea la ficha
-              con los campos marcados (los no marcados quedan vacíos).
+              Solo se tocan los campos marcados; el resto de la ficha se conserva. En las unidades nuevas se crea la
+              ficha con los campos marcados (los no marcados quedan vacíos).
             </p>
           </div>
 
@@ -294,7 +311,9 @@ export function ImportBookPage() {
                   <th className="border-b border-rule-dark/30 py-1.5 px-2 text-left font-semibold">Cat.</th>
                   <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">Coste</th>
                   <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">Tam.</th>
-                  <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">Perfil (M·HA·HP·F·R·H·I·A·L)</th>
+                  <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">
+                    Perfil (M·HA·HP·F·R·H·I·A·L)
+                  </th>
                   <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">Reglas</th>
                   <th className="border-b border-rule-dark/30 py-1.5 px-2 text-center font-semibold">Opc.</th>
                 </tr>
@@ -329,11 +348,19 @@ export function ImportBookPage() {
                         {isNew ? (
                           <span className="rounded-sm bg-success/10 px-1.5 py-0.5 font-medium text-success">Nueva</span>
                         ) : (
-                          <span className="rounded-sm bg-bronze/15 px-1.5 py-0.5 font-medium text-bronze">Actualizar</span>
+                          <span className="rounded-sm bg-bronze/15 px-1.5 py-0.5 font-medium text-bronze">
+                            Actualizar
+                          </span>
                         )}
                       </td>
                       <td className="py-1.5 px-2 text-ink-soft">
-                        {p.categoryCode === 'PERSONAJE' ? 'Personaje' : p.categoryCode === 'BASICA' ? 'Básica' : p.categoryCode === 'ESPECIAL' ? 'Especial' : 'Singular'}
+                        {p.categoryCode === 'PERSONAJE'
+                          ? 'Personaje'
+                          : p.categoryCode === 'BASICA'
+                            ? 'Básica'
+                            : p.categoryCode === 'ESPECIAL'
+                              ? 'Especial'
+                              : 'Singular'}
                       </td>
                       <td className="py-1.5 px-2 text-center text-ink">
                         {p.baseCost != null ? `${p.baseCost}${p.perModel ? '/m' : ''}` : '—'}
@@ -341,11 +368,16 @@ export function ImportBookPage() {
                       <td className="py-1.5 px-2 text-center text-ink-soft">
                         {p.minSize != null ? `${p.minSize}${p.maxSize != null ? `-${p.maxSize}` : '+'}` : '—'}
                       </td>
-                      <td className="py-1.5 px-2 text-center font-mono text-mini text-ink-soft whitespace-nowrap">{prof}</td>
+                      <td className="py-1.5 px-2 text-center font-mono text-mini text-ink-soft whitespace-nowrap">
+                        {prof}
+                      </td>
                       <td className="py-1.5 px-2 text-center text-ink-soft" title={p.specialRules.join(', ')}>
                         {p.specialRules.length || '—'}
                       </td>
-                      <td className="py-1.5 px-2 text-center text-ink-soft" title={p.options.map((o) => `${o.name} (+${o.cost}${o.perModel ? '/m' : ''})`).join(' · ')}>
+                      <td
+                        className="py-1.5 px-2 text-center text-ink-soft"
+                        title={p.options.map((o) => `${o.name} (+${o.cost}${o.perModel ? '/m' : ''})`).join(' · ')}
+                      >
                         {p.options.length || '—'}
                       </td>
                     </tr>

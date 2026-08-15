@@ -84,7 +84,10 @@ function buildStatsTableWordHtml(rows: Array<{ label: string; profile: Attribute
   const thNum = `border:1px solid #1c1a16;padding:2.5px 2px;background:#e6e2d4;font-weight:bold;text-align:center;${cellFont}width:26px;`
   const thName = `border:1px solid #1c1a16;padding:2.5px 7px;background:#e6e2d4;font-weight:bold;text-align:left;${cellFont}`
   const tdNum = `border:1px solid #1c1a16;padding:2.5px 2px;text-align:center;${cellFont}width:26px;`
-  const head = `<tr><th style="${thName}"></th>` + ATTRIBUTE_LABELS.map(({ label: l }) => `<th style="${thNum}">${l}</th>`).join('') + '</tr>'
+  const head =
+    `<tr><th style="${thName}"></th>` +
+    ATTRIBUTE_LABELS.map(({ label: l }) => `<th style="${thNum}">${l}</th>`).join('') +
+    '</tr>'
   const body = rows
     .map(
       ({ label, profile }) =>
@@ -119,7 +122,9 @@ function buildUnitWordHtml(
   const illuColW = 220
   const gapW = 18
   const textColW = CONTENT_W - illuColW - gapW
-  const logoImg = assets.emblemUrl ? `<img src="${assets.emblemUrl}" width="46" height="46" style="display:block;">` : ''
+  const logoImg = assets.emblemUrl
+    ? `<img src="${assets.emblemUrl}" width="46" height="46" style="display:block;">`
+    : ''
   const illuImg = assets.illuUrl ? `<img src="${assets.illuUrl}" width="${illuColW}" style="display:block;">` : ''
 
   const statTables = buildStatsTableWordHtml(
@@ -143,7 +148,9 @@ function buildUnitWordHtml(
         .join('')}</ul>`
     : ''
   const cmdText = commandGroupText(unit)
-  const cmdHtml = cmdText ? `<div style="${bodyFont}margin:0 0 7px;"><b>Grupo de mando:</b> ${escHtml(cmdText)}</div>` : ''
+  const cmdHtml = cmdText
+    ? `<div style="${bodyFont}margin:0 0 7px;"><b>Grupo de mando:</b> ${escHtml(cmdText)}</div>`
+    : ''
   const rulesText = specialRulesText(unit)
 
   return `
@@ -365,7 +372,9 @@ function buildReferenceGroupTable(units: UnitDetail[]): string {
 
   let rows = ''
   units.forEach((unit) => {
-    const profiles = [unit.profiles.base, ...unit.profiles.montura, ...unit.profiles.carro].filter((p): p is AttributeProfile => !!p)
+    const profiles = [unit.profiles.base, ...unit.profiles.montura, ...unit.profiles.carro].filter(
+      (p): p is AttributeProfile => !!p,
+    )
     if (profiles.length === 0) return
     const rulesRaw = specialRulesText(unit)
     const rulesHtml = rulesRaw ? escHtml(rulesRaw) : '-'
@@ -375,7 +384,11 @@ function buildReferenceGroupTable(units: UnitDetail[]): string {
       const topBorder = isFirst ? 'border-top:1.5px solid #1c1a16;' : ''
       const tdStyle = `border:1px solid #1c1a16;${topBorder}padding:${isFirst ? '1.5px 3px' : '0.5px 3px'};line-height:1.05;${bodyFontFam}font-size:${size};`
       const label = p.name ?? unit.name
-      rows += `<tr><td style="${tdStyle}font-weight:bold;">${escHtml(label)}</td>` + ATTRIBUTE_LABELS.map(({ key }) => `<td style="${tdStyle}text-align:center;">${escHtml(attrVal(p[key]))}</td>`).join('')
+      rows +=
+        `<tr><td style="${tdStyle}font-weight:bold;">${escHtml(label)}</td>` +
+        ATTRIBUTE_LABELS.map(
+          ({ key }) => `<td style="${tdStyle}text-align:center;">${escHtml(attrVal(p[key]))}</td>`,
+        ).join('')
       if (isFirst) {
         rows += `<td style="${tdStyle}font-style:italic;" rowspan="${profiles.length}">${rulesHtml}</td>`
       }

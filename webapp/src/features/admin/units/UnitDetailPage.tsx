@@ -19,6 +19,7 @@ import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Button } from '@/shared/ui/Button'
+import { CheckIcon, PlusIcon } from '@/shared/ui/icons'
 import { TextField } from '@/shared/ui/TextField'
 import { Select } from '@/shared/ui/Select'
 import { RelationEditor } from '@/shared/ui/RelationEditor'
@@ -374,7 +375,8 @@ export function UnitDetailPage() {
               Apéndices{numApendices > 0 ? ` (${numApendices})` : ''}
             </Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando…' : savedFlash ? '✓ Guardado' : 'Guardar cambios'}
+              {savedFlash && !saving && <CheckIcon className="h-4 w-4" />}
+              {saving ? 'Guardando…' : savedFlash ? 'Guardado' : 'Guardar cambios'}
             </Button>
           </div>
         }
@@ -656,7 +658,8 @@ export function UnitDetailPage() {
               <div>
                 <p className="mb-2 text-xs text-ink-soft">Esta unidad todavía no tiene ficha de atributos.</p>
                 <Button variant="ghost" onClick={createBaseProfileNow}>
-                  + Crear ficha base
+                  <PlusIcon className="h-4 w-4" />
+                  Crear ficha base
                 </Button>
               </div>
             )}
@@ -729,7 +732,8 @@ export function UnitDetailPage() {
                           <div className="mt-2 flex items-center gap-3">
                             <p className="text-xs text-ink-soft italic">Sin ficha propia todavía.</p>
                             <Button variant="ghost" onClick={() => createCommandProfileNow(role.id)}>
-                              + Crear ficha del campeón
+                              <PlusIcon className="h-4 w-4" />
+                              Crear ficha del campeón
                             </Button>
                           </div>
                         )}

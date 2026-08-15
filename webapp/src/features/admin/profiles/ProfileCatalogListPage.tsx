@@ -76,7 +76,11 @@ export function ProfileCatalogListPage({
       <PageHeader
         title={title}
         description={description}
-        actions={<Button variant="primary" onClick={() => setEditing('new')}>+ {newLabel}</Button>}
+        actions={
+          <Button variant="primary" onClick={() => setEditing('new')}>
+            + {newLabel}
+          </Button>
+        }
       />
 
       {!loading && (entries ?? []).length > 0 && (
@@ -116,7 +120,10 @@ export function ProfileCatalogListPage({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button className="text-xs font-medium text-ink-soft hover:text-maroon" onClick={() => setEditing(entry)}>
+                  <button
+                    className="text-xs font-medium text-ink-soft hover:text-maroon"
+                    onClick={() => setEditing(entry)}
+                  >
                     Editar
                   </button>
                   <button

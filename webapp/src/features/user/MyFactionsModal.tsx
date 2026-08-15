@@ -73,8 +73,8 @@ export function MyFactionsModal({
       }
     >
       <p className="mb-3 text-xs text-ink-soft">
-        Marca las facciones que quieres ver en <b>Hojas de Unidad</b> y <b>Ejércitos</b>. Las que desmarques se ocultan solo para
-        ti. En modo administrador se ven todas.
+        Marca las facciones que quieres ver en <b>Hojas de Unidad</b> y <b>Ejércitos</b>. Las que desmarques se ocultan
+        solo para ti. En modo administrador se ven todas.
       </p>
 
       {loading || !visible ? (

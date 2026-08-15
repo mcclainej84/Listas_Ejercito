@@ -136,16 +136,12 @@ export function OptionsListPage() {
   const [expandedUsage, setExpandedUsage] = useState<string | null>(null)
   const [editingEquipment, setEditingEquipment] = useState<EquipmentOption | 'new' | null>(null)
   const [editingUpgrade, setEditingUpgrade] = useState<UpgradeWithUsage | 'new' | null>(null)
-  const [deleting, setDeleting] = useState<
-    { kind: Tab; id: number; name: string; usageCount: number } | null
-  >(null)
+  const [deleting, setDeleting] = useState<{ kind: Tab; id: number; name: string; usageCount: number } | null>(null)
 
   const q = search.trim().toLowerCase()
   const shownEquipment = useMemo(
     () =>
-      (equipment ?? []).filter(
-        (e) => (!q || e.name.toLowerCase().includes(q)) && (!onlyUnused || e.usageCount === 0),
-      ),
+      (equipment ?? []).filter((e) => (!q || e.name.toLowerCase().includes(q)) && (!onlyUnused || e.usageCount === 0)),
     [equipment, q, onlyUnused],
   )
   const shownUpgrades = useMemo(

@@ -65,9 +65,7 @@ export function PendingMigrationsBanner() {
     <div className="border-b border-bronze/40 bg-bronze/10 px-6 py-3">
       <div className="mx-auto flex max-w-4xl items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-ink">
-            La base de datos no está al día: falta desplegar el Worker.
-          </p>
+          <p className="text-sm font-medium text-ink">La base de datos no está al día: falta desplegar el Worker.</p>
           <p className="mt-1 text-xs text-ink-soft">
             Hasta entonces no funcionan estas partes, y sus datos pueden verse vacíos o dar error al guardar:{' '}
             <b>{pending.join(', ')}</b>.

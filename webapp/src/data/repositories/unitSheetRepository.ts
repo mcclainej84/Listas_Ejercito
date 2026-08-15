@@ -224,12 +224,17 @@ export const UnitSheetRepository = {
     // --- 1. Subir a R2 lo que haya cambiado ---
     let illuKey: string | null | undefined
     if (images.illu !== undefined) {
-      illuKey = images.illu === null ? null : await uploadImage(target.kind, target.id, 'illu', images.illu.bytes, images.illu.mime)
+      illuKey =
+        images.illu === null
+          ? null
+          : await uploadImage(target.kind, target.id, 'illu', images.illu.bytes, images.illu.mime)
     }
     let emblemKey: string | null | undefined
     if (images.emblem !== undefined) {
       emblemKey =
-        images.emblem === null ? null : await uploadImage(target.kind, target.id, 'emblem', images.emblem.bytes, images.emblem.mime)
+        images.emblem === null
+          ? null
+          : await uploadImage(target.kind, target.id, 'emblem', images.emblem.bytes, images.emblem.mime)
     }
 
     // --- 2. Escribir la base en un único batch ---

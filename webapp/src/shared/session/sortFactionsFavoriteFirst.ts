@@ -4,10 +4,7 @@
 // desplegables, listas de opciones— para que la favorita salga arriba sin
 // tener que buscarla entre el resto.
 // ============================================================================
-export function sortFactionsFavoriteFirst<T extends { id: number }>(
-  factions: T[],
-  favoriteId: number | null,
-): T[] {
+export function sortFactionsFavoriteFirst<T extends { id: number }>(factions: T[], favoriteId: number | null): T[] {
   if (favoriteId == null) return factions
   const index = factions.findIndex((f) => f.id === favoriteId)
   if (index <= 0) return factions

@@ -1,10 +1,14 @@
 // ============================================================================
 // Mapas de batalla y su escenografía.
 //
-// LOS MAPAS SON PÚBLICOS: los ve y los puede cargar cualquiera. Una mesa no es
-// información privada como una lista de ejército —es el terreno donde se juega,
-// y lo normal es que los dos jugadores usen el mismo—. Lo que sigue siendo del
-// dueño es EDITARLO y borrarlo (ver `userId`).
+// LOS MAPAS SON COMUNES. Los ve, los carga, los edita y los borra cualquiera:
+// una mesa no es información privada como una lista de ejército —es el terreno
+// donde se juega, y lo normal es que los dos jugadores usen el mismo—. `userId`
+// solo dice de quién salió.
+//
+// La única excepción es OCULTAR (`hidden`): un mapa oculto desaparece del
+// listado de todos menos del suyo. Está para poder tener uno a medias sin que
+// le estorbe a nadie, no para cerrarlo con llave.
 //
 // Van por `exec`/`query` (red) y no por `execCatalog`, que además replica en la
 // copia local: un mapa no lo necesita, no se consulta al pintar cada ficha.
@@ -66,17 +70,19 @@ export interface MapaInput {
 
 export const MapRepository = {
   /**
-   * TODOS los mapas, del más reciente al más antiguo, sean de quien sean. Cada
-   * uno trae el nombre de su autor para poder distinguir los propios.
+   * TODOS los mapas, del más reciente al más antiguo, menos los ocultos de
+   * otros. Cada uno trae el nombre de su autor para poder distinguir los
+   * propios.
    */
-  async listAll(): Promise<MapaResumen[]> {
+  async listAll(userId: number | null = null): Promise<MapaResumen[]> {
     try {
       return await query(
         `SELECT m.*, (SELECT COUNT(*) FROM battle_map_pieces p WHERE p.map_id = m.id) AS piezas,
                 (SELECT u.username FROM users u WHERE u.id = m.user_id) AS owner_name
            FROM battle_maps m
+          WHERE m.hidden = 0 OR m.user_id = ?
           ORDER BY m.updated_at DESC`,
-        [],
+        [userId],
         (row) => ({
           id: row.id as number,
           name: row.name as string,
@@ -87,6 +93,7 @@ export const MapRepository = {
           updatedAt: row.updated_at as string,
           textura: mapTextura(row.texture),
           floorId: (row.floor_id as number) ?? null,
+          hidden: Boolean(row.hidden),
           piezas: row.piezas as number,
         }),
       )
@@ -113,6 +120,19 @@ export const MapRepository = {
     ])
   },
 
+  /**
+   * Oculta el mapa o lo devuelve al listado común. Oculto solo lo ve su autor
+   * (ver listAll); si no tiene autor, no lo vería nadie, así que ahí no se
+   * ofrece.
+   */
+  async setHidden(id: number, hidden: boolean): Promise<void> {
+    await exec('UPDATE battle_maps SET hidden = ?, updated_at = ? WHERE id = ?', [
+      hidden ? 1 : 0,
+      new Date().toISOString(),
+      id,
+    ])
+  },
+
   async remove(id: number): Promise<void> {
     // Las piezas caen solas por ON DELETE CASCADE.
     await exec('DELETE FROM battle_maps WHERE id = ?', [id])
@@ -128,6 +148,7 @@ export const MapRepository = {
       updatedAt: row.updated_at as string,
       textura: mapTextura(row.texture),
       floorId: (row.floor_id as number) ?? null,
+      hidden: Boolean(row.hidden),
     }))
     if (!cabecera) return null
 

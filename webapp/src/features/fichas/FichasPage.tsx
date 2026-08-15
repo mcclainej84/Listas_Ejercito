@@ -57,6 +57,7 @@ import { FactionEmblem } from '@/shared/ui/FactionEmblem'
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 import {
   CheckCircleIcon,
+  ChevronRightIcon,
   ContrastIcon,
   DownloadIcon,
   EyeIcon,
@@ -151,7 +152,7 @@ function CollapsibleSection({
         className="flex w-full items-center justify-between gap-2 bg-parchment-dark/40 px-2.5 py-1.5 text-left hover:bg-parchment-dark"
       >
         <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">{title}</span>
-        <span className={clsx('text-sm text-ink-soft transition-transform', open && 'rotate-90')}>›</span>
+        <ChevronRightIcon className={clsx('h-3.5 w-3.5 text-ink-soft transition-transform', open && 'rotate-90')} />
       </button>
       {open && <div className="space-y-3 p-2.5">{children}</div>}
     </div>
@@ -1197,9 +1198,9 @@ export function FichasPage() {
                           <span className="text-[10.5px] font-semibold tracking-wide text-ink-soft uppercase">
                             {group.title} <span className="text-ink-soft/70">({visible.length})</span>
                           </span>
-                          <span className={clsx('text-sm text-ink-soft transition-transform', open && 'rotate-90')}>
-                            ›
-                          </span>
+                          <ChevronRightIcon
+                            className={clsx('h-3.5 w-3.5 text-ink-soft transition-transform', open && 'rotate-90')}
+                          />
                         </button>
 
                         {open && (

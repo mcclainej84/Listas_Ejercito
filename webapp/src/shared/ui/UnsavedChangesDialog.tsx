@@ -13,7 +13,12 @@ interface UnsavedChangesDialogProps {
  * guardar (navegación interna vía useBlocker, ver UnitDetailPage). Distinto
  * de ConfirmDialog (2 vías) porque aquí "salir" tiene dos variantes propias.
  */
-export function UnsavedChangesDialog({ saving, onSaveAndLeave, onDiscardAndLeave, onKeepEditing }: UnsavedChangesDialogProps) {
+export function UnsavedChangesDialog({
+  saving,
+  onSaveAndLeave,
+  onDiscardAndLeave,
+  onKeepEditing,
+}: UnsavedChangesDialogProps) {
   return (
     <Modal
       title="Cambios sin guardar"
@@ -32,7 +37,9 @@ export function UnsavedChangesDialog({ saving, onSaveAndLeave, onDiscardAndLeave
         </>
       }
     >
-      <p className="text-sm text-ink-soft">Esta ficha tiene cambios que todavía no se han guardado. ¿Qué quieres hacer?</p>
+      <p className="text-sm text-ink-soft">
+        Esta ficha tiene cambios que todavía no se han guardado. ¿Qué quieres hacer?
+      </p>
     </Modal>
   )
 }

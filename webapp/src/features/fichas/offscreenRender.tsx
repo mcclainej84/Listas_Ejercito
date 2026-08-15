@@ -36,14 +36,13 @@ export function destroyOffscreenHost(o: OffscreenHost): void {
 function waitForImages(container: HTMLElement): Promise<void> {
   const imgs = Array.from(container.querySelectorAll('img'))
   return Promise.all(
-    imgs.map(
-      (img) =>
-        img.complete
-          ? Promise.resolve()
-          : new Promise<void>((resolve) => {
-              img.addEventListener('load', () => resolve(), { once: true })
-              img.addEventListener('error', () => resolve(), { once: true })
-            }),
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true })
+            img.addEventListener('error', () => resolve(), { once: true })
+          }),
     ),
   ).then(() => undefined)
 }

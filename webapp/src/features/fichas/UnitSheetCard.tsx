@@ -82,7 +82,15 @@ export interface UnitSheetCardProps {
   cardRef?: (el: HTMLDivElement | null) => void
 }
 
-export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = false, onIlluDragEnd, cardRef }: UnitSheetCardProps) {
+export function UnitSheetCard({
+  unit,
+  sheet,
+  grayscale,
+  showFrame,
+  editable = false,
+  onIlluDragEnd,
+  cardRef,
+}: UnitSheetCardProps) {
   const emblemUrl = sheet.emblemUrl ?? unit.faction.emblemUrl
   const illuWidthPx = Math.round(CONTENT_W * (sheet.illuWidthPct / 100))
   const defaultPosX = Math.max(0, CONTENT_W - illuWidthPx)
@@ -329,7 +337,12 @@ export function UnitSheetCard({ unit, sheet, grayscale, showFrame, editable = fa
           ) : (
             <div
               className="absolute"
-              style={{ width: ILLU_PLACEHOLDER_W, height: ILLU_PLACEHOLDER_H, left: Math.max(0, CONTENT_W - ILLU_PLACEHOLDER_W), top: 0 }}
+              style={{
+                width: ILLU_PLACEHOLDER_W,
+                height: ILLU_PLACEHOLDER_H,
+                left: Math.max(0, CONTENT_W - ILLU_PLACEHOLDER_W),
+                top: 0,
+              }}
             />
           )}
         </div>

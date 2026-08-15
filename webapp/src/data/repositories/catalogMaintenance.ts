@@ -28,11 +28,7 @@ const DATA_FIX_KEY = 'wharmy_data_fixes_v7'
 
 /** Quita acentos y mayúsculas para comparar nombres del catálogo con tolerancia. */
 function normalizeForMatch(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
+  return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
 /**
@@ -128,11 +124,10 @@ export async function applyExclusiveGroups(): Promise<ExclusiveGroupsReport> {
     [],
     (r) => ({ id: r.id as number, name: r.name as string }),
   )
-  const upgrades = await queryLocal<{ id: number; name: string }>(
-    'SELECT id, name FROM upgrades',
-    [],
-    (r) => ({ id: r.id as number, name: r.name as string }),
-  )
+  const upgrades = await queryLocal<{ id: number; name: string }>('SELECT id, name FROM upgrades', [], (r) => ({
+    id: r.id as number,
+    name: r.name as string,
+  }))
 
   const lines: string[] = []
   let totalPairs = 0
@@ -316,11 +311,10 @@ const RULE_LINK_TABLES: Array<{ table: string; ownerColumn: string }> = [
  * Es idempotente: pasado una vez, no queda ninguna duplicada que reasignar.
  */
 async function mergeDuplicateRules(): Promise<void> {
-  const rules = await queryLocal<{ id: number; name: string }>(
-    'SELECT id, name FROM special_rules',
-    [],
-    (r) => ({ id: r.id as number, name: r.name as string }),
-  )
+  const rules = await queryLocal<{ id: number; name: string }>('SELECT id, name FROM special_rules', [], (r) => ({
+    id: r.id as number,
+    name: r.name as string,
+  }))
   const byName = new Map(rules.map((r) => [normalizeForMatch(r.name), r]))
 
   for (const [canonicalName, ...duplicates] of RULE_MERGE_GROUPS) {
@@ -481,11 +475,10 @@ export async function runCatalogMaintenance(): Promise<void> {
         if (full !== e.name) await execCatalog('UPDATE equipment_options SET name = ? WHERE id = ?', [full, e.id])
       }
 
-      const upgrades = await queryLocal<{ id: number; name: string }>(
-        'SELECT id, name FROM upgrades',
-        [],
-        (r) => ({ id: r.id as number, name: r.name as string }),
-      )
+      const upgrades = await queryLocal<{ id: number; name: string }>('SELECT id, name FROM upgrades', [], (r) => ({
+        id: r.id as number,
+        name: r.name as string,
+      }))
       for (const u of upgrades) {
         const full = expandName(u.name, UPGRADE_ALIASES)
         if (full !== u.name) await execCatalog('UPDATE upgrades SET name = ? WHERE id = ?', [full, u.id])

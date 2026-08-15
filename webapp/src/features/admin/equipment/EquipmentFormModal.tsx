@@ -54,7 +54,9 @@ export function EquipmentFormModal({ equipment, onClose, onSaved }: EquipmentFor
         cost: Number(cost) || 0,
         category: (category || null) as EquipmentOption['category'],
       }
-      const id = equipment ? (await EquipmentRepository.update(equipment.id, input), equipment.id) : await EquipmentRepository.create(input)
+      const id = equipment
+        ? (await EquipmentRepository.update(equipment.id, input), equipment.id)
+        : await EquipmentRepository.create(input)
       await EquipmentRepository.setIncompatibilities(id, [...selectedIncompat])
       // Ver la nota equivalente en UpgradeFormModal: enlaza también las
       // seleccionadas entre sí, no solo contra ésta.

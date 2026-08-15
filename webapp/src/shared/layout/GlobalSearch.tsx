@@ -87,11 +87,7 @@ export function GlobalSearch() {
     void Promise.all([UnitRepository.search(query), RuleRepository.listAll()]).then(([unitResults, allRules]) => {
       if (cancelled) return
       setUnits(unitResults)
-      setRules(
-        allRules
-          .filter((r) => r.name.toLowerCase().includes(query.toLowerCase()))
-          .slice(0, 8),
-      )
+      setRules(allRules.filter((r) => r.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8))
     })
     return () => {
       cancelled = true
@@ -141,7 +137,9 @@ export function GlobalSearch() {
             )}
             {rules.length > 0 && (
               <div className="py-1">
-                <p className="px-3 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Reglas especiales</p>
+                <p className="px-3 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Reglas especiales
+                </p>
                 {rules.map((r) => (
                   <button
                     key={r.id}

@@ -22,7 +22,7 @@ import { TextField } from '@/shared/ui/TextField'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { RichTextEditor } from '@/shared/ui/RichTextEditor'
-import { TrashIcon } from '@/shared/ui/icons'
+import { ArrowDownIcon, ArrowUpIcon, CopyIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import type { UnitAppendix } from '@/domain/types'
 
 const TITULO_NUEVO = 'Apéndice'
@@ -183,8 +183,9 @@ export function AppendicesModal({
                   type="button"
                   onClick={crear}
                   disabled={busy}
-                  className="border-r border-rule-dark/30 bg-parchment px-2 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-parchment-dark disabled:opacity-50"
+                  className="flex items-center justify-center gap-1 border-r border-rule-dark/30 bg-parchment px-2 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-parchment-dark disabled:opacity-50"
                 >
+                  <PlusIcon className="h-3.5 w-3.5" />
                   Nuevo
                 </button>
                 <button
@@ -192,9 +193,10 @@ export function AppendicesModal({
                   onClick={() => setCopiando(true)}
                   disabled={busy}
                   title="Traer una copia de un apéndice de otra unidad"
-                  className="bg-parchment px-2 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-parchment-dark disabled:opacity-50"
+                  className="flex items-center justify-center gap-1 bg-parchment px-2 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-parchment-dark disabled:opacity-50"
                 >
-                  Copiar de…
+                  <CopyIcon className="h-3.5 w-3.5" />
+                  Copiar
                 </button>
               </div>
 
@@ -242,9 +244,10 @@ export function AppendicesModal({
                               })
                             }
                             aria-label={`Subir ${a.title}`}
-                            className="px-1 text-[9px] leading-none text-ink-soft/70 hover:text-ink disabled:opacity-20"
+                            title="Subir"
+                            className="px-1 text-ink-soft/70 hover:text-ink disabled:opacity-20"
                           >
-                            ▲
+                            <ArrowUpIcon className="h-3 w-3" />
                           </button>
                           <button
                             type="button"
@@ -258,9 +261,10 @@ export function AppendicesModal({
                               })
                             }
                             aria-label={`Bajar ${a.title}`}
-                            className="px-1 text-[9px] leading-none text-ink-soft/70 hover:text-ink disabled:opacity-20"
+                            title="Bajar"
+                            className="px-1 text-ink-soft/70 hover:text-ink disabled:opacity-20"
                           >
-                            ▼
+                            <ArrowDownIcon className="h-3 w-3" />
                           </button>
                         </span>
                         <button

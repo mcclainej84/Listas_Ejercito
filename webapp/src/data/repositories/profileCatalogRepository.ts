@@ -58,7 +58,11 @@ function createProfileCatalogRepository(kind: Exclude<UnitProfileRole, 'base'>) 
     /** Todas las fichas del catálogo (con sus facciones asociadas), para la pantalla de Administración. */
     async listAll(): Promise<ProfileCatalogEntry[]> {
       const [profiles, links, ruleLinks] = await Promise.all([
-        queryLocal('SELECT * FROM attribute_profiles WHERE profile_kind = ? ORDER BY name', [kind], mapAttributeProfileRow),
+        queryLocal(
+          'SELECT * FROM attribute_profiles WHERE profile_kind = ? ORDER BY name',
+          [kind],
+          mapAttributeProfileRow,
+        ),
         queryLocal<{ profileId: number; factionId: number }>(
           `SELECT pf.profile_id AS profile_id, pf.faction_id AS faction_id
            FROM profile_factions pf

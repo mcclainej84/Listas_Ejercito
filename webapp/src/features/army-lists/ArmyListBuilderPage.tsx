@@ -39,17 +39,20 @@ import { Select } from '@/shared/ui/Select'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import {
-  TrashIcon,
-  DragHandleIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
   BannerIcon,
-  HornIcon,
-  SwordIcon,
-  CheckIcon,
   CategoryShield,
-  WarningIcon,
-  PencilIcon,
-  NameTagIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  DragHandleIcon,
+  HornIcon,
   LockIcon,
+  NameTagIcon,
+  PencilIcon,
+  SwordIcon,
+  TrashIcon,
+  WarningIcon,
 } from '@/shared/ui/icons'
 import { AttributeTable } from '@/shared/ui/AttributeTable'
 import { ArmyListSettingsModal } from '@/features/army-lists/ArmyListSettingsModal'
@@ -312,11 +315,11 @@ export function ArmyListBuilderPage() {
     if (reconciledListId.current === list.id) return
     reconciledListId.current = list.id
 
-    const { entries: reconciled, notes, changed } = reconcileEntries(
-      list.entries,
-      incompatiblePairs,
-      upgradeIncompatiblePairs,
-    )
+    const {
+      entries: reconciled,
+      notes,
+      changed,
+    } = reconcileEntries(list.entries, incompatiblePairs, upgradeIncompatiblePairs)
     setEntries(reconciled)
     setName(list.name)
     setPointsLimit(list.pointsLimit)
@@ -450,7 +453,8 @@ export function ArmyListBuilderPage() {
     const key = u.categoryName ?? SIN_CATEGORIA_KEY
     if (!categoryNames.includes(key)) categoryNames.push(key)
   }
-  const effectiveCategory = browseCategory != null && categoryNames.includes(browseCategory) ? browseCategory : (categoryNames[0] ?? null)
+  const effectiveCategory =
+    browseCategory != null && categoryNames.includes(browseCategory) ? browseCategory : (categoryNames[0] ?? null)
   const searchLower = unitSearch.trim().toLowerCase()
   const unitsInCategory = unitsForFaction.filter(
     (u) =>
@@ -477,7 +481,7 @@ export function ArmyListBuilderPage() {
       // unidad 0-1 SÍ tiene tamaño normal (el 0-1 limita cuántas unidades de
       // ese tipo caben en el ejército, no cuántas miniaturas la forman), así
       // que arranca en su tamaño habitual como cualquier otro regimiento.
-      quantity: detail.unitType === 'personaje' ? 1 : detail.defaultSize ?? detail.minSize ?? 1,
+      quantity: detail.unitType === 'personaje' ? 1 : (detail.defaultSize ?? detail.minSize ?? 1),
       // Equipo/opciones marcadas como "por defecto" desde Administración
       // (unit_equipment_options.is_default / unit_upgrade_options.is_default)
       // vienen ya seleccionadas, para no tener que marcarlas cada vez.
@@ -497,9 +501,7 @@ export function ArmyListBuilderPage() {
           ? detail.profiles.montura[0].id
           : null,
       chariotProfileId:
-        detail.profiles.carro.length === 1 && !hasCost(detail.profiles.carro[0])
-          ? detail.profiles.carro[0].id
-          : null,
+        detail.profiles.carro.length === 1 && !hasCost(detail.profiles.carro[0]) ? detail.profiles.carro[0].id : null,
       magicPaths: [],
     })
     setEntryIssues([])
@@ -982,7 +984,9 @@ export function ArmyListBuilderPage() {
         <Select
           label="Carro"
           value={draft.chariotProfileId ?? ''}
-          onChange={(e) => setDraft((d) => ({ ...d, chariotProfileId: e.target.value ? Number(e.target.value) : null }))}
+          onChange={(e) =>
+            setDraft((d) => ({ ...d, chariotProfileId: e.target.value ? Number(e.target.value) : null }))
+          }
         >
           <option value="">Sin carro</option>
           {selectedUnit.profiles.carro.map((p) => (
@@ -1116,7 +1120,11 @@ export function ArmyListBuilderPage() {
                 Editar lista
               </Button>
             )}
-            <Button variant="secondary" onClick={handleExportPdf} disabled={exportingPdf || currentEntries.length === 0}>
+            <Button
+              variant="secondary"
+              onClick={handleExportPdf}
+              disabled={exportingPdf || currentEntries.length === 0}
+            >
               {exportingPdf ? 'Generando…' : '📄 Exportar Lista'}
             </Button>
             <Button
@@ -1211,14 +1219,16 @@ export function ArmyListBuilderPage() {
                 {note.conflicts.length > 0 && (
                   <>
                     : {note.conflicts.join(', ')} ya no se pueden llevar a la vez.{' '}
-                    <span className="text-danger-dark">
-                      Se han desmarcado todas sus opciones — vuelve a elegirlas.
-                    </span>
+                    <span className="text-danger-dark">Se han desmarcado todas sus opciones — vuelve a elegirlas.</span>
                   </>
                 )}
                 {note.conflicts.length === 0 && note.removed.length > 0 && (
                   <>
-                    : se {note.removed.length === 1 ? 'ha retirado 1 opción que ya no existe' : `han retirado ${note.removed.length} opciones que ya no existen`}.
+                    : se{' '}
+                    {note.removed.length === 1
+                      ? 'ha retirado 1 opción que ya no existe'
+                      : `han retirado ${note.removed.length} opciones que ya no existen`}
+                    .
                   </>
                 )}
               </li>
@@ -1256,157 +1266,165 @@ export function ArmyListBuilderPage() {
           deshabilita: no se pinta. Un formulario apagado sigue ocupando media
           pantalla y sugiriendo que algo se puede hacer ahí. */}
       {!soloLectura && (
-      <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40">
-        <button
-          type="button"
-          onClick={() => toggleEditor(!editorOpen)}
-          aria-expanded={editorOpen}
-          className="flex w-full items-center justify-between gap-3 bg-parchment/70 px-4 py-2.5 text-left hover:bg-parchment-dark/50"
-        >
-          <span className="font-display text-lg font-semibold leading-tight text-ink">
-            {draft.editingEntryId ? 'Editar entrada' : 'Añadir unidad'}
-            {selectedUnit && <span className="ml-2 text-sm font-normal text-ink-soft">· {selectedUnit.name}</span>}
-          </span>
-          {/* Solo el galón: el rótulo "Minimizar"/"Desplegar" sobraba, la
+        <section ref={editorRef} className="overflow-hidden rounded-sm border border-rule-dark/40">
+          <button
+            type="button"
+            onClick={() => toggleEditor(!editorOpen)}
+            aria-expanded={editorOpen}
+            className="flex w-full items-center justify-between gap-3 bg-parchment/70 px-4 py-2.5 text-left hover:bg-parchment-dark/50"
+          >
+            <span className="font-display text-lg font-semibold leading-tight text-ink">
+              {draft.editingEntryId ? 'Editar entrada' : 'Añadir unidad'}
+              {selectedUnit && <span className="ml-2 text-sm font-normal text-ink-soft">· {selectedUnit.name}</span>}
+            </span>
+            {/* Solo el galón: el rótulo "Minimizar"/"Desplegar" sobraba, la
               flecha ya dice si está abierto o cerrado. */}
-          <span className={clsx('text-lg text-ink-soft transition-transform', editorOpen && 'rotate-90')}>›</span>
-        </button>
+            <ChevronRightIcon
+              className={clsx('h-4 w-4 text-ink-soft transition-transform', editorOpen && 'rotate-90')}
+            />
+          </button>
 
-        {editorOpen && (
-      <div className="grid grid-cols-1 gap-6 border-t border-rule-dark/25 p-4 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          {/* El título contextual ("Añadir unidad"/"Editar entrada") ya lo
+          {editorOpen && (
+            <div className="grid grid-cols-1 gap-6 border-t border-rule-dark/25 p-4 lg:grid-cols-5">
+              <div className="lg:col-span-3">
+                {/* El título contextual ("Añadir unidad"/"Editar entrada") ya lo
               lleva la cabecera plegable de arriba; repetirlo aquí dejaba el
               mismo texto dos veces seguidas y con el mismo tamaño. Este panel
               se queda con lo que de verdad contiene. */}
-          <Panel title="Unidad y opciones">
-            {draft.editingEntryId ? (
-              <div>
-                <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
-                  <span>
-                    {selectedUnit?.name}
-                    {selectedUnit && <span className="text-ink-soft"> ({selectedUnit.faction.name})</span>}
-                  </span>
-                  {/* Al editar una entrada no se ve la lista de unidades, así
+                <Panel title="Unidad y opciones">
+                  {draft.editingEntryId ? (
+                    <div>
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                        <span>
+                          {selectedUnit?.name}
+                          {selectedUnit && <span className="text-ink-soft"> ({selectedUnit.faction.name})</span>}
+                        </span>
+                        {/* Al editar una entrada no se ve la lista de unidades, así
                       que el distintivo tiene que aparecer también aquí. */}
-                  {selectedUnit?.isUnique && <Badge tone="amber">0-1</Badge>}
-                </p>
-                {optionsForm}
-              </div>
-            ) : (
-              <div>
-                <div className="mb-4 flex flex-wrap items-end gap-3">
-                  <div className="w-56">
-                    <Select
-                      label="Facción"
-                      value={effectiveFactionId}
-                      onChange={(e) => {
-                        setBrowseFactionId(Number(e.target.value))
-                        setBrowseCategory(null)
-                        handlePickUnit(null)
-                      }}
-                    >
-                      {(factions ?? []).map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="min-w-[160px] flex-1">
-                    <TextField
-                      label="Buscar unidad"
-                      placeholder="Nombre…"
-                      value={unitSearch}
-                      onChange={(e) => setUnitSearch(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {categoryNames.length > 0 && (
-                  <div className="mb-4 flex flex-wrap gap-2 border-b border-rule-dark/30 pb-4">
-                    {categoryNames.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setBrowseCategory(cat)}
-                        className={clsx(
-                          'rounded-sm px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors',
-                          cat === effectiveCategory
-                            ? 'bg-maroon text-parchment'
-                            : 'border border-rule-dark/40 bg-parchment text-ink-soft hover:bg-parchment-dark',
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {unitsInCategory.length === 0 ? (
-                  <p className="text-xs italic text-ink-soft">No hay unidades que coincidan.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {unitsInCategory.map((u) => {
-                      const isExpanded = selectedUnit?.id === u.id
-                      return (
-                        <div
-                          key={u.id}
-                          className={clsx(
-                            'rounded-sm border',
-                            isExpanded ? 'border-bronze/60 bg-parchment' : 'border-rule-dark/30 bg-parchment/50',
-                          )}
-                        >
-                          <button
-                            onClick={() => handlePickUnit(isExpanded ? null : u.id)}
-                            className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                        {selectedUnit?.isUnique && <Badge tone="amber">0-1</Badge>}
+                      </p>
+                      {optionsForm}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="mb-4 flex flex-wrap items-end gap-3">
+                        <div className="w-56">
+                          <Select
+                            label="Facción"
+                            value={effectiveFactionId}
+                            onChange={(e) => {
+                              setBrowseFactionId(Number(e.target.value))
+                              setBrowseCategory(null)
+                              handlePickUnit(null)
+                            }}
                           >
-                            {/* El "0-1" se marca con el mismo distintivo que en
+                            {(factions ?? []).map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.name}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="min-w-[160px] flex-1">
+                          <TextField
+                            label="Buscar unidad"
+                            placeholder="Nombre…"
+                            value={unitSearch}
+                            onChange={(e) => setUnitSearch(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {categoryNames.length > 0 && (
+                        <div className="mb-4 flex flex-wrap gap-2 border-b border-rule-dark/30 pb-4">
+                          {categoryNames.map((cat) => (
+                            <button
+                              key={cat}
+                              onClick={() => setBrowseCategory(cat)}
+                              className={clsx(
+                                'rounded-sm px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors',
+                                cat === effectiveCategory
+                                  ? 'bg-maroon text-parchment'
+                                  : 'border border-rule-dark/40 bg-parchment text-ink-soft hover:bg-parchment-dark',
+                              )}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {unitsInCategory.length === 0 ? (
+                        <p className="text-xs italic text-ink-soft">No hay unidades que coincidan.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {unitsInCategory.map((u) => {
+                            const isExpanded = selectedUnit?.id === u.id
+                            return (
+                              <div
+                                key={u.id}
+                                className={clsx(
+                                  'rounded-sm border',
+                                  isExpanded ? 'border-bronze/60 bg-parchment' : 'border-rule-dark/30 bg-parchment/50',
+                                )}
+                              >
+                                <button
+                                  onClick={() => handlePickUnit(isExpanded ? null : u.id)}
+                                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                                >
+                                  {/* El "0-1" se marca con el mismo distintivo que en
                                 Editor > Unidades y personajes, en vez de con
                                 una frase: se reconoce de un vistazo mientras se
                                 recorre la lista. */}
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span className="text-sm font-medium text-ink">{u.name}</span>
-                              {u.isUnique && <Badge tone="amber">0-1</Badge>}
-                            </span>
-                            <span className="flex shrink-0 items-center gap-3">
-                              <span className="text-xs font-medium text-maroon">{u.baseCost} pts</span>
-                              <span
-                                className={clsx('text-xs text-ink-soft transition-transform', isExpanded && 'rotate-180')}
-                              >
-                                ▾
-                              </span>
-                            </span>
-                          </button>
-                          {isExpanded && (
-                            <div className="border-t border-rule-dark/20 px-3 pb-3">
-                              {loadingUnit && <p className="mt-3 text-xs text-ink-soft">Cargando ficha…</p>}
-                              {optionsForm}
-                            </div>
-                          )}
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    <span className="text-sm font-medium text-ink">{u.name}</span>
+                                    {u.isUnique && <Badge tone="amber">0-1</Badge>}
+                                  </span>
+                                  <span className="flex shrink-0 items-center gap-3">
+                                    <span className="text-xs font-medium text-maroon">{u.baseCost} pts</span>
+                                    <span
+                                      className={clsx(
+                                        'text-xs text-ink-soft transition-transform',
+                                        isExpanded && 'rotate-180',
+                                      )}
+                                    >
+                                      ▾
+                                    </span>
+                                  </span>
+                                </button>
+                                {isExpanded && (
+                                  <div className="border-t border-rule-dark/20 px-3 pb-3">
+                                    {loadingUnit && <p className="mt-3 text-xs text-ink-soft">Cargando ficha…</p>}
+                                    {optionsForm}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </Panel>
               </div>
-            )}
-          </Panel>
-        </div>
 
-        <div className="space-y-6 lg:col-span-2">
-          <Panel
-            title="Ficha"
-            /* La etiqueta de tipo y el emblema NO van aquí, en la cabecera del
+              <div className="space-y-6 lg:col-span-2">
+                <Panel
+                  title="Ficha"
+                  /* La etiqueta de tipo y el emblema NO van aquí, en la cabecera del
                Panel: al medir el emblema 96 px, la cabecera crecía y empujaba
                hacia abajo todo el contenido de la izquierda. Van dentro del
                cuerpo, en la misma fila que el nombre de la unidad, de modo que
                el texto arranca arriba del todo y la imagen queda a su derecha. */
-          >
-            {!selectedUnit ? (
-              <EmptyState title="Elige una unidad" description="Su ficha y sus reglas especiales aparecerán aquí." />
-            ) : (
-              <div className="space-y-4">
-                {/* Cabecera de la ficha, con la misma estructura que
+                >
+                  {!selectedUnit ? (
+                    <EmptyState
+                      title="Elige una unidad"
+                      description="Su ficha y sus reglas especiales aparecerán aquí."
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Cabecera de la ficha, con la misma estructura que
                     FactionMasthead en "Unidades y personajes": nombre, filete y
                     línea de detalle a un lado, emblema al otro.
 
@@ -1421,137 +1439,141 @@ export function ArmyListBuilderPage() {
                     Se indica la facción porque una lista puede combinar
                     unidades de varias; al estar ya escrita aquí, el emblema ya
                     no necesita tooltip que la repita. */}
-                <div className="flex items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-display text-lg leading-tight font-semibold text-maroon">{selectedUnit.name}</p>
-                    <div className="my-1.5 h-px bg-rule-dark/45" />
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-mini text-ink-soft">{selectedUnit.faction.name}</span>
-                      {selectedUnit.typeTag && (
-                        <span className="rounded-full border border-maroon/30 bg-maroon/10 px-2 py-0.5 text-micro font-medium text-maroon">
-                          {selectedUnit.typeTag.name}
-                        </span>
+                      <div className="flex items-center gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display text-lg leading-tight font-semibold text-maroon">
+                            {selectedUnit.name}
+                          </p>
+                          <div className="my-1.5 h-px bg-rule-dark/45" />
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-mini text-ink-soft">{selectedUnit.faction.name}</span>
+                            {selectedUnit.typeTag && (
+                              <span className="rounded-full border border-maroon/30 bg-maroon/10 px-2 py-0.5 text-micro font-medium text-maroon">
+                                {selectedUnit.typeTag.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <FactionEmblem faction={selectedUnit.faction} size="lg" />
+                      </div>
+                      {selectedUnit.profiles.base && (
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-ink-soft">{selectedUnit.name}</p>
+                          <AttributeTable profile={selectedUnit.profiles.base} />
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  <FactionEmblem faction={selectedUnit.faction} size="lg" />
-                </div>
-                {selectedUnit.profiles.base && (
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-ink-soft">{selectedUnit.name}</p>
-                    <AttributeTable profile={selectedUnit.profiles.base} />
-                  </div>
-                )}
-                {/* Solo la montura y el carro ELEGIDOS para esta entrada, no
+                      {/* Solo la montura y el carro ELEGIDOS para esta entrada, no
                     todos los que la unidad podría llevar: mientras no se
                     escoge, ese perfil no forma parte de la unidad y verlo en
                     su ficha confunde. Mismo criterio que ya seguían las
                     opciones con ficha propia, justo debajo. */}
-                {selectedUnit.profiles.montura
-                  .filter((p) => p.id === draft.mountProfileId)
-                  .map((p) => (
-                    <div key={p.id}>
-                      <p className="mb-1 text-xs font-medium text-ink-soft">{p.name}</p>
-                      <AttributeTable profile={p} />
-                    </div>
-                  ))}
-                {selectedUnit.profiles.carro
-                  .filter((p) => p.id === draft.chariotProfileId)
-                  .map((p) => (
-                    <div key={p.id}>
-                      <p className="mb-1 text-xs font-medium text-ink-soft">{p.name}</p>
-                      <AttributeTable profile={p} />
-                    </div>
-                  ))}
-                {/* Opciones con ficha propia (p.ej. grupos de apoyo): su perfil
+                      {selectedUnit.profiles.montura
+                        .filter((p) => p.id === draft.mountProfileId)
+                        .map((p) => (
+                          <div key={p.id}>
+                            <p className="mb-1 text-xs font-medium text-ink-soft">{p.name}</p>
+                            <AttributeTable profile={p} />
+                          </div>
+                        ))}
+                      {selectedUnit.profiles.carro
+                        .filter((p) => p.id === draft.chariotProfileId)
+                        .map((p) => (
+                          <div key={p.id}>
+                            <p className="mb-1 text-xs font-medium text-ink-soft">{p.name}</p>
+                            <AttributeTable profile={p} />
+                          </div>
+                        ))}
+                      {/* Opciones con ficha propia (p.ej. grupos de apoyo): su perfil
                     aparece aquí SOLO si la opción está marcada para esta
                     entrada, igual que se añadiría una montura. */}
-                {selectedUnit.upgradeOptions
-                  .filter((u) => u.profile && draft.upgradeIds.has(u.id))
-                  .map((u) => (
-                    <div key={`upg-${u.id}`}>
-                      <p className="mb-1 text-xs font-medium text-ink-soft">Opción — {u.name}</p>
-                      <AttributeTable profile={u.profile!} />
-                    </div>
-                  ))}
+                      {selectedUnit.upgradeOptions
+                        .filter((u) => u.profile && draft.upgradeIds.has(u.id))
+                        .map((u) => (
+                          <div key={`upg-${u.id}`}>
+                            <p className="mb-1 text-xs font-medium text-ink-soft">Opción — {u.name}</p>
+                            <AttributeTable profile={u.profile!} />
+                          </div>
+                        ))}
 
-                {selectedUnit.equipmentText && (
-                  <p className="text-xs text-ink-soft">
-                    <span className="font-semibold tracking-wide text-ink">Equipo</span>{' '}
-                    {selectedUnit.equipmentText}
-                  </p>
-                )}
-                {selectedUnit.armorSave != null && (
-                  <p className="text-xs text-ink-soft">
-                    <span className="font-semibold text-ink">Tirada de salvación:</span>{' '}
-                    {formatArmorSave(selectedUnit.armorSave)}
-                  </p>
-                )}
+                      {selectedUnit.equipmentText && (
+                        <p className="text-xs text-ink-soft">
+                          <span className="font-semibold tracking-wide text-ink">Equipo</span>{' '}
+                          {selectedUnit.equipmentText}
+                        </p>
+                      )}
+                      {selectedUnit.armorSave != null && (
+                        <p className="text-xs text-ink-soft">
+                          <span className="font-semibold text-ink">Tirada de salvación:</span>{' '}
+                          {formatArmorSave(selectedUnit.armorSave)}
+                        </p>
+                      )}
 
-                {/* Plegable: la lista de reglas con su descripción es larga y,
+                      {/* Plegable: la lista de reglas con su descripción es larga y,
                     una vez consultada, estorba para seguir montando la lista.
                     Se recuerda entre unidades (no por unidad) porque es una
                     preferencia de cuánto quieres ver, no un dato de la ficha. */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setRulesOpen((v) => !v)}
-                    aria-expanded={rulesOpen}
-                    className="flex w-full items-center justify-between gap-2 text-left"
-                  >
-                    <span className="text-xs font-semibold tracking-wide text-ink-soft">
-                      Reglas especiales{reglasVisibles.length > 0 && ` (${reglasVisibles.length})`}
-                    </span>
-                    <span className={clsx('text-sm text-ink-soft transition-transform', rulesOpen && 'rotate-90')}>›</span>
-                  </button>
-                  {/* Las de la unidad más las del monstruo/montura ELEGIDO
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setRulesOpen((v) => !v)}
+                          aria-expanded={rulesOpen}
+                          className="flex w-full items-center justify-between gap-2 text-left"
+                        >
+                          <span className="text-xs font-semibold tracking-wide text-ink-soft">
+                            Reglas especiales{reglasVisibles.length > 0 && ` (${reglasVisibles.length})`}
+                          </span>
+                          <ChevronRightIcon
+                            className={clsx('h-3.5 w-3.5 text-ink-soft transition-transform', rulesOpen && 'rotate-90')}
+                          />
+                        </button>
+                        {/* Las de la unidad más las del monstruo/montura ELEGIDO
                       para esta entrada (ver reglasVisibles): las de una
                       montura que todavía no se ha escogido no pintan nada
                       aquí. Las destacadas de la facción van primero, separadas
                       del resto por un filete. */}
-                  {rulesOpen &&
-                    (reglasVisibles.length === 0 ? (
-                      <p className="mt-1 text-xs italic text-ink-soft">Ninguna.</p>
-                    ) : (
-                      <ul className="mt-1.5 space-y-1.5">
-                        {reglasVisibles.map((r, i) => (
-                          <li key={r.id} className="text-xs">
-                            {/* Separador ROTULADO entre las reglas de la
+                        {rulesOpen &&
+                          (reglasVisibles.length === 0 ? (
+                            <p className="mt-1 text-xs italic text-ink-soft">Ninguna.</p>
+                          ) : (
+                            <ul className="mt-1.5 space-y-1.5">
+                              {reglasVisibles.map((r, i) => (
+                                <li key={r.id} className="text-xs">
+                                  {/* Separador ROTULADO entre las reglas de la
                                 facción y las demás. Antes era un filete a
                                 secas: se veía que había dos bloques, pero no
                                 qué distinguía a uno del otro. */}
-                            {i === destacadasCount && destacadasCount > 0 && (
-                              <span className="mb-1.5 flex items-center gap-2 pt-1">
-                                <span className="h-px flex-1 bg-rule-dark/40" />
-                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
-                                  Reglas
-                                </span>
-                                <span className="h-px flex-1 bg-rule-dark/40" />
-                              </span>
-                            )}
-                            {i === 0 && destacadasCount > 0 && (
-                              <span className="mb-1.5 flex items-center gap-2">
-                                <span className="h-px flex-1 bg-rule-dark/40" />
-                                <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
-                                  De la facción
-                                </span>
-                                <span className="h-px flex-1 bg-rule-dark/40" />
-                              </span>
-                            )}
-                            <span className="font-semibold text-ink">{r.name}</span>
-                            {r.description && <span className="text-ink-soft"> — {r.description}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                    ))}
-                </div>
+                                  {i === destacadasCount && destacadasCount > 0 && (
+                                    <span className="mb-1.5 flex items-center gap-2 pt-1">
+                                      <span className="h-px flex-1 bg-rule-dark/40" />
+                                      <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
+                                        Reglas
+                                      </span>
+                                      <span className="h-px flex-1 bg-rule-dark/40" />
+                                    </span>
+                                  )}
+                                  {i === 0 && destacadasCount > 0 && (
+                                    <span className="mb-1.5 flex items-center gap-2">
+                                      <span className="h-px flex-1 bg-rule-dark/40" />
+                                      <span className="text-[10px] font-semibold tracking-wide text-ink-soft/70">
+                                        De la facción
+                                      </span>
+                                      <span className="h-px flex-1 bg-rule-dark/40" />
+                                    </span>
+                                  )}
+                                  <span className="font-semibold text-ink">{r.name}</span>
+                                  {r.description && <span className="text-ink-soft"> — {r.description}</span>}
+                                </li>
+                              ))}
+                            </ul>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </Panel>
               </div>
-            )}
-          </Panel>
-        </div>
-      </div>
-        )}
-      </section>
+            </div>
+          )}
+        </section>
       )}
 
       <div className="mt-6">
@@ -1597,7 +1619,7 @@ export function ArmyListBuilderPage() {
                   title={sortDescending ? 'Orden descendente' : 'Orden ascendente'}
                   className="rounded-sm border border-rule-dark/40 px-2 py-1 text-xs text-ink-soft hover:border-bronze hover:text-bronze disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {sortDescending ? '↓' : '↑'}
+                  {sortDescending ? <ArrowDownIcon className="h-3.5 w-3.5" /> : <ArrowUpIcon className="h-3.5 w-3.5" />}
                 </button>
                 <button
                   type="button"
@@ -1628,13 +1650,19 @@ export function ArmyListBuilderPage() {
                     <th className="w-6 border-b border-rule-dark/30" />
                     <th className="w-8 border-b border-rule-dark/30" />
                     <th className="w-7 border-b border-rule-dark/30" />
-                    <th className="w-10 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">Nº</th>
+                    <th className="w-10 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">
+                      Nº
+                    </th>
                     <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">Unidad</th>
                     <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">
                       Equipo / opciones
                     </th>
                     {COMMAND_COLUMNS.map((col) => (
-                      <th key={col.key} className="w-8 border-b border-rule-dark/30 py-1.5 align-middle" aria-label={col.label}>
+                      <th
+                        key={col.key}
+                        className="w-8 border-b border-rule-dark/30 py-1.5 align-middle"
+                        aria-label={col.label}
+                      >
                         <Tooltip label={col.label} className="flex justify-center text-ink-soft">
                           <col.Icon className="h-5 w-5 object-contain" />
                         </Tooltip>
@@ -1773,7 +1801,9 @@ export function ArmyListBuilderPage() {
                               }}
                               title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
                               aria-label={
-                                entry.alias ? `Cambiar el nombre de ${entry.alias}` : `Poner nombre a ${entry.unit.name}`
+                                entry.alias
+                                  ? `Cambiar el nombre de ${entry.alias}`
+                                  : `Poner nombre a ${entry.unit.name}`
                               }
                               className={clsx(
                                 'ml-1.5 inline-flex align-text-bottom transition-colors',
@@ -1836,7 +1866,10 @@ export function ArmyListBuilderPage() {
                             <>
                               {cost}
                               {entry.costOverride != null && (
-                                <Tooltip label="Coste escrito a mano por su autor" className="ml-1 inline-flex text-bronze">
+                                <Tooltip
+                                  label="Coste escrito a mano por su autor"
+                                  className="ml-1 inline-flex text-bronze"
+                                >
                                   <PencilIcon className="h-3 w-3" />
                                 </Tooltip>
                               )}
@@ -1895,16 +1928,16 @@ export function ArmyListBuilderPage() {
                         </td>
                         <td className="py-1.5 text-center align-middle">
                           {!soloLectura && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeletingEntry(entry)
-                            }}
-                            className="rounded-sm p-1 text-ink-soft hover:bg-maroon/10 hover:text-danger"
-                            aria-label={`Quitar ${entry.unit.name}`}
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                          </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingEntry(entry)
+                              }}
+                              className="rounded-sm p-1 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                              aria-label={`Quitar ${entry.unit.name}`}
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </button>
                           )}
                         </td>
                       </tr>

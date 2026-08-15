@@ -66,7 +66,9 @@ export function sortEntries(entries: ArmyListEntry[], criterion: SortCriterion, 
 
   /** Desempate dentro del grupo. Siempre en el mismo sentido, suba o baje el criterio principal. */
   const tiebreak = (a: ArmyListEntry, b: ArmyListEntry): number =>
-    criterion === 'coste' || criterion === 'nombre' ? a.unit.name.localeCompare(b.unit.name, 'es') : byCostThenName(a, b)
+    criterion === 'coste' || criterion === 'nombre'
+      ? a.unit.name.localeCompare(b.unit.name, 'es')
+      : byCostThenName(a, b)
 
   return entries.slice().sort((a, b) => {
     const main = primary(a, b)

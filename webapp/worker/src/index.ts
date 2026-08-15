@@ -684,6 +684,9 @@ const MIGRATIONS: string[] = [
   // Color de facción: el distintivo con el que se reconoce a un ejército de un
   // vistazo (ver domain/factionColor). NULL = todavía sin asignar.
   'ALTER TABLE factions ADD COLUMN color TEXT',
+  // Mapa OCULTO: solo lo ve quien lo hizo. Por defecto 0, porque los mapas son
+  // comunes: los usa, edita y borra cualquiera (ver mapRepository).
+  'ALTER TABLE battle_maps ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
   // ---------------------------------------------------------------------
   // BIBLIOTECA DE ESCENOGRAFÍA Y SUELOS, VERSIONADA.
   //

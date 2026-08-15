@@ -65,6 +65,7 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Alias de unidad', probe: 'SELECT alias FROM units LIMIT 1' },
   { label: 'Apéndices de unidad', probe: 'SELECT body_html FROM unit_appendices LIMIT 1' },
   { label: 'Mapas', probe: 'SELECT width_cm FROM battle_maps LIMIT 1' },
+  { label: 'Mapas ocultos', probe: 'SELECT hidden FROM battle_maps LIMIT 1' },
   { label: 'Textura del mapa', probe: 'SELECT texture FROM battle_maps LIMIT 1' },
   { label: 'Biblioteca de escenografía', probe: 'SELECT image_key FROM scenery_assets LIMIT 1' },
   { label: 'Suelos de mapa', probe: 'SELECT image_key FROM floor_assets LIMIT 1' },

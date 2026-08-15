@@ -38,16 +38,12 @@ export function toCatalogCode(name: string): string {
 
 export const UnitCategoryRepository = {
   async listAll(): Promise<UnitCategory[]> {
-    return queryLocal(
-      'SELECT * FROM unit_categories ORDER BY sort_order',
-      [],
-      (row) => ({
-        id: row.id as number,
-        code: row.code as string,
-        name: row.name as string,
-        sortOrder: row.sort_order as number,
-      }),
-    )
+    return queryLocal('SELECT * FROM unit_categories ORDER BY sort_order', [], (row) => ({
+      id: row.id as number,
+      code: row.code as string,
+      name: row.name as string,
+      sortOrder: row.sort_order as number,
+    }))
   },
 
   /** Cuántas unidades usan cada categoría — para avisar antes de borrar. */
@@ -109,21 +105,17 @@ export const UnitCategoryRepository = {
 /** Etiquetas de TIPO de unidad (Infantería, Caballería, Monstruo...) — ver unit_type_tags en db/schema.sql. Solo lectura: se importaron de una vez desde "Categoria tropas.xlsx", se editan a mano caso a caso desde la ficha de unidad si hace falta. */
 export const UnitTypeTagRepository = {
   async listAll(): Promise<UnitTypeTag[]> {
-    return queryLocal(
-      'SELECT * FROM unit_type_tags ORDER BY sort_order',
-      [],
-      (row) => ({
-        id: row.id as number,
-        code: row.code as string,
-        name: row.name as string,
-        sortOrder: row.sort_order as number,
-        // `?? 12/10` y no `as number`: si el Worker todavía no tiene la
-        // migración, la columna llega undefined y sin esto el Despliegue
-        // pintaría peanas de tamaño NaN.
-        baseWidthCm: (row.base_width_cm as number) ?? 12,
-        baseHeightCm: (row.base_height_cm as number) ?? 10,
-      }),
-    )
+    return queryLocal('SELECT * FROM unit_type_tags ORDER BY sort_order', [], (row) => ({
+      id: row.id as number,
+      code: row.code as string,
+      name: row.name as string,
+      sortOrder: row.sort_order as number,
+      // `?? 12/10` y no `as number`: si el Worker todavía no tiene la
+      // migración, la columna llega undefined y sin esto el Despliegue
+      // pintaría peanas de tamaño NaN.
+      baseWidthCm: (row.base_width_cm as number) ?? 12,
+      baseHeightCm: (row.base_height_cm as number) ?? 10,
+    }))
   },
 
   /** Cambia la peana estándar de una etiqueta (ver Categorías y Etiquetas). */
@@ -325,7 +317,10 @@ export const EquipmentRepository = {
     )
   },
 
-  async update(id: number, input: { name: string; cost: number; category: EquipmentOption['category'] }): Promise<void> {
+  async update(
+    id: number,
+    input: { name: string; cost: number; category: EquipmentOption['category'] },
+  ): Promise<void> {
     await execCatalog('UPDATE equipment_options SET name = ?, cost = ?, category = ? WHERE id = ?', [
       input.name.trim(),
       input.cost,
@@ -616,10 +611,10 @@ export const UpgradeRepository = {
 
 export const CommandRoleRepository = {
   async listAll(): Promise<CommandRole[]> {
-    return queryLocal(
-      'SELECT * FROM command_roles ORDER BY id',
-      [],
-      (row) => ({ id: row.id as number, code: row.code as CommandRole['code'], name: row.name as string }),
-    )
+    return queryLocal('SELECT * FROM command_roles ORDER BY id', [], (row) => ({
+      id: row.id as number,
+      code: row.code as CommandRole['code'],
+      name: row.name as string,
+    }))
   },
 }

@@ -85,7 +85,7 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
-import { CategoryShield, LockIcon, TrashIcon } from '@/shared/ui/icons'
+import { ArrowLeftIcon, CategoryShield, FileTextIcon, LockIcon, TrashIcon } from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
 import { referenciasDeDespliegue } from '@/domain/deploymentRefs'
@@ -169,7 +169,8 @@ export function DeploymentPage() {
   /** Mapa cargado; null = mesa libre. */
   const [mapaId, setMapaId] = useState<number | null>(null)
 
-  const { data: mapasDisponibles } = useAsync(() => MapRepository.listAll())
+  // Los mapas ocultos de otros no se ofrecen: para quien despliega no existen.
+  const { data: mapasDisponibles } = useAsync(() => MapRepository.listAll(user?.id ?? null), [user?.id])
   const { data: mapaCargado } = useAsync(
     () => (mapaId != null ? MapRepository.getById(mapaId) : Promise.resolve(null)),
     [mapaId],
@@ -621,7 +622,8 @@ export function DeploymentPage() {
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Sin guardar</span>}
             <Button variant="ghost" onClick={() => navigate(`/ejercitos/${list.id}`)}>
-              Volver al ejército
+              <ArrowLeftIcon className="h-4 w-4" />
+              Ejército
             </Button>
             <Button
               variant="secondary"
@@ -634,6 +636,7 @@ export function DeploymentPage() {
                 void exportarDespliegue(ventana)
               }}
             >
+              <FileTextIcon className="h-4 w-4" />
               {exportando ? 'Exportando…' : 'Exportar'}
             </Button>
             {!soloLectura && (

@@ -67,7 +67,6 @@ export function parseSectionWidths(raw: unknown): SectionWidths {
   }
 }
 
-
 /**
  * Fichas de atributos (las filas de la tabla M/HA/HP/F…) ocultas en una hoja.
  * Se identifican por la clave que les da `unifiedProfileRows`: "base-12",

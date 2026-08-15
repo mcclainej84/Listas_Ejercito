@@ -70,15 +70,11 @@ export const RuleRepository = {
 
   /** Quién usa cada regla (unidades, opciones y monturas), para desplegarlo bajo la fila. */
   async listUsage(): Promise<RuleUsageRow[]> {
-    return queryLocal(
-      `SELECT * FROM (${RULE_USAGE_SQL}) ORDER BY source, name`,
-      [],
-      (row) => ({
-        ruleId: row.rule_id as number,
-        name: (row.name as string) ?? '(sin nombre)',
-        source: row.source as string,
-      }),
-    )
+    return queryLocal(`SELECT * FROM (${RULE_USAGE_SQL}) ORDER BY source, name`, [], (row) => ({
+      ruleId: row.rule_id as number,
+      name: (row.name as string) ?? '(sin nombre)',
+      source: row.source as string,
+    }))
   },
 
   async getById(id: number): Promise<SpecialRule | null> {

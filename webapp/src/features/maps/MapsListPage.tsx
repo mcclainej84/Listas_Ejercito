@@ -6,9 +6,13 @@
 // piezas y a escala: un listado de nombres no dice nada cuando tienes seis
 // mesas, y la forma del terreno es justo lo que se recuerda de cada una.
 //
-// LOS MAPAS SON PÚBLICOS: aquí salen los de todo el mundo y cualquiera puede
-// abrirlos y cargarlos en su despliegue. Editarlos y borrarlos sigue siendo
-// cosa de su autor, así que la papelera solo aparece en los propios.
+// LOS MAPAS SON COMUNES: aquí salen los de todo el mundo, y cualquiera puede
+// abrirlos, editarlos, cargarlos en su despliegue y borrarlos. El nombre del
+// autor se sigue enseñando, pero solo como dato: no da derechos.
+//
+// Un mapa se puede OCULTAR (el ojo tachado): entonces desaparece del listado de
+// todos menos del de su autor. Está para tener uno a medias sin que le estorbe
+// a nadie, no para cerrarlo con llave.
 // ============================================================================
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -23,18 +27,27 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Modal } from '@/shared/ui/Modal'
-import { TrashIcon } from '@/shared/ui/icons'
+import { EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import { MapThumbnail } from '@/features/maps/MapThumbnail'
 
 export function MapsListPage() {
   const navigate = useNavigate()
   const { user } = useSession()
-  const { data: mapas, loading, reload } = useAsync(() => MapRepository.listAll())
+  const { data: mapas, loading, reload } = useAsync(() => MapRepository.listAll(user?.id ?? null), [user?.id])
 
   const [creando, setCreando] = useState(false)
   const [nombre, setNombre] = useState('')
   const [borrando, setBorrando] = useState<MapaResumen | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  async function alternarOculto(mapa: MapaResumen) {
+    try {
+      await MapRepository.setHidden(mapa.id, !mapa.hidden)
+      reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   async function crear() {
     if (!user || !nombre.trim()) return
@@ -55,7 +68,8 @@ export function MapsListPage() {
         description="Mesas con escenografía, listas para preparar una partida."
         actions={
           <Button variant="primary" onClick={() => setCreando(true)}>
-            + Nuevo mapa
+            <PlusIcon className="h-4 w-4" />
+            Nuevo mapa
           </Button>
         }
       />
@@ -65,11 +79,12 @@ export function MapsListPage() {
 
       {!loading && (mapas ?? []).length === 0 && (
         <EmptyState
-          title="Todavía no tienes ningún mapa"
-          description='Crea el primero con "+ Nuevo mapa".'
+          title="Todavía no hay ningún mapa"
+          description="Los mapas son comunes: el que hagas lo verá y lo podrá usar todo el mundo."
           action={
             <Button variant="primary" onClick={() => setCreando(true)}>
-              + Nuevo mapa
+              <PlusIcon className="h-4 w-4" />
+              Nuevo mapa
             </Button>
           }
         />
@@ -94,18 +109,44 @@ export function MapsListPage() {
                   </span>
                 </span>
               </button>
-              {/* Solo el autor borra su mapa: son públicos para verlos y
-                  usarlos, no para que cualquiera los deshaga. */}
-              {mapa.userId === user?.id && (
+
+              {/* Oculto: se avisa SIEMPRE, no solo al pasar el ratón. Es el
+                  único estado que explica por qué los demás no ven este mapa. */}
+              {mapa.hidden && (
+                <span
+                  className="pointer-events-none absolute top-2 left-2 flex items-center gap-1 rounded-sm bg-ink/75 px-1.5 py-0.5 text-mini font-medium text-parchment"
+                  title="Solo lo ves tú"
+                >
+                  <EyeOffIcon className="h-3 w-3" />
+                  Oculto
+                </span>
+              )}
+
+              {/* Las acciones asoman al pasar por encima: la tarjeta es una
+                  miniatura del mapa, y tres botones fijos encima la tapan. */}
+              <span className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                {/* Ocultar solo tiene sentido en los propios: un mapa oculto lo
+                    ve su autor, así que ocultar el de otro sería quitárselo de
+                    en medio a todos menos a él. */}
+                {mapa.userId === user?.id && (
+                  <button
+                    onClick={() => void alternarOculto(mapa)}
+                    aria-label={mapa.hidden ? `Mostrar ${mapa.name} a todos` : `Ocultar ${mapa.name}`}
+                    title={mapa.hidden ? 'Mostrar a todos' : 'Ocultar: solo lo verás tú'}
+                    className="rounded-sm bg-parchment/90 p-1.5 text-ink-soft transition-colors hover:text-maroon"
+                  >
+                    {mapa.hidden ? <EyeIcon className="h-3.5 w-3.5" /> : <EyeOffIcon className="h-3.5 w-3.5" />}
+                  </button>
+                )}
                 <button
                   onClick={() => setBorrando(mapa)}
                   aria-label={`Borrar ${mapa.name}`}
                   title="Borrar"
-                  className="absolute top-2 right-2 rounded-sm bg-parchment/90 p-1 text-ink-soft opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+                  className="rounded-sm bg-parchment/90 p-1.5 text-ink-soft transition-colors hover:text-danger"
                 >
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
-              )}
+              </span>
             </li>
           ))}
         </ul>
@@ -148,7 +189,10 @@ export function MapsListPage() {
       {borrando && (
         <ConfirmDialog
           title="Borrar mapa"
-          message={`Se borrará "${borrando.name}" con toda su escenografía. Esta acción no se puede deshacer.`}
+          message={
+            `Se borrará "${borrando.name}" con toda su escenografía, y los mapas son comunes: ` +
+            'desaparece para todo el mundo. No se puede deshacer.'
+          }
           confirmLabel="Borrar definitivamente"
           onCancel={() => setBorrando(null)}
           onConfirm={async () => {

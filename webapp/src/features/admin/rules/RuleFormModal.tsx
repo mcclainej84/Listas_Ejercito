@@ -57,12 +57,7 @@ export function RuleFormModal({ rule, onClose, onSaved }: RuleFormModalProps) {
     >
       <div className="space-y-4">
         <TextField label="Nombre" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-        <TextArea
-          label="Descripción"
-          rows={5}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        <TextArea label="Descripción" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     </Modal>

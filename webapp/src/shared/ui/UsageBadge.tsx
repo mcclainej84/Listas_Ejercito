@@ -9,6 +9,7 @@
 // aparecía).
 // ============================================================================
 import { clsx } from 'clsx'
+import { ChevronRightIcon } from '@/shared/ui/icons'
 
 interface UsageBadgeProps {
   count: number
@@ -33,7 +34,7 @@ export function UsageBadge({ count, expanded, onToggle, noun = { one: 'unidad', 
       className="flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-mini text-ink-soft underline decoration-dotted hover:text-maroon"
     >
       {count} {count === 1 ? noun.one : noun.many}
-      <span className={clsx('transition-transform', expanded && 'rotate-90')}>›</span>
+      <ChevronRightIcon className={clsx('h-3 w-3 transition-transform', expanded && 'rotate-90')} />
     </button>
   )
 }

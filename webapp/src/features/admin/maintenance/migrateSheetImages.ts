@@ -24,7 +24,13 @@
 // ============================================================================
 import { execBatch, query } from '@/data/sqlite/client'
 import { uploadImage } from '@/data/network/images'
-import { byteLength, compressImageFile, MAX_EMBLEM_BYTES, MAX_ILLUSTRATION_BYTES, type ByteSource } from '@/shared/image'
+import {
+  byteLength,
+  compressImageFile,
+  MAX_EMBLEM_BYTES,
+  MAX_ILLUSTRATION_BYTES,
+  type ByteSource,
+} from '@/shared/image'
 import type { SheetTargetKind } from '@/data/repositories/unitSheetRepository'
 
 export interface MigrationProgress {

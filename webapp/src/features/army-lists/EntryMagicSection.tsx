@@ -20,7 +20,7 @@
 // ============================================================================
 import { clsx } from 'clsx'
 import { MAGIC_GROUPS, MAGIC_GROUP_LABELS, MAGIC_LEVELS, type MagicPath } from '@/domain/magic'
-import { TrashIcon } from '@/shared/ui/icons'
+import { ChevronRightIcon, TrashIcon } from '@/shared/ui/icons'
 import type { EntryMagicPath } from '@/domain/types'
 
 /**
@@ -74,13 +74,11 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
               para comprobar qué lleva. */}
           {value.length > 0 && (
             <span className="ml-2 font-normal text-bronze">
-              {value
-                .map((v) => `${sentenceCase(pathById.get(v.pathId)?.name ?? '—')} ${v.level}`)
-                .join(' · ')}
+              {value.map((v) => `${sentenceCase(pathById.get(v.pathId)?.name ?? '—')} ${v.level}`).join(' · ')}
             </span>
           )}
         </span>
-        <span className={clsx('text-sm text-ink-soft transition-transform', open && 'rotate-90')}>›</span>
+        <ChevronRightIcon className={clsx('h-3.5 w-3.5 text-ink-soft transition-transform', open && 'rotate-90')} />
       </button>
 
       {open && (
@@ -161,9 +159,7 @@ export function EntryMagicSection({ paths, value, onChange, open, onToggle }: En
               })}
             </select>
           ) : (
-            paths.length === 0 && (
-              <p className="text-xs text-ink-soft italic">No hay sendas en el catálogo.</p>
-            )
+            paths.length === 0 && <p className="text-xs text-ink-soft italic">No hay sendas en el catálogo.</p>
           )}
         </div>
       )}

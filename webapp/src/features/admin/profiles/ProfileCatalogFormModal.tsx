@@ -21,9 +21,15 @@ const ATTRIBUTE_FIELDS: { key: keyof ProfileCatalogInput; label: string }[] = [
 function toInput(profile: AttributeProfile | null): ProfileCatalogInput {
   return {
     name: profile?.name ?? '',
-    m: profile?.m ?? null, ha: profile?.ha ?? null, hp: profile?.hp ?? null,
-    f: profile?.f ?? null, r: profile?.r ?? null, h: profile?.h ?? null,
-    i: profile?.i ?? null, a: profile?.a ?? null, l: profile?.l ?? null,
+    m: profile?.m ?? null,
+    ha: profile?.ha ?? null,
+    hp: profile?.hp ?? null,
+    f: profile?.f ?? null,
+    r: profile?.r ?? null,
+    h: profile?.h ?? null,
+    i: profile?.i ?? null,
+    a: profile?.a ?? null,
+    l: profile?.l ?? null,
     equippableByCharacter: profile?.equippableByCharacter ?? false,
     includeInSheets: profile?.includeInSheets ?? false,
   }
@@ -105,7 +111,12 @@ export function ProfileCatalogFormModal({
       }
     >
       <div className="space-y-4">
-        <TextField label="Nombre" value={input.name} onChange={(e) => setInput({ ...input, name: e.target.value })} autoFocus />
+        <TextField
+          label="Nombre"
+          value={input.name}
+          onChange={(e) => setInput({ ...input, name: e.target.value })}
+          autoFocus
+        />
 
         <div>
           <p className="mb-1.5 text-sm font-medium text-ink-soft">Ficha de atributos</p>

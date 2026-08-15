@@ -78,7 +78,13 @@ export function ArmyListFormModal({ factions, defaultFactionId, onClose, onCreat
             Solo para el nombre y la cabecera del PDF — luego podrás añadir unidades de cualquier facción a la lista.
           </p>
         </div>
-        <TextField label="Nombre de la lista" placeholder="p.ej. Torneo de verano" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <TextField
+          label="Nombre de la lista"
+          placeholder="p.ej. Torneo de verano"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
         <TextField
           label="Límite de puntos (opcional)"
           type="number"

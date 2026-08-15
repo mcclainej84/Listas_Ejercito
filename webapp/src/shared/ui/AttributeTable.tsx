@@ -33,8 +33,15 @@ export function profileStatLine(profile: AttributeProfile): string {
 
 export function extractProfileInput(profile: AttributeProfile): AttributeProfileInput {
   return {
-    m: profile.m, ha: profile.ha, hp: profile.hp, f: profile.f, r: profile.r,
-    h: profile.h, i: profile.i, a: profile.a, l: profile.l,
+    m: profile.m,
+    ha: profile.ha,
+    hp: profile.hp,
+    f: profile.f,
+    r: profile.r,
+    h: profile.h,
+    i: profile.i,
+    a: profile.a,
+    l: profile.l,
   }
 }
 

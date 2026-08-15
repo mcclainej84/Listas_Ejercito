@@ -141,7 +141,16 @@ function dibujarFondoPagina(doc: jsPDF, texturaDataUrl: string | null, paleta: P
     const escala = Math.max(w / TEXTURA_PX.ancho, h / TEXTURA_PX.alto)
     const anchoFinal = TEXTURA_PX.ancho * escala
     const altoFinal = TEXTURA_PX.alto * escala
-    doc.addImage(texturaDataUrl, 'JPEG', (w - anchoFinal) / 2, (h - altoFinal) / 2, anchoFinal, altoFinal, undefined, 'FAST')
+    doc.addImage(
+      texturaDataUrl,
+      'JPEG',
+      (w - anchoFinal) / 2,
+      (h - altoFinal) / 2,
+      anchoFinal,
+      altoFinal,
+      undefined,
+      'FAST',
+    )
   } else {
     doc.setFillColor(...paleta.fondoRespaldo)
     doc.rect(0, 0, w, h, 'F')
@@ -205,7 +214,10 @@ function dibujarCabeceraPrincipal(
 }
 
 /** Cabecera reducida para páginas de continuación: título pequeño + nombre de la lista + filete. */
-function dibujarCabeceraContinuacion(doc: jsPDF, opts: { nombreLista: string; familiaTitulares: string; paleta: Paleta }) {
+function dibujarCabeceraContinuacion(
+  doc: jsPDF,
+  opts: { nombreLista: string; familiaTitulares: string; paleta: Paleta },
+) {
   const w = doc.internal.pageSize.getWidth()
 
   doc.setTextColor(...opts.paleta.ink)
@@ -224,7 +236,13 @@ function dibujarCabeceraContinuacion(doc: jsPDF, opts: { nombreLista: string; fa
 }
 
 /** Etiqueta de sección en versalitas espaciadas, con un filete fino debajo. */
-function dibujarEtiquetaSeccion(doc: jsPDF, texto: string, y: number, familiaTitulares: string, paleta: Paleta): number {
+function dibujarEtiquetaSeccion(
+  doc: jsPDF,
+  texto: string,
+  y: number,
+  familiaTitulares: string,
+  paleta: Paleta,
+): number {
   const w = doc.internal.pageSize.getWidth()
   doc.setFont(familiaTitulares, 'bold')
   doc.setFontSize(10.5)
@@ -274,7 +292,18 @@ function dibujarBordeInferiorCabecera(data: CellHookData, paleta: Paleta) {
 /** Fila de estadísticas [nombre, M, HA, HP, F, R, H, I, A, L], con "-" para lo que falte (mismo criterio que el original). */
 function filaEstadisticas(nombre: string, ficha: AttributeProfile | null): string[] {
   const g = (v: string | null | undefined) => (v !== undefined && v !== null && v !== '' ? v : '-')
-  return [nombre, g(ficha?.m), g(ficha?.ha), g(ficha?.hp), g(ficha?.f), g(ficha?.r), g(ficha?.h), g(ficha?.i), g(ficha?.a), g(ficha?.l)]
+  return [
+    nombre,
+    g(ficha?.m),
+    g(ficha?.ha),
+    g(ficha?.hp),
+    g(ficha?.f),
+    g(ficha?.r),
+    g(ficha?.h),
+    g(ficha?.i),
+    g(ficha?.a),
+    g(ficha?.l),
+  ]
 }
 
 /**
@@ -326,12 +355,8 @@ function nombreDeLaEntrada(entry: ArmyListEntry): string {
  * diferencia de la ficha de catálogo). Sin repetir, ver mergeSpecialRules.
  */
 function reglasDeLaEntrada(entry: ArmyListEntry): SpecialRule[] {
-  const montura = entry.mountProfileId
-    ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId)
-    : null
-  const carro = entry.chariotProfileId
-    ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId)
-    : null
+  const montura = entry.mountProfileId ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId) : null
+  const carro = entry.chariotProfileId ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId) : null
   return mergeSpecialRules(entry.unit.specialRules, montura?.specialRules ?? [], carro?.specialRules ?? [])
 }
 
@@ -389,9 +414,7 @@ export async function exportArmyListToPdf(
         const equipNames = entry.unit.equipmentOptions
           .filter((e) => entry.equipmentIds.includes(e.id))
           .map((e) => e.name)
-        const upgradeNames = entry.unit.upgradeOptions
-          .filter((u) => entry.upgradeIds.includes(u.id))
-          .map((u) => u.name)
+        const upgradeNames = entry.unit.upgradeOptions.filter((u) => entry.upgradeIds.includes(u.id)).map((u) => u.name)
         return [
           String(entry.quantity),
           // Ver nombreDeLaEntrada: el PDF es lo que se lleva a la partida,
@@ -479,7 +502,10 @@ export async function exportArmyListToPdf(
   const vistas = new Set<string>()
   for (const entry of sortedEntries) {
     const unit = entry.unit
-    const rulesText = reglasDeLaEntrada(entry).map((r) => r.name).join(', ') || '—'
+    const rulesText =
+      reglasDeLaEntrada(entry)
+        .map((r) => r.name)
+        .join(', ') || '—'
     // Con el nombre propio, igual que en las otras tres tablas: quien lee la
     // hoja busca "Jules el Bretón", no "Paladín Bretoniano". Como el nombre
     // forma parte de la fila, dos personajes bautizados distinto ya no se

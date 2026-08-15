@@ -29,7 +29,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { TrashIcon, StarIcon } from '@/shared/ui/icons'
+import { PlusIcon, StarIcon, TrashIcon } from '@/shared/ui/icons'
 import { FactionFormModal } from '@/features/admin/factions/FactionFormModal'
 import type { Faction } from '@/domain/types'
 
@@ -110,7 +110,12 @@ export function FactionsListPage() {
       <PageHeader
         title="Facciones"
         description="Ejércitos disponibles. Cada facción agrupa sus propias unidades, personajes y restricciones."
-        actions={<Button variant="primary" onClick={() => setEditing('new')}>+ Nueva facción</Button>}
+        actions={
+          <Button variant="primary" onClick={() => setEditing('new')}>
+            <PlusIcon className="h-4 w-4" />
+            Nueva facción
+          </Button>
+        }
       />
 
       {loading && <Spinner />}
@@ -120,7 +125,12 @@ export function FactionsListPage() {
         <EmptyState
           title="Todavía no hay facciones"
           description="Crea la primera facción para empezar a añadir unidades."
-          action={<Button variant="primary" onClick={() => setEditing('new')}>+ Nueva facción</Button>}
+          action={
+            <Button variant="primary" onClick={() => setEditing('new')}>
+              <PlusIcon className="h-4 w-4" />
+              Nueva facción
+            </Button>
+          }
         />
       )}
 

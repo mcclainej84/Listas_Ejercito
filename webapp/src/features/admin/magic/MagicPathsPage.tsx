@@ -37,7 +37,7 @@ import { Select } from '@/shared/ui/Select'
 import { TextField } from '@/shared/ui/TextField'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Modal } from '@/shared/ui/Modal'
-import { TrashIcon } from '@/shared/ui/icons'
+import { PlusIcon, TrashIcon } from '@/shared/ui/icons'
 
 const EMPTY_SPELL: MagicSpellInput = {
   level: 1,
@@ -219,7 +219,8 @@ export function MagicPathsPage() {
         description="Las sendas que puede conocer un hechicero, con sus hechizos. Se asignan a cada personaje desde el apartado «Magia» de su ficha."
         actions={
           <Button variant="primary" onClick={() => setCreatingPath(true)}>
-            + Nueva senda
+            <PlusIcon className="h-4 w-4" />
+            Nueva senda
           </Button>
         }
       />
@@ -280,7 +281,8 @@ export function MagicPathsPage() {
               headerRight={
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" onClick={() => setAddingSpell(true)} disabled={full}>
-                    + Hechizo
+                    <PlusIcon className="h-4 w-4" />
+                    Hechizo
                   </Button>
                   <Button
                     variant="ghost"

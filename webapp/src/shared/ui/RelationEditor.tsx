@@ -102,10 +102,7 @@ export function RelationEditor({
   const [pendingRemoval, setPendingRemoval] = useState<RelationItem | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const assigned = useMemo(
-    () => allItems.filter((item) => selectedIds.has(item.id)),
-    [allItems, selectedIds],
-  )
+  const assigned = useMemo(() => allItems.filter((item) => selectedIds.has(item.id)), [allItems, selectedIds])
 
   // Todo lo que coincide con la búsqueda, ya SIN lo que está asignado (lo ya
   // excluido no vuelve a ofrecerse). `suggestions` es solo el recorte que se
@@ -141,7 +138,9 @@ export function RelationEditor({
   }
 
   if (allItems.length === 0 && !onCreateNew) {
-    return <p className="text-xs text-ink-soft">{emptyLabel ?? 'No hay opciones disponibles todavía en el catálogo.'}</p>
+    return (
+      <p className="text-xs text-ink-soft">{emptyLabel ?? 'No hay opciones disponibles todavía en el catálogo.'}</p>
+    )
   }
 
   return (
@@ -189,7 +188,11 @@ export function RelationEditor({
                         ? 'rounded-sm p-1 text-bronze hover:bg-bronze/10'
                         : 'rounded-sm p-1 text-ink-soft/50 hover:bg-bronze/10 hover:text-bronze'
                     }
-                    aria-label={defaultIds?.has(item.id) ? `Quitar ${item.name} de por defecto` : `Marcar ${item.name} por defecto`}
+                    aria-label={
+                      defaultIds?.has(item.id)
+                        ? `Quitar ${item.name} de por defecto`
+                        : `Marcar ${item.name} por defecto`
+                    }
                     title={defaultIds?.has(item.id) ? 'Por defecto — clic para quitar' : 'Marcar como por defecto'}
                   >
                     <StarIcon filled={defaultIds?.has(item.id) ?? false} />
@@ -233,7 +236,9 @@ export function RelationEditor({
 
         {adding && (
           <div className="absolute z-10 mt-1 max-h-56 w-full max-w-xs overflow-y-auto rounded-sm border border-rule-dark/40 bg-parchment shadow-lg">
-            {suggestions.length === 0 && !onCreateNew && <p className="px-3 py-2 text-xs text-ink-soft">Sin coincidencias.</p>}
+            {suggestions.length === 0 && !onCreateNew && (
+              <p className="px-3 py-2 text-xs text-ink-soft">Sin coincidencias.</p>
+            )}
 
             {/* Añadir de golpe todo lo que coincide con la búsqueda: escribir
                 "marca de" y excluirlas todas de una vez. */}

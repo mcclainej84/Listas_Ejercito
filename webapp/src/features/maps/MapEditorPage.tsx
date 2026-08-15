@@ -57,10 +57,9 @@ import { FloorAssetRepository, SceneryAssetRepository } from '@/data/repositorie
 import { SceneryLibraryModal } from '@/features/maps/SceneryLibraryModal'
 import { descargarCanvas, renderTableCanvas } from '@/features/maps/renderTableCanvas'
 import { useAsync } from '@/shared/hooks/useAsync'
-import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
-import { TrashIcon } from '@/shared/ui/icons'
+import { ArrowLeftIcon, FileImageIcon, LayersIcon, TrashIcon } from '@/shared/ui/icons'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 
 /** Rótulo de sección: versalita espaciada y filete, igual que en el Despliegue. */
@@ -77,7 +76,6 @@ function Rotulo({ children, extra }: { children: React.ReactNode; extra?: React.
 export function MapEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useSession()
   const mapaId = Number(id)
 
   const { data: mapa, loading } = useAsync(() => MapRepository.getById(mapaId), [mapaId])
@@ -116,7 +114,6 @@ export function MapEditorPage() {
   const agarre = useRef<{ id: number; dxCm: number; dyCm: number } | null>(null)
   const redim = useRef<{ id: number; xCm: number; yCm: number } | null>(null)
 
-  const esDeOtro = mapa != null && mapa.userId != null && user != null && mapa.userId !== user.id
   const mesaActual: Mesa = mesa ?? {
     anchoCm: mapa?.anchoCm ?? 180,
     altoCm: mapa?.altoCm ?? 120,
@@ -294,19 +291,6 @@ export function MapEditorPage() {
     )
   }
 
-  if (esDeOtro) {
-    return (
-      <div>
-        <button onClick={() => navigate('/mapas')} className="mb-3 text-sm text-ink-soft hover:text-ink">
-          ← Volver a Mapas
-        </button>
-        <div className="rounded-sm border border-rule-dark/40 bg-parchment/70 px-4 py-3">
-          <p className="text-sm text-ink">Este mapa es de otro usuario.</p>
-        </div>
-      </div>
-    )
-  }
-
   const elegida = piezas.find((p) => p.id === seleccionada) ?? null
   const marcasX = Array.from({ length: Math.floor(mesaActual.anchoCm / RETICULA_CM) }, (_, i) => (i + 1) * RETICULA_CM)
   const marcasY = Array.from({ length: Math.floor(mesaActual.altoCm / RETICULA_CM) }, (_, i) => (i + 1) * RETICULA_CM)
@@ -346,10 +330,12 @@ export function MapEditorPage() {
           <div className="flex shrink-0 items-center gap-3">
             {dirty && <span className="text-xs font-medium text-bronze">● Sin guardar</span>}
             <Button variant="ghost" onClick={() => navigate('/mapas')}>
-              Volver a Mapas
+              <ArrowLeftIcon className="h-4 w-4" />
+              Mapas
             </Button>
-            <Button variant="secondary" onClick={exportarPng} disabled={exportando}>
-              {exportando ? 'Exportando…' : 'Exportar PNG'}
+            <Button variant="secondary" onClick={exportarPng} disabled={exportando} title="Descargar el mapa como PNG">
+              <FileImageIcon className="h-4 w-4" />
+              {exportando ? 'Exportando…' : 'PNG'}
             </Button>
             <Button variant="primary" onClick={guardar} disabled={!dirty || saving}>
               {saving ? 'Guardando…' : 'Guardar mapa'}
@@ -368,10 +354,11 @@ export function MapEditorPage() {
               <button
                 type="button"
                 onClick={() => setEditandoBiblioteca(true)}
-                title="Añadir, reemplazar o retirar elementos de escenografía"
-                className="rounded-sm border border-rule-dark/40 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
+                aria-label="Biblioteca de escenografía"
+                title="Biblioteca: añadir, reemplazar o borrar elementos"
+                className="rounded-sm border border-rule-dark/40 p-1 text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
               >
-                Editar…
+                <LayersIcon className="h-3.5 w-3.5" />
               </button>
             }
           >
@@ -645,10 +632,11 @@ export function MapEditorPage() {
                 <button
                   type="button"
                   onClick={() => setEditandoBiblioteca(true)}
-                  title="Crear o reemplazar suelos de mesa"
-                  className="rounded-sm border border-rule-dark/40 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
+                  aria-label="Suelos de la biblioteca"
+                  title="Biblioteca: crear o reemplazar suelos de mesa"
+                  className="rounded-sm border border-rule-dark/40 p-1 text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
                 >
-                  Editar…
+                  <LayersIcon className="h-3.5 w-3.5" />
                 </button>
               }
             >
@@ -674,7 +662,6 @@ export function MapEditorPage() {
                       setFloorId(opcion.suelo?.id ?? null)
                       setDirty(true)
                     }}
-                    disabled={esDeOtro}
                     aria-pressed={elegido}
                     title={opcion.etiqueta}
                     className={clsx(

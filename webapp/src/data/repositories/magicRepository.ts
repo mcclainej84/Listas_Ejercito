@@ -11,7 +11,14 @@
 import { execCatalog, execCatalogBatch, type BatchStatement } from '@/data/sqlite/client'
 import { queryLocal } from '@/data/sqlite/localCatalog'
 import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
-import { isMagicGroup, type MagicPath, type MagicPathDetail, type MagicPathInput, type MagicSpell, type MagicSpellInput } from '@/domain/magic'
+import {
+  isMagicGroup,
+  type MagicPath,
+  type MagicPathDetail,
+  type MagicPathInput,
+  type MagicSpell,
+  type MagicSpellInput,
+} from '@/domain/magic'
 
 function mapPath(row: Record<string, unknown>): MagicPath {
   const group = row.group_code
@@ -198,5 +205,4 @@ export const MagicRepository = {
     }
     await execCatalogBatch(statements)
   },
-
 }

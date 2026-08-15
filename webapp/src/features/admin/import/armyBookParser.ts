@@ -101,10 +101,7 @@ function parseProfileRow(line: string, ncols: number): [string, string[]] | null
 
 /** Extrae el valor de un campo etiquetado ("Coste:", "Armas:", "Reglas especiales:") de un bloque de texto multilínea. */
 function readField(body: string, label: string): string | null {
-  const re = new RegExp(
-    `(?:^|\\n)\\s*${label}\\s*[:.]\\s*([\\s\\S]+?)(?=\\n\\s*[A-ZÁÉÍÓÚ][^\\n]{0,40}?[:.]\\s|$)`,
-    'i',
-  )
+  const re = new RegExp(`(?:^|\\n)\\s*${label}\\s*[:.]\\s*([\\s\\S]+?)(?=\\n\\s*[A-ZÁÉÍÓÚ][^\\n]{0,40}?[:.]\\s|$)`, 'i')
   const m = re.exec(body)
   return m ? dehyphenate(m[1]) : null
 }
@@ -163,7 +160,13 @@ function parseSize(tam: string | null): { minSize: number | null; maxSize: numbe
 /** Resumen corto de equipo básico (arma de mano, arco largo…) para el campo equipment_text: la parte inicial de "Armas"/"Arma de proyectiles" antes de las opciones con coste. */
 function buildEquipmentText(body: string): string | null {
   const parts: string[] = []
-  for (const label of ['Armas y armadura', 'Armas y armaduras', 'Armas', 'Arma de proyectiles', 'Armas de proyectiles']) {
+  for (const label of [
+    'Armas y armadura',
+    'Armas y armaduras',
+    'Armas',
+    'Arma de proyectiles',
+    'Armas de proyectiles',
+  ]) {
     const v = readField(body, label)
     if (v) {
       const base = v.split(/\.|\(/)[0].trim()
@@ -265,7 +268,18 @@ export function parseArmyBook(text: string): ParsedUnit[] {
       const specialRules = parseRules(readField(body, 'Reglas especiales'))
 
       const options: ParsedOption[] = []
-      for (const label of ['Armas y armadura', 'Armas y armaduras', 'Armas', 'Armas de proyectiles', 'Arma de proyectiles', 'Armadura', 'Montura', 'Estirpes', 'Opciones', 'Grupo de mando']) {
+      for (const label of [
+        'Armas y armadura',
+        'Armas y armaduras',
+        'Armas',
+        'Armas de proyectiles',
+        'Arma de proyectiles',
+        'Armadura',
+        'Montura',
+        'Estirpes',
+        'Opciones',
+        'Grupo de mando',
+      ]) {
         options.push(...extractOptions(readField(body, label), label))
       }
 

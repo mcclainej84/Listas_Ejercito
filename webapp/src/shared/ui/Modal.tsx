@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { XIcon } from '@/shared/ui/icons'
 
 interface ModalProps {
   title: string
@@ -29,10 +30,11 @@ export function Modal({ title, onClose, children, footer, widthClassName = 'max-
           <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-sm p-1 text-ink-soft hover:bg-parchment-dark hover:text-ink"
+            className="rounded-sm p-1.5 text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink"
             aria-label="Cerrar"
+            title="Cerrar"
           >
-            ✕
+            <XIcon className="h-4 w-4" />
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>

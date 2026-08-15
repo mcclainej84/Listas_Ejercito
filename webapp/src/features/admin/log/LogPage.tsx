@@ -230,8 +230,8 @@ export function LogPage() {
       {tab === 'mantenimiento' && (
         <div className="space-y-4">
           <p className="text-xs text-ink-soft">
-            Operaciones de una sola vez sobre los datos. No se ejecutan solas al abrir la aplicación: mueven
-            información y conviene lanzarlas a conciencia.
+            Operaciones de una sola vez sobre los datos. No se ejecutan solas al abrir la aplicación: mueven información
+            y conviene lanzarlas a conciencia.
           </p>
           <MigrateImagesPanel />
         </div>

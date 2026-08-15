@@ -98,7 +98,11 @@ export async function flipHorizontalDataUrl(dataUrl: string | null): Promise<str
  * filtros/transforms CSS en tiempo de captura. Devuelve el mismo dataURL si
  * no hay nada que hornear (sin imagen, sin volteo y con brillo 100%).
  */
-export async function bakeIllustration(illuUrl: string | null, flipped: boolean, brightness: number): Promise<string | null> {
+export async function bakeIllustration(
+  illuUrl: string | null,
+  flipped: boolean,
+  brightness: number,
+): Promise<string | null> {
   let data = illuUrl
   if (flipped) data = await flipHorizontalDataUrl(data)
   if (brightness !== 100) data = await adjustBrightnessDataUrl(data, brightness)

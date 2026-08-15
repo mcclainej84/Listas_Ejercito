@@ -35,6 +35,7 @@ import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
+import { PlusIcon, SwapIcon, TrashIcon } from '@/shared/ui/icons'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 
@@ -183,7 +184,8 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs text-ink-soft">{paleta.length} en la paleta</span>
         <Button variant="secondary" onClick={() => setEditando('nuevo')} disabled={busy}>
-          + Nuevo elemento
+          <PlusIcon className="h-4 w-4" />
+          Nuevo elemento
         </Button>
       </div>
 
@@ -212,17 +214,21 @@ function PanelElementos({ onSaved }: { onSaved: () => void }) {
                   type="button"
                   disabled={busy}
                   onClick={() => setEditando(versionBase(entrada, asset))}
-                  className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-parchment-dark hover:text-ink disabled:opacity-40"
+                  aria-label={`Reemplazar ${entrada.label}`}
+                  title="Reemplazar por otra imagen (crea una versión nueva)"
+                  className="rounded-sm p-1 text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink disabled:opacity-40"
                 >
-                  Reemplazar
+                  <SwapIcon className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => setBorrando(versionBase(entrada, asset))}
-                  className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
+                  aria-label={`Borrar ${entrada.label}`}
+                  title="Borrar de la paleta"
+                  className="rounded-sm p-1 text-ink-soft transition-colors hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
                 >
-                  Borrar
+                  <TrashIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
             </li>
@@ -437,7 +443,8 @@ function PanelSuelos({ onSaved }: { onSaved: () => void }) {
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs text-ink-soft">{lista.length} suelos propios</span>
         <Button variant="secondary" onClick={() => setEditando('nuevo')} disabled={busy}>
-          + Nuevo suelo
+          <PlusIcon className="h-4 w-4" />
+          Nuevo suelo
         </Button>
       </div>
 
@@ -463,17 +470,21 @@ function PanelSuelos({ onSaved }: { onSaved: () => void }) {
                 type="button"
                 disabled={busy}
                 onClick={() => setEditando(suelo)}
-                className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-parchment-dark hover:text-ink disabled:opacity-40"
+                aria-label={`Reemplazar ${suelo.label}`}
+                title="Reemplazar por otra imagen (crea una versión nueva)"
+                className="rounded-sm p-1 text-ink-soft transition-colors hover:bg-parchment-dark hover:text-ink disabled:opacity-40"
               >
-                Reemplazar
+                <SwapIcon className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => setBorrando(suelo)}
-                className="rounded-sm px-1.5 py-0.5 text-mini text-ink-soft hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
+                aria-label={`Borrar ${suelo.label}`}
+                title="Borrar de la lista de suelos"
+                className="rounded-sm p-1 text-ink-soft transition-colors hover:bg-maroon/10 hover:text-danger disabled:opacity-40"
               >
-                Borrar
+                <TrashIcon className="h-3.5 w-3.5" />
               </button>
             </li>
           ))}

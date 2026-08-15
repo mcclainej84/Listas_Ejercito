@@ -133,7 +133,10 @@ export interface PeanaEnMesa {
  * arrastraría entera hasta la primera, y el ejemplo del usuario dice justo lo
  * contrario (la unidad Z se queda donde está).
  */
-export function alinearFrentes(peanas: PeanaEnMesa[], mesa: Mesa): Array<{ entryId: number; xCm: number; yCm: number }> {
+export function alinearFrentes(
+  peanas: PeanaEnMesa[],
+  mesa: Mesa,
+): Array<{ entryId: number; xCm: number; yCm: number }> {
   const frenteDe = (p: PeanaEnMesa) => p.yCm - p.tamano.altoCm / 2
   const traseraDe = (p: PeanaEnMesa) => p.yCm + p.tamano.altoCm / 2
 

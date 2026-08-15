@@ -42,24 +42,26 @@ function tally(entries: ArmyListEntry[], bucketOf: (e: ArmyListEntry) => Bucket,
     current.entries += 1
     acc.set(label, current)
   }
-  return Array.from(acc, ([label, v]) => ({
-    label,
-    points: v.points,
-    entries: v.entries,
-    order: v.order,
-    // El guardia de `total > 0` no es paranoia: una lista puede tener entradas
-    // cuyo coste sume 0 (unidades gratuitas o a medio configurar), y ahí la
-    // división daría NaN y el globo enseñaría "NaN%".
-    percent: total > 0 ? Math.round((v.points / total) * 100) : 0,
-  }))
-    // El orden es el del CATÁLOGO (Editor → Categorías y Etiquetas), no el de
-    // puntos. Antes mandaban los puntos, y el resultado era que el resumen se
-    // reordenaba solo cada vez que añadías una unidad: imposible comparar dos
-    // listas de un vistazo porque las filas no estaban nunca en el mismo
-    // sitio. Con el orden del catálogo, "Personajes, Básicas, Especiales…"
-    // sale siempre igual y en el orden en que uno piensa un ejército.
-    .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, 'es'))
-    .map(({ order: _order, ...row }) => row)
+  return (
+    Array.from(acc, ([label, v]) => ({
+      label,
+      points: v.points,
+      entries: v.entries,
+      order: v.order,
+      // El guardia de `total > 0` no es paranoia: una lista puede tener entradas
+      // cuyo coste sume 0 (unidades gratuitas o a medio configurar), y ahí la
+      // división daría NaN y el globo enseñaría "NaN%".
+      percent: total > 0 ? Math.round((v.points / total) * 100) : 0,
+    }))
+      // El orden es el del CATÁLOGO (Editor → Categorías y Etiquetas), no el de
+      // puntos. Antes mandaban los puntos, y el resultado era que el resumen se
+      // reordenaba solo cada vez que añadías una unidad: imposible comparar dos
+      // listas de un vistazo porque las filas no estaban nunca en el mismo
+      // sitio. Con el orden del catálogo, "Personajes, Básicas, Especiales…"
+      // sale siempre igual y en el orden en que uno piensa un ejército.
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, 'es'))
+      .map(({ order: _order, ...row }) => row)
+  )
 }
 
 const SIN_ETIQUETA = 'Sin etiqueta'

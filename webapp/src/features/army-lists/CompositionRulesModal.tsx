@@ -128,9 +128,7 @@ export function CompositionRulesModal({ onClose }: { onClose: () => void }) {
                   <th className="border-b border-rule-dark/30 px-2 py-1.5 text-left font-semibold">Categoría</th>
                   <th className="w-40 border-b border-rule-dark/30 px-2 py-1.5 text-left font-semibold">Regla</th>
                   <th className="w-20 border-b border-rule-dark/30 px-2 py-1.5 text-center font-semibold">Base</th>
-                  <th className="w-24 border-b border-rule-dark/30 px-2 py-1.5 text-center font-semibold">
-                    Por tramo
-                  </th>
+                  <th className="w-24 border-b border-rule-dark/30 px-2 py-1.5 text-center font-semibold">Por tramo</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rule-dark/15">

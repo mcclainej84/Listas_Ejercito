@@ -60,11 +60,9 @@ export async function seedMagicPaths(): Promise<MagicSeedResult> {
 
   if (pending.length === 0 && incomplete.length === 0) return { sendasCreadas: 0, hechizosCreados: 0 }
 
-  const [{ next }] = await queryLocal(
-    'SELECT COALESCE(MAX(sort_order), 0) AS next FROM magic_paths',
-    [],
-    (row) => ({ next: (row.next as number) ?? 0 }),
-  )
+  const [{ next }] = await queryLocal('SELECT COALESCE(MAX(sort_order), 0) AS next FROM magic_paths', [], (row) => ({
+    next: (row.next as number) ?? 0,
+  }))
 
   // Las sendas primero, todas de golpe: hacen falta sus ids para colgar los
   // hechizos, y execCatalogBatch devuelve el id de cada INSERT.

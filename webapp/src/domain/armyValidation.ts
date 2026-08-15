@@ -286,7 +286,10 @@ export function validateList(entries: ArmyListEntry[], pointsLimit: number | nul
   if (pointsLimit != null) {
     const total = computeListTotal(entries)
     if (total > pointsLimit) {
-      issues.push({ severity: 'warning', message: `La lista supera el límite de ${pointsLimit} pts (lleva ${total} pts).` })
+      issues.push({
+        severity: 'warning',
+        message: `La lista supera el límite de ${pointsLimit} pts (lleva ${total} pts).`,
+      })
     }
   }
 

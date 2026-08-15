@@ -65,10 +65,8 @@ export function AliasModal({
         />
         <p className="text-xs text-ink-soft">
           En la lista se verá{' '}
-          <b className="text-ink">
-            {value.trim() === '' ? entry.unit.name : `${value.trim()} (${entry.unit.name})`}
-          </b>
-          . El tipo no se pierde: es lo que dice qué reglas se aplican.
+          <b className="text-ink">{value.trim() === '' ? entry.unit.name : `${value.trim()} (${entry.unit.name})`}</b>.
+          El tipo no se pierde: es lo que dice qué reglas se aplican.
         </p>
       </div>
     </Modal>

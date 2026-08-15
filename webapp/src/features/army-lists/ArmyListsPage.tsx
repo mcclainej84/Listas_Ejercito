@@ -11,7 +11,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { TrashIcon, LockIcon } from '@/shared/ui/icons'
+import { LockIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import { Tooltip } from '@/shared/ui/Tooltip'
 import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
 import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
@@ -92,7 +92,8 @@ export function ArmyListsPage() {
               Selección de puntos
             </Button>
             <Button variant="primary" onClick={() => setCreating(true)}>
-              + Nueva lista
+              <PlusIcon className="h-4 w-4" />
+              Nueva lista
             </Button>
           </div>
         }
@@ -108,7 +109,8 @@ export function ArmyListsPage() {
           description='Crea la primera con "+ Nueva lista".'
           action={
             <Button variant="primary" onClick={() => setCreating(true)}>
-              + Nueva lista
+              <PlusIcon className="h-4 w-4" />
+              Nueva lista
             </Button>
           }
         />

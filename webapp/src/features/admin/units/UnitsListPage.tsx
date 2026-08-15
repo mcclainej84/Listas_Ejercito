@@ -17,7 +17,7 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Badge } from '@/shared/ui/Badge'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { CopyIcon, DragHandleIcon, TrashIcon } from '@/shared/ui/icons'
+import { ChevronRightIcon, CopyIcon, DragHandleIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
 
@@ -156,7 +156,8 @@ export function UnitsListPage() {
         actions={
           factionId ? (
             <Button variant="primary" onClick={() => setCreating(true)}>
-              + Nueva unidad
+              <PlusIcon className="h-4 w-4" />
+              Nueva unidad
             </Button>
           ) : undefined
         }
@@ -197,9 +198,7 @@ export function UnitsListPage() {
       {loadingUnits && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      {!loadingUnits && units && units.length === 0 && (
-        <EmptyState title="Esta facción todavía no tiene unidades" />
-      )}
+      {!loadingUnits && units && units.length === 0 && <EmptyState title="Esta facción todavía no tiene unidades" />}
 
       {!loadingUnits &&
         Array.from(grouped.entries()).map(([category, categoryUnits]) => {
@@ -216,7 +215,9 @@ export function UnitsListPage() {
                   <span className="font-display text-xl font-bold text-ink">{category}</span>
                   <span className="text-sm text-ink-soft">({categoryUnits.length})</span>
                 </span>
-                <span className={clsx('text-lg text-ink-soft transition-transform', isOpen && 'rotate-90')}>›</span>
+                <ChevronRightIcon
+                  className={clsx('h-4 w-4 text-ink-soft transition-transform', isOpen && 'rotate-90')}
+                />
               </button>
 
               {isOpen && (
@@ -259,7 +260,11 @@ export function UnitsListPage() {
                         <span className="flex items-center gap-2">
                           <span className="text-sm font-medium text-ink">{unit.name}</span>
                           {unit.isUnique === true && unit.unitType !== 'personaje' && <Badge tone="amber">0-1</Badge>}
-                          {!unit.active && <span className="text-micro font-medium uppercase tracking-wide text-ink-soft">desactivada</span>}
+                          {!unit.active && (
+                            <span className="text-micro font-medium uppercase tracking-wide text-ink-soft">
+                              desactivada
+                            </span>
+                          )}
                         </span>
                         <span className="shrink-0 text-sm text-ink-soft">{unit.baseCost} pts</span>
                       </button>
@@ -291,7 +296,11 @@ export function UnitsListPage() {
                             ? 'border-success/50 bg-success/10 text-success hover:bg-success/20'
                             : 'border-danger/50 bg-danger/10 text-danger hover:bg-danger/20',
                         )}
-                        title={unit.active ? 'Activa — clic para desactivar (no aparecerá al montar ejércitos)' : 'Inactiva — clic para activar'}
+                        title={
+                          unit.active
+                            ? 'Activa — clic para desactivar (no aparecerá al montar ejércitos)'
+                            : 'Inactiva — clic para activar'
+                        }
                       >
                         <span
                           className={clsx(
@@ -346,9 +355,7 @@ export function UnitsListPage() {
           factionId={Number(factionId)}
           categories={categories}
           factions={sortedFactions}
-          defaultCategoryId={
-            categories?.find((c) => c.name === openCategory)?.id ?? null
-          }
+          defaultCategoryId={categories?.find((c) => c.name === openCategory)?.id ?? null}
           onClose={() => setCreating(false)}
           onCreated={(unitId) => {
             setCreating(false)

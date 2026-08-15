@@ -72,7 +72,9 @@ export function UpgradeFormModal({ upgrade, onClose, onSaved }: UpgradeFormModal
     setError(null)
     try {
       const input = { name: name.trim(), cost: Number(cost) || 0 }
-      const upgradeId = upgrade ? (await UpgradeRepository.update(upgrade.id, input), upgrade.id) : await UpgradeRepository.create(input)
+      const upgradeId = upgrade
+        ? (await UpgradeRepository.update(upgrade.id, input), upgrade.id)
+        : await UpgradeRepository.create(input)
 
       // Ficha propia: crear/actualizar, o quitarla si se ha desmarcado.
       if (hasProfile) {

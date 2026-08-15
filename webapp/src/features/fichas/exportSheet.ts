@@ -430,7 +430,11 @@ export interface ExportView {
  * Dibuja la ficha de una unidad en un canvas y lo devuelve (a escala 2x, igual
  * que CodexMaker). El blanco y negro se aplica sobre los píxeles al final.
  */
-export async function captureUnitCanvas(unit: UnitDetail, sheet: UnitSheet, view: ExportView): Promise<HTMLCanvasElement> {
+export async function captureUnitCanvas(
+  unit: UnitDetail,
+  sheet: UnitSheet,
+  view: ExportView,
+): Promise<HTMLCanvasElement> {
   await ensureFonts()
 
   // Ilustración con brillo/volteo ya aplicados en los píxeles.
@@ -567,10 +571,7 @@ export async function captureUnitCanvas(unit: UnitDetail, sheet: UnitSheet, view
  * Devuelve null si la unidad no tiene reglas: media página en blanco con un
  * título huérfano es peor que no poner nada.
  */
-export async function captureSpecialRulesCanvas(
-  unit: UnitDetail,
-  view: ExportView,
-): Promise<HTMLCanvasElement | null> {
+export async function captureSpecialRulesCanvas(unit: UnitDetail, view: ExportView): Promise<HTMLCanvasElement | null> {
   if (unit.specialRules.length === 0) return null
   await ensureFonts()
 

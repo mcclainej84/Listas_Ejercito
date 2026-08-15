@@ -109,7 +109,7 @@ export function optionsList(unit: UnitDetail): string[] {
     // Se recorre hacia delante y se añade al final, para conservar el orden
     // del catálogo dentro de la línea. Una opción entra solo si choca con
     // TODAS las del grupo, no únicamente con la primera.
-    for (let i = 0; i < pending.length; ) {
+    for (let i = 0; i < pending.length;) {
       const candidate = pending[i]
       if (group.every((g) => clash.get(g.id)?.has(candidate.id))) {
         group.push(candidate)

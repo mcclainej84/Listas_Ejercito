@@ -12,7 +12,14 @@ import { useId } from 'react'
 
 export function TrashIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path
         d="M4 6h12M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6m-6.5 0 .6 9.4A1.5 1.5 0 0 0 7.6 17h4.8a1.5 1.5 0 0 0 1.5-1.6l.6-9.4M8.5 9v5m3-5v5"
         strokeLinecap="round"
@@ -25,9 +32,20 @@ export function TrashIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Dos hojas superpuestas — duplicar una unidad (ver UnitsListPage). */
 export function CopyIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <rect x="7" y="7" width="9" height="10" rx="1.5" strokeLinejoin="round" />
-      <path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-6A1.5 1.5 0 0 0 4 5.5v6A1.5 1.5 0 0 0 5.5 13H7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-6A1.5 1.5 0 0 0 4 5.5v6A1.5 1.5 0 0 0 5.5 13H7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -35,7 +53,14 @@ export function CopyIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Flecha para mover una fila hacia arriba en un listado reordenable (ver ArmyListBuilderPage). */
 export function ArrowUpIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 15V5m0 0-4.5 4.5M10 5l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -44,7 +69,14 @@ export function ArrowUpIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Flecha para mover una fila hacia abajo en un listado reordenable (ver ArmyListBuilderPage). */
 export function ArrowDownIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 5v10m0 0-4.5-4.5M10 15l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -53,7 +85,14 @@ export function ArrowDownIcon({ className = 'h-4 w-4' }: { className?: string })
 /** Flecha hacia abajo, para indicar que un botón despliega un menú (ver TopNav > Editor). */
 export function ChevronDownIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="m5.5 8 4.5 4.5L14.5 8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -81,7 +120,14 @@ export function StarIcon({ className = 'h-4 w-4', filled = false }: { className?
 /** Marco de imagen, para "Elegir imagen" (ver Fichas > Ilustración). */
 export function ImageIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <rect x="2.5" y="3.5" width="15" height="13" rx="1.5" strokeLinejoin="round" />
       <circle cx="7" cy="8" r="1.4" />
       <path d="m3.5 14 4-4 2.5 2.5 3-3.5 4 5" strokeLinecap="round" strokeLinejoin="round" />
@@ -92,7 +138,14 @@ export function ImageIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Flechas de volteo horizontal (ver Fichas > Ilustración > Voltear). */
 export function FlipHorizontalIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 2.5v15" strokeDasharray="2.2 2.2" />
       <path d="M6 6 3 10l3 4M14 6l3 4-3 4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -102,12 +155,16 @@ export function FlipHorizontalIcon({ className = 'h-4 w-4' }: { className?: stri
 /** Flecha circular hacia atrás, para "Restablecer" (encuadre de la ilustración, alto de la ficha...). */
 export function UndoIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M4 4v4.2H8.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M4.6 8A6 6 0 1 1 4 11.5"
-        strokeLinecap="round"
-      />
+      <path d="M4.6 8A6 6 0 1 1 4 11.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -115,7 +172,14 @@ export function UndoIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Escudo, para el emblema/escudo por-ficha (ver Fichas > Escudo). */
 export function ShieldIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 2.5 16.5 5v4.7c0 4-2.7 6.6-6.5 8.3-3.8-1.7-6.5-4.3-6.5-8.3V5L10 2.5Z" strokeLinejoin="round" />
     </svg>
   )
@@ -124,7 +188,14 @@ export function ShieldIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Sol, para el control de brillo de la ilustración. */
 export function SunIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="10" cy="10" r="3.2" />
       <path
         d="M10 2.3v2M10 15.7v2M17.7 10h-2M4.3 10h-2M15.4 4.6l-1.4 1.4M6 14l-1.4 1.4M15.4 15.4 14 14M6 6 4.6 4.6"
@@ -137,7 +208,14 @@ export function SunIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Marco/cuadro, para el botón "Marco" de Fichas (Vista). */
 export function FrameIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <rect x="3" y="3" width="14" height="14" rx="1" />
       <rect x="5.6" y="5.6" width="8.8" height="8.8" rx="0.5" strokeDasharray="1.6 1.6" />
     </svg>
@@ -147,7 +225,14 @@ export function FrameIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Círculo medio relleno, para el botón "Vista" (color/blanco y negro) de Fichas. */
 export function ContrastIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="10" cy="10" r="7.2" />
       <path d="M10 2.8a7.2 7.2 0 0 1 0 14.4Z" fill="currentColor" stroke="none" />
     </svg>
@@ -181,7 +266,14 @@ export function EyeOffIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Flecha hacia abajo sobre una bandeja, para los botones de exportación. */
 export function DownloadIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 3v9.5m0 0-3.2-3.2M10 12.5l3.2-3.2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M3.5 14v1.7a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V14" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -209,7 +301,14 @@ export function DragHandleIcon({ className = 'h-4 w-4' }: { className?: string }
  */
 export function WarningIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M10 3.2 18 16.4a.9.9 0 0 1-.78 1.35H2.78A.9.9 0 0 1 2 16.4L10 3.2Z" strokeLinejoin="round" />
       <path d="M10 8.2v3.6" strokeLinecap="round" />
       <circle cx="10" cy="14.4" r="0.85" fill="currentColor" stroke="none" />
@@ -220,7 +319,14 @@ export function WarningIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Marca de verificación simple, para las columnas de grupo de mando de la lista de ejército. */
 export function CheckIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2.2} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="m4.5 10.5 3.6 3.6L15.5 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -342,7 +448,14 @@ export function CategoryShield({ metal, className = 'h-4 w-4' }: { metal: Shield
 /** Etiqueta con hilo — "ponerle un nombre propio" a una miniatura de la lista. */
 export function NameTagIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" strokeLinejoin="round" />
       <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
     </svg>
@@ -351,7 +464,14 @@ export function NameTagIcon({ className = 'h-4 w-4' }: { className?: string }) {
 
 export function CheckCircleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="10" cy="10" r="7.2" />
       <path d="m6.8 10.2 2.1 2.1 4.3-4.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -361,7 +481,14 @@ export function CheckCircleIcon({ className = 'h-4 w-4' }: { className?: string 
 /** Lápiz — marca un dato escrito a mano, distinto del que calcula el programa. */
 export function PencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M13.2 3.5 16.5 6.8 7.4 15.9l-4 .7.7-4 9.1-9.1Z" strokeLinejoin="round" />
       <path d="m11.6 5.1 3.3 3.3" strokeLinecap="round" />
     </svg>
@@ -371,10 +498,180 @@ export function PencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** Candado — marca un ejército compartido por otro usuario: se puede mirar, no tocar. */
 export function LockIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
       <rect x="4.5" y="8.5" width="11" height="7.5" rx="1.2" />
       <path d="M7 8.5V6.6a3 3 0 0 1 6 0v1.9" strokeLinecap="round" />
       <circle cx="10" cy="12.2" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Iconos de acción. Sustituyen a los símbolos escritos a mano que había
+// sueltos por el programa ("✕", "›", "▲", "+"): un glifo de texto cambia de
+// forma y de peso con cada tipografía, no se puede alinear con el resto y a
+// tamaño pequeño se ve como un carácter perdido, no como un botón.
+// ---------------------------------------------------------------------------
+
+/** Aspa — cerrar una ventana. */
+export function XIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m5.5 5.5 9 9m0-9-9 9" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Más — añadir algo nuevo. */
+export function PlusIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10 4.5v11M4.5 10h11" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Punta hacia la derecha — desplegar. Gira 90° cuando lo está (ver los acordeones). */
+export function ChevronRightIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m8 5.5 4.5 4.5L8 14.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Flecha a la izquierda — volver a la pantalla anterior. */
+export function ArrowLeftIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M15.5 10H5m0 0 4.5-4.5M5 10l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Dos flechas en círculo — reemplazar una imagen por otra versión. */
+export function SwapIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 7.5h9.5L11 5m5 7.5H6.5L9 15" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Hoja con una imagen — exportar el mapa como PNG. */
+export function FileImageIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M11.5 2.5H6A1.5 1.5 0 0 0 4.5 4v12A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V6.5l-4-4Z"
+        strokeLinejoin="round"
+      />
+      <path d="M11.5 2.5v4h4" strokeLinejoin="round" />
+      <path d="m6.8 14.5 2.4-3 1.6 1.9 1.2-1.4 1.2 2.5H6.8Z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Hoja escrita — exportar un documento. */
+export function FileTextIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M11.5 2.5H6A1.5 1.5 0 0 0 4.5 4v12A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V6.5l-4-4Z"
+        strokeLinejoin="round"
+      />
+      <path d="M11.5 2.5v4h4" strokeLinejoin="round" />
+      <path d="M7.5 10.5h5m-5 3h5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Lupa — buscar. */
+export function SearchIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="9" r="5" />
+      <path d="m12.8 12.8 3.2 3.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Láminas apiladas — la biblioteca de escenografía. */
+export function LayersIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m10 3 6.5 3.5L10 10 3.5 6.5 10 3Z" strokeLinejoin="round" />
+      <path d="m3.5 10.5 6.5 3.5 6.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

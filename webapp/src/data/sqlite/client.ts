@@ -79,7 +79,9 @@ interface Base64Blob {
 }
 
 function isBase64Blob(value: unknown): value is Base64Blob {
-  return typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  return (
+    typeof value === 'object' && value !== null && '__b64' in value && typeof (value as Base64Blob).__b64 === 'string'
+  )
 }
 
 // Por trozos de 32 KB: concatenar carácter a carácter hacía que una

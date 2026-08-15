@@ -258,6 +258,7 @@ export interface MapaDetalle {
   textura: TexturaMapa
   /** Suelo de la biblioteca, con su versión. null = el de fábrica de `textura`. */
   floorId: number | null
+  hidden: boolean
   piezas: SceneryPiece[]
 }
 
@@ -272,6 +273,8 @@ export interface MapaResumen {
   updatedAt: string
   textura: TexturaMapa
   floorId: number | null
+  /** Oculto: fuera del listado de todos menos de su autor. */
+  hidden: boolean
   piezas: number
 }
 

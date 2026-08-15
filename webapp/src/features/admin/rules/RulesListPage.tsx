@@ -8,7 +8,7 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { UsageBadge, UsageList } from '@/shared/ui/UsageBadge'
-import { TrashIcon } from '@/shared/ui/icons'
+import { PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import { RuleFormModal } from '@/features/admin/rules/RuleFormModal'
 import type { SpecialRule } from '@/domain/types'
 
@@ -53,7 +53,12 @@ export function RulesListPage() {
       <PageHeader
         title="Reglas especiales"
         description="Catálogo único de reglas. Toda unidad que las use referencia esta misma ficha: editarla aquí actualiza todas las fichas al instante."
-        actions={<Button variant="primary" onClick={() => setEditing('new')}>+ Nueva regla</Button>}
+        actions={
+          <Button variant="primary" onClick={() => setEditing('new')}>
+            <PlusIcon className="h-4 w-4" />
+            Nueva regla
+          </Button>
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -156,7 +161,9 @@ export function RulesListPage() {
              hace falta consultarlo otra vez al pulsar la papelera. */
           message={
             deleting.usageCount > 0
-              ? `"${deleting.name}" está en uso por ${deleting.usageCount} ficha(s) (p.ej. ${(usageMap.get(deleting.id) ?? [])
+              ? `"${deleting.name}" está en uso por ${deleting.usageCount} ficha(s) (p.ej. ${(
+                  usageMap.get(deleting.id) ?? []
+                )
                   .slice(0, 3)
                   .join(', ')}${deleting.usageCount > 3 ? '…' : ''}). Si la borras, dejará de aparecer en ellas.`
               : `Se borrará "${deleting.name}". No la usa ninguna ficha. Esta acción no se puede deshacer.`

@@ -29,7 +29,7 @@ import { Panel } from '@/shared/ui/Panel'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { DragHandleIcon, TrashIcon } from '@/shared/ui/icons'
+import { DragHandleIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 
 interface TaxonomyItem {
   id: number
@@ -213,7 +213,8 @@ function TaxonomySection({
             })
           }
         >
-          + Añadir
+          <PlusIcon className="h-4 w-4" />
+          Añadir
         </Button>
       </div>
 

@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.109 — 14/08/2026 19:05
+
+- **La versión del pie ya sale centrada.** Iba pegada a la derecha de la
+  columna de contenido, así que en pantalla ancha quedaba a un tercio del
+  borde: ni centrada ni en la esquina. Ahora se centra en la página.
+- **Los mapas son comunes de verdad**: cualquiera puede abrirlos, editarlos y
+  borrarlos. Antes solo su autor podía, y al abrir el de otro salía «Este mapa
+  es de otro usuario» sin poder tocar nada.
+- **Botón de ocultar** (el ojo tachado) en cada mapa propio: deja de salir en
+  el listado de los demás y lleva un distintivo «Oculto» para que se vea por
+  qué. Es para tener uno a medias sin estorbar, no para cerrarlo con llave.
+- **Iconos en lugar de símbolos escritos.** Se han sustituido los glifos
+  sueltos —«✕» de cerrar, «›» de los desplegables, «▲▼» de ordenar, «+» de
+  añadir, «↑↓» del orden— por iconos de trazo del mismo juego que el resto.
+  Un carácter de texto cambia de forma con cada tipografía y no se alinea con
+  nada; nueve iconos nuevos lo arreglan.
+- **Acciones de una fila, en icono y con su rótulo al pasar el ratón**:
+  reemplazar y borrar en la biblioteca, exportar PNG en el mapa, exportar el
+  despliegue, volver atrás. Todos con `aria-label`, así que se siguen leyendo
+  igual con teclado o lector de pantalla.
+
+---
+
 ## 0.108 — 14/08/2026 18:20
 
 - En la biblioteca de escenografía, «Retirar» pasa a ser **«Borrar»** y
