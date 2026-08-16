@@ -74,6 +74,16 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Escenografía de los mapas', probe: 'SELECT kind FROM battle_map_pieces LIMIT 1' },
   { label: 'Mapa cargado en el despliegue', probe: 'SELECT battle_map_id FROM army_lists LIMIT 1' },
   { label: 'Reglas destacadas por facción', probe: 'SELECT rule_id FROM faction_featured_rules LIMIT 1' },
+  { label: 'Personajes de Renombre', probe: 'SELECT is_special_character FROM units LIMIT 1' },
+  { label: 'Trasfondo del personaje', probe: 'SELECT background FROM units LIMIT 1' },
+  { label: 'Retrato del personaje de renombre', probe: 'SELECT portrait_key FROM units LIMIT 1' },
+  { label: 'Experiencia de los Personajes de Renombre', probe: 'SELECT amount FROM unit_experience_log LIMIT 1' },
+  { label: 'Personajes de Renombre ocultos', probe: 'SELECT hidden FROM units LIMIT 1' },
+  { label: 'Autor del personaje de renombre', probe: 'SELECT user_id FROM units LIMIT 1' },
+  {
+    label: 'Personajes de Renombre en las listas',
+    probe: 'SELECT show_special_characters FROM army_lists LIMIT 1',
+  },
 ]
 
 /**

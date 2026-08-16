@@ -77,6 +77,14 @@ export function upgradeAsUnitDetail(
     categoryId: null,
     typeTagId: null,
     unitType: 'personaje',
+    // Ni una opción con ficha ni una montura son un personaje de renombre: no
+    // son ni una unidad, son fichas sintéticas para poder pintarlas como tales.
+    // Por lo mismo no se pueden ocultar ni tienen autor.
+    isSpecialCharacter: false,
+    background: null,
+    portraitKey: null,
+    hidden: false,
+    userId: null,
     name: upgrade.name,
     baseCost: upgrade.cost,
     minSize: null,
@@ -133,6 +141,14 @@ export function mountAsUnitDetail(
     // "Tamaño de la unidad" y con coste plano (que además aquí no se muestra,
     // porque el coste de una montura depende de quién la lleve).
     unitType: 'personaje',
+    // Ni una opción con ficha ni una montura son un personaje de renombre: no
+    // son ni una unidad, son fichas sintéticas para poder pintarlas como tales.
+    // Por lo mismo no se pueden ocultar ni tienen autor.
+    isSpecialCharacter: false,
+    background: null,
+    portraitKey: null,
+    hidden: false,
+    userId: null,
     name: profile.name ?? 'Montura',
     baseCost: 0,
     minSize: null,

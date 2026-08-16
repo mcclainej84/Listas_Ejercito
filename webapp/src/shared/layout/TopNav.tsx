@@ -35,9 +35,14 @@ const EDITOR_ITEMS: NavItem[] = [
   { to: '/admin/log', label: 'Log' },
 ]
 
+// "Personajes de Renombre" está aquí y NO en el menú "Editor": es una sección
+// de uso diario, la ve y la edita cualquiera sin modo administrador (ver
+// PersonajesRenombrePage). Lo que sigue estando en "Editor" es su ficha de
+// unidad —atributos, equipo y coste—, como la de cualquier otra unidad.
 const TOOL_ITEMS: NavItem[] = [
   { to: '/hojas', label: 'Hojas de Unidad' },
   { to: '/ejercitos', label: 'Ejércitos' },
+  { to: '/renombre', label: 'Personajes de Renombre' },
   { to: '/mapas', label: 'Mapas' },
 ]
 

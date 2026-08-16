@@ -8,6 +8,8 @@ import {
 } from '@/data/repositories/mappers'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { ChangeLogRepository } from '@/data/repositories/changeLogRepository'
+import { getCurrentUser } from '@/shared/session/useSession'
+import { esVisiblePara } from '@/domain/personajeRenombre'
 import type { UnidadConAlias } from '@/domain/unitAlias'
 import type {
   AttributeProfile,
@@ -88,6 +90,15 @@ function mapUnit(row: Record<string, unknown>): Unit {
     // Marca de hechicero. La columna puede no existir todavía si la D1 no se
     // ha migrado: en ese caso, no es hechicera.
     isWizard: Boolean(row.is_wizard),
+    // Las del personaje de renombre. Como el resto, pueden no venir todavía si
+    // la D1 no se ha migrado: sin marca, sin trasfondo, sin retrato, visible y
+    // sin autor. Ante la duda se ENSEÑA: esconder un personaje porque falta una
+    // columna sería hacerlo desaparecer sin que nadie lo haya pedido.
+    isSpecialCharacter: Boolean(row.is_special_character),
+    background: (row.background as string) ?? null,
+    portraitKey: (row.portrait_key as string) ?? null,
+    hidden: Boolean(row.hidden),
+    userId: (row.user_id as number) ?? null,
   }
 }
 
@@ -130,6 +141,8 @@ export interface UnitDuplicateOverrides {
   name?: string
   /** Categoría de la copia; por defecto, la del original. */
   categoryId?: number | null
+  /** Marca la copia como PERSONAJE ESPECIAL; por defecto, la misma del original. */
+  isSpecialCharacter?: boolean
 }
 
 /** Nombre de tabla/columnas de cada tipo de relación N:M simple de una unidad, para el toggler genérico. */
@@ -261,9 +274,14 @@ export const UnitRepository = {
     )
   },
 
+  /**
+   * Buscador global. Deja fuera los Personajes de Renombre que otro haya
+   * ocultado: si aparecieran aquí, ocultarlos no serviría de nada.
+   */
   async search(text: string): Promise<UnitSummary[]> {
     const like = `%${text.trim()}%`
-    return queryLocal(
+    const yo = getCurrentUser()?.id ?? null
+    const filas = await queryLocal(
       `SELECT u.*, f.name AS faction_name, c.name AS category_name
        FROM units u
        JOIN factions f ON f.id = u.faction_id
@@ -278,6 +296,7 @@ export const UnitRepository = {
         categoryName: (row.category_name as string) ?? null,
       }),
     )
+    return filas.filter((u) => esVisiblePara(u, yo))
   },
 
   async getDetailById(id: number): Promise<UnitDetail | null> {
@@ -498,8 +517,13 @@ export const UnitRepository = {
    *   simplemente enlaza los MISMOS perfiles (con su coste).
    * - Reglas especiales, equipo y opciones se enlazan igual (conservando cuáles
    *   venían marcadas "por defecto").
+   * - La marca de HECHICERO y las SENDAS que conoce sí se copian. No se
+   *   copiaban, y era un fallo silencioso de los peores: la copia salía sin
+   *   magia y con toda la pinta de estar bien. Se vio al montar los personajes
+   *   especiales, que nacen precisamente de copiar un personaje.
    * - La presentación de la ficha (ilustración, escudo…) NO se copia: la unidad
-   *   nueva empieza en blanco.
+   *   nueva empieza en blanco. Tampoco el trasfondo, el retrato ni la
+   *   experiencia de un personaje especial: son de quien los ganó.
    *
    * Con `overrides` sirve además de "crear desde": copiar una unidad de OTRA
    * facción a la actual, con su nombre y categoría propios (ver
@@ -519,9 +543,10 @@ export const UnitRepository = {
     const newUnitId = await execCatalog(
       `INSERT INTO units
          (faction_id, category_id, type_tag_id, unit_type, name, base_cost, min_size, max_size,
-          default_size, is_unique, equipment_text, armor_save, notes, sort_order, active)
+          default_size, is_unique, equipment_text, armor_save, notes, sort_order, active,
+          is_wizard, is_special_character)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,
-               (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM units WHERE faction_id = ?), ?)`,
+               (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM units WHERE faction_id = ?), ?, ?, ?)`,
       [
         factionId,
         categoryId,
@@ -538,6 +563,12 @@ export const UnitRepository = {
         source.notes,
         factionId,
         source.active ? 1 : 0,
+        // is_wizard NO se copiaba, y se notaba justo donde más: un personaje
+        // especial sacado de un Vidente Gris nacía sin magia, sin que nada lo
+        // dijera. Las sendas conocidas (unit_magic_paths) tampoco viajaban;
+        // van más abajo, con el resto de relaciones.
+        source.isWizard ? 1 : 0,
+        (overrides.isSpecialCharacter ?? source.isSpecialCharacter) ? 1 : 0,
       ],
     )
 
@@ -606,6 +637,24 @@ export const UnitRepository = {
       await execCatalog(
         'INSERT OR IGNORE INTO unit_command_options (unit_id, command_role_id, cost, custom_name, profile_id) VALUES (?, ?, ?, ?, ?)',
         [newUnitId, c.role.id, c.cost, c.customName, profileId],
+      )
+    }
+
+    // Sendas de magia. No van con el resto de relaciones porque no están en
+    // UnitDetail: se leen aparte. Antes no se copiaban, y el hechicero copiado
+    // salía marcado como hechicero pero sin una sola senda que echarse a la
+    // boca.
+    const sendas = await queryLocal(
+      'SELECT path_id FROM unit_magic_paths WHERE unit_id = ?',
+      [unitId],
+      (row) => row.path_id as number,
+    )
+    if (sendas.length > 0) {
+      await execCatalogBatch(
+        sendas.map((pathId) => ({
+          sql: 'INSERT OR IGNORE INTO unit_magic_paths (unit_id, path_id) VALUES (?, ?)',
+          params: [newUnitId, pathId],
+        })),
       )
     }
 

@@ -13,6 +13,134 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.120 — 16/08/2026 11:02
+
+- **Las secciones del constructor de listas caben en una sola línea.**
+  Personajes, Personajes de Renombre, Básicas, Especiales y Singulares se ven
+  ahora de una vez: la fila ya no se envuelve, y si a una facción le sobran
+  secciones (Bestia, Asedio) se desplaza en horizontal en vez de partirse en dos
+  alturas. La pestaña de los de renombre se rotula "★ Renombre" — el nombre
+  entero ocupaba él solo un tercio de la fila (el explorador vive en una columna
+  de unos 460 px) y era lo que echaba a "Singulares" a la segunda línea; el
+  rótulo completo sigue saliendo al pasar el ratón.
+- **Ocultar un personaje: dos sentencias en vez de una.** Ocultarlo es lo que se
+  ha pedido y va primero, solo; apuntar el autor —un apaño para los personajes
+  creados antes de que existiera esa columna— va después y ya no puede llevarse
+  por delante lo anterior si falla.
+- **Y si aun así falla, se lee el motivo.** El botón reintenta una vez tras
+  aplicar las migraciones (igual que el interruptor de activa/inactiva de
+  Editor > Unidades) y, si vuelve a fallar, enseña el mensaje real en la propia
+  lámina en lugar de un "no se pudo" que no distingue una columna que falta de
+  una contraseña caducada.
+
+---
+
+## 0.119 — 16/08/2026 10:38
+
+- **"Personajes especiales" pasa a llamarse "Personajes de Renombre"** en toda
+  la interfaz: la barra de navegación, la sección del constructor de listas, los
+  avisos y los diálogos.
+- **La sección sale de "Editor" y se va a la barra principal**, junto a Hojas de
+  Unidad, Ejércitos y Mapas. Ya no hace falta el modo administrador: cualquiera
+  ve, crea y edita personajes de renombre, y los mete en su ejército. Lo que
+  sigue en "Editor" es su ficha de unidad (atributos, equipo y coste), como la de
+  cualquier otra unidad. La ruta antigua redirige a la nueva.
+- **Se pueden ocultar, y esa es la única excepción a que sean de todos.** Un
+  personaje oculto solo lo ve su autor: desaparece del listado, del constructor
+  de listas y del buscador de los demás. Sirve para tener uno a medio escribir
+  sin que le estorbe a nadie, igual que en los mapas. Quien oculta uno de los
+  creados antes de esta función pasa a ser su autor — si no, se quedaría
+  invisible hasta para él.
+- **Rediseñada la sección: láminas anchas en vez de tarjetas apretadas.** El
+  retrato ocupa ahora 160 px (el doble que antes) con marco doble —filete de
+  tinta fuera, hilo de bronce dentro— y sombra interior, para que la foto quede
+  asentada en el papel y no como un recorte pegado encima. El **trasfondo se lee
+  en la propia lámina**, plegado a unas líneas con un "Seguir leyendo" cuando es
+  largo: antes vivía escondido dentro del diálogo de edición, así que un
+  personaje se distinguía de otro por la foto y poco más. Cada facción se separa
+  con su emblema y una regla, sin la caja dentro de la caja de antes.
+- **Fuera el "N con nombre propio"** que iba bajo el nombre de cada facción.
+- **Los personajes de renombre ya no salen en Editor > Unidades.** Se mezclaban
+  con los genéricos dentro de la categoría "Personajes" —que es justo de donde
+  salen— y no había forma de distinguir el Señor Vampiro del catálogo del Vlad
+  que alguien creó copiándolo. Tienen su propia sección.
+- **En las opciones de la lista de ejército, la casilla pasa a ser "Ver
+  Personajes de Renombre", y nace MARCADA.** Antes era opt-in y estaba apagada,
+  así que la sección no aparecía en ninguna lista hasta que uno la buscaba en un
+  menú. Es una columna nueva (`show_special_characters`, con DEFAULT 1) y no un
+  UPDATE sobre la anterior a propósito: las migraciones se ejecutan enteras en
+  cada arranque, y un UPDATE le volvería a encender los personajes cada mañana a
+  quien los hubiera apagado a mano.
+- **Experiencia: "Cuánta" pasa a ser "Experiencia" y "Por qué" pasa a ser
+  "Evento".** Fuera también el párrafo que explicaba que un apunte no se puede
+  editar ni borrar.
+- Esquema: `units.hidden`, `units.user_id` y `army_lists.show_special_characters`,
+  aplicadas también en la D1 de verdad.
+
+---
+
+## 0.118 — 16/08/2026 10:06
+
+- **Arreglado: no se podía crear un personaje especial.** Faltaban las columnas
+  en la base de datos de verdad; ya están aplicadas (`is_special_character`,
+  `background` y `portrait_key` en unidades, `include_special_characters` en las
+  listas, y la tabla `unit_experience_log`). Comprobado contra la D1 creando un
+  personaje de prueba, apuntándole experiencia y borrándolo después.
+- **La experiencia pasa a ir por red, fuera del catálogo.** Cuelga de una
+  unidad, pero no es catálogo: el catálogo es lo que casi no cambia y se
+  consulta mil veces al pintar, y esto se escribe después de cada partida. Es
+  dato de partida, como las listas de ejército, y ahora se trata igual. El
+  motivo inmediato es que el Worker desplegado no conoce la tabla, así que
+  llegaba vacía en el snapshot y la experiencia parecía borrarse al recargar la
+  página.
+- **Con esto, la sección entera funciona sin esperar al despliegue del Worker.**
+  Las columnas nuevas viajan solas en el snapshot por ser de tablas que ya
+  estaban (`SELECT *`), y lo demás va por red.
+
+---
+
+## 0.117 — 15/08/2026 23:40
+
+- **Sección nueva: Personajes especiales.** Los que tienen nombre propio (Vlad
+  von Carstein) en vez de ser "un Señor Vampiro" del montón. Se crean copiando
+  un personaje de su facción, así que nacen con su perfil, sus reglas, su
+  equipo, sus opciones, sus monturas con el coste de cada una, su grupo de
+  mando y, si es hechicero, sus sendas. **La copia es independiente**: retocarle
+  los atributos no toca al genérico del que salió, que es lo que hace falta
+  porque un personaje con nombre casi nunca tiene el perfil del común.
+- **No son una entidad nueva, son una unidad con una marca.** El esquema avisa
+  expresamente de no partir `units` en dos tablas, y con razón: habría que
+  duplicar perfiles, equipo, monturas, magia y mando para no ganar nada. Y la
+  marca en vez de una categoría propia porque **cuentan como Personajes** para
+  los límites del ejército, que se calculan por categoría: así las reglas de
+  composición no se enteran de que existen. Que en el constructor tengan
+  pestaña aparte es cosa de la pantalla.
+- **Retrato y trasfondo.** La foto se prepara con el mismo molino que las
+  piezas de escenografía (fondo fuera, recorte y canto difuminado): una foto
+  recortada sobre blanco canta en una tarjeta de pergamino igual que sobre la
+  mesa. El trasfondo va con formato y saneado, como los apéndices.
+- **Experiencia con libro de apuntes, no con contador.** Cada partida se suma
+  con su motivo y el total es la suma de los apuntes; se ve el historial
+  entero. Un apunte no se edita ni se borra —es lo que pasó en una partida—;
+  corregir es apuntar una cantidad negativa diciendo por qué. De momento el
+  número solo se guarda y se enseña; más adelante se gastará en habilidades, y
+  para eso harán falta los apuntes y no el saldo.
+- **Casilla «Incluir personajes especiales»** en las opciones de la lista.
+  Apagada, ni aparecen en el constructor. Si se apaga con alguno ya metido, se
+  avisa de cuáles son: no se quitan de la lista (tirar entradas que alguien
+  montó sin preguntar sería peor), pero dejan de ofrecerse.
+- **Arreglado un fallo silencioso de copiar unidades, anterior a todo esto.**
+  `duplicar` no copiaba `is_wizard` ni las sendas de magia: la copia salía sin
+  magia y con toda la pinta de estar bien. Se vio al montar esto, porque los
+  personajes especiales nacen precisamente de una copia — un Vidente Gris
+  copiado habría nacido mudo.
+- **Y una imagen que ya viene recortada se deja en paz** al prepararla: si hay
+  transparencia en su marco no se busca fondo que quitar. Dentro de un canvas
+  lo transparente se lee como negro, así que la búsqueda daba "negro" por color
+  de fondo y se comía cualquier roca o tejado en sombra pegado al borde.
+
+---
+
 ## 0.116 — 15/08/2026 20:26
 
 - **El canto de las piezas de escenografía ya no se ve.** Al juntar varios

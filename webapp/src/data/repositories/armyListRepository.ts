@@ -27,6 +27,11 @@ function mapArmyList(row: Record<string, unknown>): ArmyList {
     tableWidthCm: (row.table_width_cm as number) ?? MESA_ANCHO_CM,
     tableHeightCm: (row.table_height_cm as number) ?? MESA_ALTO_CM,
     battleMapId: (row.battle_map_id as number) ?? null,
+    // La columna puede no existir todavía si la D1 no se ha migrado. En ese
+    // caso la lista SÍ ofrece Personajes de Renombre: es el valor por defecto
+    // de la columna y el que se pidió, y ante la duda es mejor ofrecer de más
+    // que esconder una sección entera sin que nadie lo haya decidido.
+    showSpecialCharacters: row.show_special_characters == null ? true : Boolean(row.show_special_characters),
   }
 }
 
@@ -335,6 +340,15 @@ export const ArmyListRepository = {
   async setPointsLimit(id: number, pointsLimit: number | null): Promise<void> {
     await exec('UPDATE army_lists SET points_limit = ?, updated_at = ? WHERE id = ?', [
       pointsLimit,
+      new Date().toISOString(),
+      id,
+    ])
+  },
+
+  /** Enciende o apaga los Personajes de Renombre en esta lista (ver ArmyList.showSpecialCharacters). */
+  async setShowSpecialCharacters(id: number, mostrar: boolean): Promise<void> {
+    await exec('UPDATE army_lists SET show_special_characters = ?, updated_at = ? WHERE id = ?', [
+      mostrar ? 1 : 0,
       new Date().toISOString(),
       id,
     ])

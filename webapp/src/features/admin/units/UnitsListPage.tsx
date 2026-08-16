@@ -94,8 +94,15 @@ export function UnitsListPage() {
   // se puede meter en un ejército, así que sumarla daría una idea falsa de lo
   // que hay disponible. Las desactivadas se siguen viendo en la lista (esta es
   // la pantalla de edición) y se resumen aparte, para no perder el dato.
-  const activeUnits = (units ?? []).filter((u) => u.active)
-  const inactiveCount = (units ?? []).length - activeUnits.length
+  // LOS PERSONAJES DE RENOMBRE NO SALEN EN ESTA PANTALLA. Tienen la suya
+  // propia, fuera de "Editor" (ver PersonajesRenombrePage), y aquí no hacían
+  // más que estorbar: en la categoría "Personajes" se mezclaban con los
+  // genéricos —que es de donde salen— y ya no había forma de distinguir el
+  // Señor Vampiro del catálogo del Vlad que alguien creó copiándolo. Su ficha
+  // de unidad sigue estando aquí y se llega a ella desde su propia sección.
+  const catalogUnits = (units ?? []).filter((u) => !u.isSpecialCharacter)
+  const activeUnits = catalogUnits.filter((u) => u.active)
+  const inactiveCount = catalogUnits.length - activeUnits.length
   const personajeCount = activeUnits.filter(
     (u) => categories?.find((c) => c.name === u.categoryName)?.code === 'PERSONAJE',
   ).length
@@ -103,6 +110,7 @@ export function UnitsListPage() {
   const grouped = useMemo(() => {
     const map = new Map<string, UnitSummary[]>()
     for (const unit of units ?? []) {
+      if (unit.isSpecialCharacter) continue
       const key = unit.categoryName ?? SIN_CATEGORIA_KEY
       map.set(key, [...(map.get(key) ?? []), unit])
     }
@@ -167,7 +175,7 @@ export function UnitsListPage() {
         <FactionMasthead
           faction={selectedFaction}
           subtitle={
-            units && units.length > 0
+            catalogUnits.length > 0
               ? [
                   `${activeUnits.length} ${activeUnits.length === 1 ? 'unidad' : 'unidades'}`,
                   `${personajeCount} ${personajeCount === 1 ? 'personaje' : 'personajes'}`,
@@ -198,7 +206,9 @@ export function UnitsListPage() {
       {loadingUnits && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      {!loadingUnits && units && units.length === 0 && <EmptyState title="Esta facción todavía no tiene unidades" />}
+      {!loadingUnits && units && catalogUnits.length === 0 && (
+        <EmptyState title="Esta facción todavía no tiene unidades" />
+      )}
 
       {!loadingUnits &&
         Array.from(grouped.entries()).map(([category, categoryUnits]) => {

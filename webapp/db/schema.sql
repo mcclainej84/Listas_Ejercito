@@ -341,7 +341,43 @@ CREATE TABLE units (
 
     -- Resto de una versión anterior en la que el nivel era de la unidad. Ya no
     -- se escribe desde ningún sitio; se conserva para no perder lo guardado.
-    magic_level       INTEGER
+    magic_level       INTEGER,
+
+    -- --- Personaje especial ---
+    -- Un personaje especial (Vlad von Carstein, y no "un Señor Vampiro") NO es
+    -- una entidad aparte: es una unidad con unit_type='personaje' y esta marca.
+    -- Nace COPIANDO un personaje de su facción, así que hereda perfiles,
+    -- equipo, monturas, coste y grupo de mando sin duplicar una línea de
+    -- estructura; a partir de ahí es suyo y se le tocan los atributos como a
+    -- cualquier unidad (que es lo normal: un personaje con nombre casi nunca
+    -- tiene el perfil del genérico del que salió).
+    --
+    -- POR QUÉ UNA MARCA Y NO UNA CATEGORÍA PROPIA: a efectos de límites de
+    -- ejército cuentan como Personajes, y las reglas de composición se calculan
+    -- por category_id. Con categoría propia habría que enseñarle a
+    -- domain/armyComposition que dos categorías suman juntas; con la marca, su
+    -- categoría SIGUE SIENDO Personaje y las reglas ni se enteran. Que en el
+    -- constructor salgan en su propia sección es cosa de la interfaz.
+    is_special_character INTEGER NOT NULL DEFAULT 0,
+    -- Trasfondo: la historia del personaje, opcional. Va como HTML SANEADO con
+    -- la misma lista cerrada de etiquetas que los apéndices de unidad (ver
+    -- shared/richText.ts), porque es prosa larga y se agradece poder separar
+    -- párrafos y destacar un nombre. NULL = sin trasfondo.
+    background        TEXT,
+    -- Retrato en R2 (aquí solo la clave, como el resto de imágenes). Es una
+    -- imagen propia del personaje, distinta de la ilustración de su Ficha
+    -- (unit_sheets.illu_key): esa sigue existiendo y sirviendo para la hoja.
+    portrait_key      TEXT,
+    -- Oculto: fuera del listado y del constructor de todos MENOS de su autor.
+    -- Es la única excepción a que los Personajes de Renombre sean comunes
+    -- (cualquiera los ve, los edita y los usa) y existe por lo mismo que en los
+    -- mapas: poder tener uno a medio escribir sin que le estorbe a nadie. En
+    -- una unidad normal no se usa: ahí lo que decide si se ofrece es `active`.
+    hidden            INTEGER NOT NULL DEFAULT 0,
+    -- Autor del personaje de renombre. Solo sirve para saber a quién le sigue
+    -- apareciendo si está oculto; el resto del catálogo no tiene dueño. NULL =
+    -- sin autor conocido (los creados antes de que existiera esta columna).
+    user_id           INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_units_faction ON units(faction_id);
@@ -392,6 +428,29 @@ CREATE TABLE unit_appendices (
 CREATE INDEX idx_unit_appendices_unit ON unit_appendices(unit_id);
 
 -- Reglas especiales de una unidad (N:M)
+-- ----------------------------------------------------------------------------
+-- Experiencia de un personaje especial, APUNTE A APUNTE.
+--
+-- No hay columna con el total a propósito: el total es la suma de estas filas.
+-- Lo que se pidió es poder VER de dónde sale la experiencia —cada partida suma
+-- lo suyo, con su motivo—, y un contador suelto no cuenta nada. Cuando la
+-- experiencia se gaste en habilidades harán falta los apuntes, no el saldo.
+--
+-- La tabla es de units y no de "personajes especiales" porque un personaje
+-- especial ES una unidad; nada impide técnicamente apuntarle experiencia a
+-- otra cosa, pero la interfaz solo lo ofrece donde tiene sentido.
+-- ----------------------------------------------------------------------------
+CREATE TABLE unit_experience_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_id    INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+    amount     INTEGER NOT NULL,
+    note       TEXT,
+    created_at TEXT NOT NULL,
+    user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_unit_experience_unit ON unit_experience_log(unit_id);
+
 CREATE TABLE unit_special_rules (
     unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
     rule_id INTEGER NOT NULL REFERENCES special_rules(id) ON DELETE CASCADE,
@@ -634,7 +693,15 @@ CREATE TABLE army_lists (
     -- medidas ajustables). Con mapa, las medidas las manda él y su escenografía
     -- se pinta de fondo sin poder tocarse. ON DELETE SET NULL: si alguien borra
     -- el mapa, la lista vuelve a mesa libre en vez de quedar rota.
-    battle_map_id   INTEGER REFERENCES battle_maps(id) ON DELETE SET NULL
+    battle_map_id   INTEGER REFERENCES battle_maps(id) ON DELETE SET NULL,
+    -- RESTO de una versión anterior en la que los personajes especiales eran
+    -- opt-in por lista. Ya no lo lee nadie; se conserva para no perder lo
+    -- guardado. Lo que manda ahora es show_special_characters.
+    include_special_characters INTEGER NOT NULL DEFAULT 0,
+    -- Si la lista OFRECE Personajes de Renombre en el constructor. Encendido por
+    -- defecto: la decisión es de la partida (una campaña narrativa los quiere,
+    -- un torneo no), pero lo normal es tenerlos. Apagado, ni aparecen.
+    show_special_characters INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);

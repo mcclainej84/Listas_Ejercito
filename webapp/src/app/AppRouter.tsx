@@ -6,6 +6,7 @@ import { useSession } from '@/shared/session/useSession'
 import { FactionsListPage } from '@/features/admin/factions/FactionsListPage'
 import { RulesListPage } from '@/features/admin/rules/RulesListPage'
 import { UnitsListPage } from '@/features/admin/units/UnitsListPage'
+import { PersonajesRenombrePage } from '@/features/renombre/PersonajesRenombrePage'
 import { UnitDetailPage } from '@/features/admin/units/UnitDetailPage'
 import { MountsListPage } from '@/features/admin/mounts/MountsListPage'
 import { ChariotsListPage } from '@/features/admin/chariots/ChariotsListPage'
@@ -155,6 +156,20 @@ const router = createHashRouter([
       // La sección se llamaba "Fichas" y su ruta era /fichas. Se mantiene
       // redirigiendo para no romper los enlaces que alguien tuviera guardados.
       { path: '/fichas', element: <Navigate to="/hojas" replace /> },
+      {
+        // Personajes de Renombre. SIN AdminRoute a propósito: la sección salió
+        // de "Editor" y la usa cualquiera (ver PersonajesRenombrePage). Solo
+        // queda la contraseña de grupo, como Hojas, Ejércitos y Mapas.
+        path: '/renombre',
+        element: (
+          <PasswordGate>
+            <PersonajesRenombrePage />
+          </PasswordGate>
+        ),
+      },
+      // Estuvo en /admin/personajes-especiales mientras vivía dentro de
+      // "Editor"; se redirige para no romper enlaces guardados ni el historial.
+      { path: '/admin/personajes-especiales', element: <Navigate to="/renombre" replace /> },
       {
         path: '/ejercitos',
         element: (

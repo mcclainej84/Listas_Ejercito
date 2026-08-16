@@ -13,6 +13,7 @@ import { UserRepository, DEFAULT_ARMY_LIST_OPTIONS } from '@/data/repositories/u
 import { EntryMagicSection } from '@/features/army-lists/EntryMagicSection'
 import { checkComposition, compositionWarnings, formatRuleValue } from '@/domain/armyComposition'
 import { isWizardTag } from '@/domain/magic'
+import { esVisiblePara } from '@/domain/personajeRenombre'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { useSession } from '@/shared/session/useSession'
 import {
@@ -50,6 +51,7 @@ import {
   LockIcon,
   NameTagIcon,
   PencilIcon,
+  StarIcon,
   SwordIcon,
   TrashIcon,
   WarningIcon,
@@ -63,6 +65,36 @@ import { SORT_LABELS, sortEntries, type SortCriterion } from '@/features/army-li
 import { UnsavedChangesDialog } from '@/shared/ui/UnsavedChangesDialog'
 
 const SIN_CATEGORIA_KEY = 'Sin categoría'
+
+/**
+ * Nombre de la pestaña propia de los Personajes de Renombre en el explorador de
+ * unidades.
+ *
+ * Es una sección SOLO DE PANTALLA. Un personaje de renombre sigue teniendo su
+ * categoría de verdad —Personajes—, que es la que cuentan las reglas de
+ * composición; aquí se le saca a una pestaña aparte porque mezclarlos con los
+ * genéricos convierte la lista de Personajes de una facción en un revoltijo
+ * donde no se encuentra ni lo uno ni lo otro.
+ */
+const SECCION_ESPECIALES = 'Personajes de Renombre'
+
+/**
+ * Cómo se ROTULA una sección en la fila de pestañas.
+ *
+ * "Personajes de Renombre" entero ocupa él solo un tercio de la fila —el
+ * explorador vive en una columna de unos 460 px— y empujaba a "Singulares" a una
+ * segunda línea, que es justo lo que se pidió evitar: las cinco secciones se
+ * tienen que ver de una vez. Con la estrella delante no hace falta el nombre
+ * largo para saber cuál es, y el rótulo completo sigue estando en el `title`.
+ */
+function etiquetaDeSeccion(cat: string): string {
+  return cat === SECCION_ESPECIALES ? 'Renombre' : cat
+}
+
+/** En qué pestaña del explorador se enseña una unidad. Ver SECCION_ESPECIALES. */
+function seccionDeUnidad(unidad: { isSpecialCharacter: boolean; categoryName: string | null }): string {
+  return unidad.isSpecialCharacter ? SECCION_ESPECIALES : (unidad.categoryName ?? SIN_CATEGORIA_KEY)
+}
 
 /**
  * Las tres columnas del grupo de mando. Se declaran una sola vez y se recorren
@@ -212,6 +244,8 @@ export function ArmyListBuilderPage() {
   const [entries, setEntries] = useState<ArmyListEntry[] | null>(null)
   const [name, setName] = useState('')
   const [pointsLimit, setPointsLimit] = useState<number | null>(null)
+  /** Si esta lista ofrece Personajes de Renombre (ver ArmyList.showSpecialCharacters). Nacen encendidos. */
+  const [mostrarRenombre, setMostrarRenombre] = useState(true)
   const [dirty, setDirty] = useState(false)
   const [savingList, setSavingList] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -323,6 +357,7 @@ export function ArmyListBuilderPage() {
     setEntries(reconciled)
     setName(list.name)
     setPointsLimit(list.pointsLimit)
+    setMostrarRenombre(list.showSpecialCharacters)
     setReconcileNotes(notes)
     setNeedsReviewIds(new Set(notes.filter((n) => n.conflicts.length > 0).map((n) => n.entryId)))
     // Si algo ha cambiado, el borrador ya no coincide con lo guardado: se
@@ -447,10 +482,18 @@ export function ArmyListBuilderPage() {
   const effectiveFactionId = browseFactionId ?? list.factionId
   // Solo unidades ACTIVAS: las desactivadas en Administración no se ofrecen al
   // montar el ejército (ver units.active / UnitsListPage).
-  const unitsForFaction = (allUnits ?? []).filter((u) => u.factionId === effectiveFactionId && u.active)
+  // Los Personajes de Renombre se ofrecen salvo que la lista los haya apagado
+  // (ver ArmyList.showSpecialCharacters), y nunca los que otro haya ocultado:
+  // un personaje oculto es de su autor y para nadie más.
+  const unitsForFaction = (allUnits ?? []).filter(
+    (u) =>
+      u.factionId === effectiveFactionId &&
+      u.active &&
+      (!u.isSpecialCharacter || (mostrarRenombre && esVisiblePara(u, user?.id))),
+  )
   const categoryNames: string[] = []
   for (const u of unitsForFaction) {
-    const key = u.categoryName ?? SIN_CATEGORIA_KEY
+    const key = seccionDeUnidad(u)
     if (!categoryNames.includes(key)) categoryNames.push(key)
   }
   const effectiveCategory =
@@ -458,8 +501,7 @@ export function ArmyListBuilderPage() {
   const searchLower = unitSearch.trim().toLowerCase()
   const unitsInCategory = unitsForFaction.filter(
     (u) =>
-      (u.categoryName ?? SIN_CATEGORIA_KEY) === effectiveCategory &&
-      (searchLower === '' || u.name.toLowerCase().includes(searchLower)),
+      seccionDeUnidad(u) === effectiveCategory && (searchLower === '' || u.name.toLowerCase().includes(searchLower)),
   )
 
   async function handlePickUnit(unitId: number | null) {
@@ -1335,20 +1377,35 @@ export function ArmyListBuilderPage() {
                         </div>
                       </div>
 
+                      {/* UNA SOLA LÍNEA: `flex-nowrap` en vez de `flex-wrap`, y si a
+                          una facción le sobran secciones (Bestia, Asedio) la fila se
+                          desplaza en horizontal en vez de partirse. Envuelta, la fila
+                          crecía de alto y "Singulares" caía debajo, lejos de las
+                          demás. */}
                       {categoryNames.length > 0 && (
-                        <div className="mb-4 flex flex-wrap gap-2 border-b border-rule-dark/30 pb-4">
+                        <div className="mb-4 flex flex-nowrap gap-1.5 overflow-x-auto border-b border-rule-dark/30 pb-3">
                           {categoryNames.map((cat) => (
                             <button
                               key={cat}
                               onClick={() => setBrowseCategory(cat)}
+                              title={cat}
                               className={clsx(
-                                'rounded-sm px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors',
+                                'flex shrink-0 items-center gap-1 rounded-sm px-2.5 py-1 text-mini font-semibold whitespace-nowrap tracking-wide transition-colors',
                                 cat === effectiveCategory
                                   ? 'bg-maroon text-parchment'
                                   : 'border border-rule-dark/40 bg-parchment text-ink-soft hover:bg-parchment-dark',
                               )}
                             >
-                              {cat}
+                              {cat === SECCION_ESPECIALES && (
+                                <StarIcon
+                                  className={clsx(
+                                    'h-3 w-3',
+                                    cat === effectiveCategory ? 'text-parchment' : 'text-bronze',
+                                  )}
+                                  filled
+                                />
+                              )}
+                              {etiquetaDeSeccion(cat)}
                             </button>
                           ))}
                         </div>
@@ -1952,7 +2009,7 @@ export function ArmyListBuilderPage() {
 
       {editingSettings && (
         <ArmyListSettingsModal
-          list={{ ...list, name, pointsLimit, entries: currentEntries }}
+          list={{ ...list, name, pointsLimit, showSpecialCharacters: mostrarRenombre, entries: currentEntries }}
           onClose={() => setEditingSettings(false)}
           onSaved={(values) => {
             // Actualiza solo los metadatos en el estado local (ya persistidos
@@ -1960,6 +2017,7 @@ export function ArmyListBuilderPage() {
             // entradas sin guardar.
             setName(values.name)
             setPointsLimit(values.pointsLimit)
+            setMostrarRenombre(values.showSpecialCharacters)
             setEditingSettings(false)
           }}
         />

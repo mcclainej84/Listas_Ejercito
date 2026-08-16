@@ -191,6 +191,46 @@ export interface Unit {
    * el mismo personaje puede llevar sendas distintas en dos listas.
    */
   isWizard: boolean
+  /**
+   * PERSONAJE DE RENOMBRE: un personaje con nombre propio (Vlad, y no "un
+   * Señor Vampiro"), nacido de copiar un personaje de su facción.
+   *
+   * Es una marca y no una categoría aparte porque a efectos de límites de
+   * ejército CUENTAN COMO PERSONAJES, y las reglas de composición miran
+   * `categoryId`. Que en el constructor tengan sección propia lo decide la
+   * interfaz, no el modelo.
+   *
+   * Solo tiene sentido con `unitType === 'personaje'`.
+   */
+  isSpecialCharacter: boolean
+  /**
+   * Trasfondo del personaje: HTML ya SANEADO (misma lista de etiquetas que los
+   * apéndices, ver shared/richText.ts). null = no tiene.
+   */
+  background: string | null
+  /**
+   * Clave en R2 de su retrato, propio del personaje de renombre y distinto de
+   * la ilustración de su Ficha (que sigue existiendo). null = sin foto.
+   */
+  portraitKey: string | null
+  /**
+   * OCULTO: fuera del listado y del constructor de todos menos de su autor.
+   *
+   * Es la ÚNICA excepción a que los Personajes de Renombre sean comunes —
+   * cualquiera los ve, los edita y los usa—, y existe por lo mismo que en los
+   * mapas: poder tener uno a medio escribir sin que le estorbe a nadie.
+   *
+   * Solo se aplica a los personajes de renombre. Para el resto de unidades, lo
+   * que decide si se ofrecen es `active`.
+   */
+  hidden: boolean
+  /**
+   * Quién lo creó. Solo lo llevan los personajes de renombre (el resto del
+   * catálogo es de todos y nadie a la vez), y solo sirve para una cosa: saber
+   * a quién le sigue apareciendo si está oculto. null = sin autor conocido,
+   * que es lo que traen los creados antes de que existiera esta columna.
+   */
+  userId: number | null
   /** Equipo básico que la unidad siempre lleva (texto libre; sin dato de origen, se rellena desde Administración). */
   equipmentText: string | null
   /** Tirada de salvación por armadura (T.S.). Vacía por defecto; se rellena desde Administración. */
@@ -364,6 +404,22 @@ export interface ArmyList {
   tableHeightCm: number
   /** Mapa cargado en el Despliegue; null = mesa libre. */
   battleMapId: number | null
+  /**
+   * Si esta lista OFRECE Personajes de Renombre en el constructor.
+   *
+   * Va por LISTA y no por usuario porque es una decisión de la partida: una
+   * campaña narrativa los quiere y un torneo no. Apagado, ni siquiera aparecen
+   * en el constructor.
+   *
+   * NACE ENCENDIDO, y por eso es una columna NUEVA (`show_special_characters`)
+   * y no la antigua `include_special_characters`. Aquella era opt-in y sus
+   * filas guardan 0; darles la vuelta con un UPDATE en las migraciones es
+   * imposible sin que ese mismo UPDATE se repita en cada arranque y le vuelva
+   * a encender los personajes a quien los hubiera apagado a mano. Una columna
+   * nueva con DEFAULT 1 rellena las filas existentes UNA sola vez, por
+   * construcción.
+   */
+  showSpecialCharacters: boolean
 }
 
 /**

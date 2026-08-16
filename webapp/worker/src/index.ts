@@ -789,6 +789,76 @@ const MIGRATIONS: string[] = [
      WHEN 'Asedio'           THEN '#5a646d'
      ELSE color END
    WHERE color IS NULL`,
+  // --------------------------------------------------------------------------
+  // PERSONAJES ESPECIALES (agosto de 2026)
+  //
+  // Un personaje especial NO es una entidad nueva: es una `units` con
+  // `unit_type = 'personaje'` y esta marca puesta. Nace copiando un personaje
+  // de la facción (ver UnitRepository.duplicate), así que hereda perfiles,
+  // equipo, monturas, coste y grupo de mando sin que haya que replicar nada;
+  // a partir de ahí es independiente y se le tocan los atributos como a
+  // cualquier unidad.
+  //
+  // POR QUÉ UNA MARCA Y NO UNA CATEGORÍA NUEVA. A efectos de límites de
+  // ejército cuentan como Personajes, y las reglas de composición se calculan
+  // por `category_id`. Con una categoría propia habría que enseñarle a
+  // `armyComposition` que dos categorías suman juntas; con la marca, su
+  // categoría SIGUE SIENDO Personaje y las reglas no se enteran. La sección
+  // aparte del constructor es cosa de la interfaz, no del modelo.
+  // --------------------------------------------------------------------------
+  'ALTER TABLE units ADD COLUMN is_special_character INTEGER NOT NULL DEFAULT 0',
+  // Trasfondo del personaje: HTML saneado con la misma lista cerrada de
+  // etiquetas que los apéndices (ver shared/richText.ts). Es prosa larga y se
+  // agradece poder separar párrafos.
+  'ALTER TABLE units ADD COLUMN background TEXT',
+  // Retrato, en R2 como el resto de imágenes: aquí solo la clave. Es una imagen
+  // PROPIA del personaje especial, distinta de la ilustración de su Ficha
+  // (unit_sheets.illu_key), que sigue existiendo y sirviendo para la hoja.
+  'ALTER TABLE units ADD COLUMN portrait_key TEXT',
+  // Experiencia: NO es una columna con el total, es este registro. Cada partida
+  // suma una fila con su motivo, y el total es la suma. Se guarda así porque lo
+  // que se pidió es poder VER de dónde sale la experiencia, y un contador suelto
+  // no lo cuenta; además, cuando se gaste en habilidades harán falta los
+  // apuntes, no solo el saldo.
+  `CREATE TABLE IF NOT EXISTS unit_experience_log (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     unit_id    INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+     amount     INTEGER NOT NULL,
+     note       TEXT,
+     created_at TEXT NOT NULL,
+     user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_unit_experience_unit ON unit_experience_log(unit_id)',
+  // Los personajes especiales solo se ofrecen en las listas que lo pidan
+  // expresamente: son cosa de partidas narrativas, no de cualquier ejército.
+  'ALTER TABLE army_lists ADD COLUMN include_special_characters INTEGER NOT NULL DEFAULT 0',
+  // --------------------------------------------------------------------------
+  // PERSONAJES DE RENOMBRE (agosto de 2026)
+  //
+  // La sección sale de "Editor" y pasa a ser de todos: cualquiera crea, edita y
+  // usa un personaje de renombre. La ÚNICA excepción es poder ocultarlo, y de
+  // ahí estas dos columnas.
+  // --------------------------------------------------------------------------
+  // Oculto: fuera del listado y del constructor de todos menos de su autor.
+  // Mismo trato que `battle_maps.hidden` y por lo mismo: poder tener uno a medio
+  // escribir sin que le estorbe a nadie.
+  'ALTER TABLE units ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
+  // Autor, para saber a quién le sigue apareciendo cuando está oculto. Solo lo
+  // llevan los personajes de renombre; el resto del catálogo no tiene dueño.
+  // Los creados antes de esta columna se quedan en NULL: sin autor, y quien lo
+  // oculte pasa a serlo (ver SpecialCharacterRepository.setHidden).
+  'ALTER TABLE units ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL',
+  // Ahora las listas los ofrecen POR DEFECTO, al revés que antes.
+  //
+  // Es una columna NUEVA en vez de darle la vuelta a la anterior con un UPDATE
+  // porque estas migraciones se ejecutan enteras en cada arranque (son
+  // idempotentes a base de ignorar el error de "ya existe"). Un
+  // `UPDATE army_lists SET include_special_characters = 1` correría también
+  // mañana, y le volvería a encender los personajes a quien los hubiera apagado
+  // a mano. Un ALTER con DEFAULT 1 rellena las filas existentes UNA vez y falla
+  // —en silencio— todas las demás. La columna vieja se queda con lo que
+  // tuviera; ya no la lee nadie.
+  'ALTER TABLE army_lists ADD COLUMN show_special_characters INTEGER NOT NULL DEFAULT 1',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {
