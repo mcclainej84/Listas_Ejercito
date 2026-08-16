@@ -485,3 +485,136 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+// ---------------------------------------------------------------------------
+// ENCUADRE DEL RETRATO DE UN PERSONAJE DE RENOMBRE
+//
+// El hueco del retrato en la lámina es CUADRADO (160 × 160), y una foto casi
+// nunca lo es. Antes se metía con `object-contain` y el resultado quedaba a
+// merced de la foto: un retrato vertical salía con dos franjas vacías a los
+// lados y la cara diminuta en el centro, sin nada que hacer al respecto salvo
+// recortar el archivo antes de subirlo. Con esto se elige el trozo que se ve.
+//
+// EL ENCUADRE SE APLICA AL GUARDAR, no se guarda como dato. Lo que sube a R2
+// ya es el cuadrado definitivo, así que ni hay columnas nuevas ni hay que
+// reaplicar una transformación cada vez que se pinta la lámina. A cambio,
+// reencuadrar más tarde parte de la imagen ya recortada (ver
+// `descargarImagenComoBytes`): para un retoque va bien, y para un cambio grande
+// se vuelve a elegir la foto.
+// ---------------------------------------------------------------------------
+
+/** Lado del retrato ya encuadrado. Cuadrado, como su hueco. */
+export const LADO_RETRATO = 512
+
+/**
+ * Dónde queda la foto dentro del cuadro.
+ *
+ * Todo en FRACCIONES del lado del cuadro y no en píxeles, a propósito: la misma
+ * pareja de números vale para la vista previa (que mide 240 px o los que le
+ * quepan) y para el lienzo final (512 px), sin convertir nada por el camino ni
+ * poder equivocarse en la conversión.
+ */
+export interface EncuadreRetrato {
+  /** 1 = la foto entera cabe justo dentro del cuadro. Más, se amplía. */
+  zoom: number
+  /** Desplazamiento respecto al centro, en fracciones del lado. 0 = centrada. */
+  x: number
+  y: number
+}
+
+export const ENCUADRE_CENTRADO: EncuadreRetrato = { zoom: 1, x: 0, y: 0 }
+
+export const ZOOM_RETRATO_MIN = 1
+export const ZOOM_RETRATO_MAX = 4
+
+/**
+ * Cuánto ocupa la foto dentro del cuadro, en fracciones del lado, para un zoom
+ * dado. Con zoom 1 el lado mayor mide exactamente 1 (cabe justo).
+ */
+export function medidasDelEncuadre(
+  anchoOriginal: number,
+  altoOriginal: number,
+  zoom: number,
+): { fw: number; fh: number } {
+  if (anchoOriginal <= 0 || altoOriginal <= 0) return { fw: zoom, fh: zoom }
+  const proporcion = anchoOriginal / altoOriginal
+  return proporcion >= 1 ? { fw: zoom, fh: zoom / proporcion } : { fw: zoom * proporcion, fh: zoom }
+}
+
+/**
+ * Recorta el desplazamiento a lo razonable.
+ *
+ * Con la foto más grande que el cuadro, no se deja asomar el pergamino por
+ * ningún lado; con la foto más pequeña, no se deja sacarla fuera. Las dos cosas
+ * salen de la misma cuenta: el margen es la mitad de la diferencia entre lo que
+ * mide la foto y lo que mide el cuadro, mida más o mida menos.
+ */
+export function limitarEncuadre(
+  encuadre: EncuadreRetrato,
+  anchoOriginal: number,
+  altoOriginal: number,
+): EncuadreRetrato {
+  const zoom = Math.min(ZOOM_RETRATO_MAX, Math.max(ZOOM_RETRATO_MIN, encuadre.zoom))
+  const { fw, fh } = medidasDelEncuadre(anchoOriginal, altoOriginal, zoom)
+  const maxX = Math.abs(fw - 1) / 2
+  const maxY = Math.abs(fh - 1) / 2
+  return {
+    zoom,
+    x: Math.min(maxX, Math.max(-maxX, encuadre.x)),
+    y: Math.min(maxY, Math.max(-maxY, encuadre.y)),
+  }
+}
+
+/**
+ * Aplica el encuadre y devuelve el cuadrado definitivo, listo para subir.
+ *
+ * El lienzo se deja TRANSPARENTE por debajo (no se pinta ningún fondo): la foto
+ * llega aquí con el fondo ya quitado por `prepararImagenDeEscenografia`, y
+ * rellenar el sobrante de blanco —o de color pergamino— devolvería justo el
+ * recorte pegado sobre el papel que ese arreglo evita.
+ */
+export async function recortarRetrato(
+  bytes: Uint8Array,
+  mime: string,
+  encuadre: EncuadreRetrato,
+): Promise<ResizedImage> {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  const archivo = new File([buffer], 'retrato', { type: mime || 'image/webp' })
+  const { source, width, height } = await decodeImage(archivo)
+  try {
+    const L = LADO_RETRATO
+    const { canvas, ctx } = lienzoDeTrabajo(L, L)
+    const seguro = limitarEncuadre(encuadre, width, height)
+    const { fw, fh } = medidasDelEncuadre(width, height, seguro.zoom)
+    const anchoDibujo = fw * L
+    const altoDibujo = fh * L
+    const izquierda = (L - anchoDibujo) / 2 + seguro.x * L
+    const arriba = (L - altoDibujo) / 2 + seguro.y * L
+    ctx.drawImage(source, izquierda, arriba, anchoDibujo, altoDibujo)
+    // WebP conserva el canal alfa Y comprime con pérdida; si el navegador no lo
+    // soporta se cae a PNG, que también es transparente aunque pese más (JPEG
+    // no vale aquí: pintaría de negro todo lo que fuera transparente).
+    const salida = supportsWebp() ? 'image/webp' : 'image/png'
+    const recortado = await canvasToBytes(canvas, salida, salida === 'image/webp' ? 0.9 : undefined)
+    return { bytes: recortado, mime: salida }
+  } finally {
+    closeSource(source)
+  }
+}
+
+/**
+ * Baja una imagen ya guardada y devuelve sus bytes, para poder reencuadrarla.
+ *
+ * SE BAJA CON `fetch`, no con un `<img src=…>` apuntando a R2: una imagen de
+ * otro origen contamina el canvas y el fallo no salta al dibujar sino AL
+ * EXPORTAR, que es de las trampas más caras de depurar que hay aquí (mismo
+ * motivo que en `reprocesarImagenDeEscenografia`).
+ */
+export async function descargarImagenComoBytes(url: string): Promise<ResizedImage> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`No se pudo descargar la imagen (${res.status}).`)
+  const blob = await res.blob()
+  const buf = await blob.arrayBuffer()
+  return { bytes: new Uint8Array(buf), mime: blob.type || 'image/webp' }
+}

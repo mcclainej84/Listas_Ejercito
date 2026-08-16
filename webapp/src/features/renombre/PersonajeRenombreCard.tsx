@@ -24,7 +24,7 @@
 // el registro de lo que pasó en una partida. Rectificar es apuntar otra cosa,
 // incluso negativa. Ver specialCharacterRepository.
 // ============================================================================
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
@@ -33,7 +33,14 @@ import {
   type ApunteDeExperiencia,
   type PersonajeEspecial,
 } from '@/data/repositories/specialCharacterRepository'
-import { prepararImagenDeEscenografia } from '@/shared/image'
+import {
+  descargarImagenComoBytes,
+  ENCUADRE_CENTRADO,
+  prepararImagenDeEscenografia,
+  recortarRetrato,
+  type EncuadreRetrato,
+} from '@/shared/image'
+import { MarcoDeEncuadre } from '@/features/renombre/MarcoDeEncuadre'
 import { aTextoPlano, sanearHtml, tieneTexto } from '@/shared/richText'
 import { runMigrations } from '@/data/sqlite/client'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -374,7 +381,19 @@ function EditarPersonajeModal({
   onGuardado: () => void
 }) {
   const [trasfondo, setTrasfondo] = useState(personaje.background ?? '')
-  const [vistaPrevia, setVistaPrevia] = useState<{ url: string; bytes: Uint8Array; mime: string } | null>(null)
+  /**
+   * La foto con la que se está trabajando: sus bytes, una URL para verla y sus
+   * medidas (que hacen falta para saber cuánto ocupa dentro del cuadro). Sale de
+   * elegir un archivo nuevo o de bajar el retrato actual para reencuadrarlo.
+   */
+  const [fuente, setFuente] = useState<{
+    url: string
+    bytes: Uint8Array
+    mime: string
+    ancho: number
+    alto: number
+  } | null>(null)
+  const [encuadre, setEncuadre] = useState<EncuadreRetrato>(ENCUADRE_CENTRADO)
   /**
    * Quitar la foto se APUNTA y se aplica al guardar, no en el propio clic. Si
    * se aplicara al momento habría que cerrar el diálogo para refrescar, y se
@@ -386,20 +405,70 @@ function EditarPersonajeModal({
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Las URL de objeto se sueltan al cambiar de foto y al cerrar. Son punteros a
+  // un blob en memoria y el navegador no los recoge solo: sin esto, probar
+  // cuatro fotos seguidas deja las cuatro retenidas hasta recargar la página.
+  const urlAnterior = useRef<string | null>(null)
+  useEffect(() => {
+    return () => {
+      if (urlAnterior.current) URL.revokeObjectURL(urlAnterior.current)
+    }
+  }, [])
+
+  function ponerFuente(bytes: Uint8Array, mime: string, ancho: number, alto: number, url: string) {
+    if (urlAnterior.current) URL.revokeObjectURL(urlAnterior.current)
+    urlAnterior.current = url
+    setFuente({ url, bytes, mime, ancho, alto })
+    setEncuadre(ENCUADRE_CENTRADO)
+    setQuitarFoto(false)
+  }
+
+  /** Mide la imagen ya preparada. Sin sus medidas no se sabe qué parte cae dentro del cuadro. */
+  function medir(url: string): Promise<{ ancho: number; alto: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve({ ancho: img.naturalWidth, alto: img.naturalHeight })
+      img.onerror = () => reject(new Error('No se pudo leer la imagen.'))
+      img.src = url
+    })
+  }
+
+  function urlDeBytes(bytes: Uint8Array, mime: string): string {
+    const buffer = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(buffer).set(bytes)
+    return URL.createObjectURL(new Blob([buffer], { type: mime }))
+  }
+
   async function elegirFoto(file: File | undefined) {
     if (!file) return
     setPreparando(true)
     setError(null)
     try {
       const preparada = await prepararImagenDeEscenografia(file)
-      const buffer = new ArrayBuffer(preparada.bytes.byteLength)
-      new Uint8Array(buffer).set(preparada.bytes)
-      setVistaPrevia({
-        url: URL.createObjectURL(new Blob([buffer], { type: preparada.mime })),
-        bytes: preparada.bytes,
-        mime: preparada.mime,
-      })
-      setQuitarFoto(false)
+      const url = urlDeBytes(preparada.bytes, preparada.mime)
+      const { ancho, alto } = await medir(url)
+      ponerFuente(preparada.bytes, preparada.mime, ancho, alto, url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setPreparando(false)
+    }
+  }
+
+  /**
+   * Reencuadrar la foto que ya tiene. Se parte del retrato guardado, que ya está
+   * recortado, así que sirve para retocar el encuadre; para un cambio grande sale
+   * mejor volver a elegir la foto original.
+   */
+  async function reencuadrarActual() {
+    if (!personaje.portraitUrl) return
+    setPreparando(true)
+    setError(null)
+    try {
+      const { bytes, mime } = await descargarImagenComoBytes(personaje.portraitUrl)
+      const url = urlDeBytes(bytes, mime)
+      const { ancho, alto } = await medir(url)
+      ponerFuente(bytes, mime, ancho, alto, url)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -416,8 +485,11 @@ function EditarPersonajeModal({
       // sin desplegar fallan las dos. Guardando antes la que además sube un
       // archivo a R2, un fallo deja las dos cosas sin hacer en vez de dejar el
       // trasfondo guardado, la foto perdida y el objeto pagado en R2.
-      if (vistaPrevia) {
-        await SpecialCharacterRepository.setPortrait(personaje.id, vistaPrevia.bytes, vistaPrevia.mime)
+      if (fuente) {
+        // El encuadre se aplica AQUÍ, no se guarda como dato: lo que sube a R2 ya
+        // es el cuadrado definitivo. Ver la cabecera de shared/image#recortarRetrato.
+        const recortado = await recortarRetrato(fuente.bytes, fuente.mime, encuadre)
+        await SpecialCharacterRepository.setPortrait(personaje.id, recortado.bytes, recortado.mime)
       } else if (quitarFoto) {
         await SpecialCharacterRepository.clearPortrait(personaje.id)
       }
@@ -434,7 +506,7 @@ function EditarPersonajeModal({
     }
   }
 
-  const urlMostrada = vistaPrevia?.url ?? (quitarFoto ? null : personaje.portraitUrl)
+  const urlMostrada = quitarFoto ? null : personaje.portraitUrl
 
   return (
     <Modal
@@ -453,11 +525,26 @@ function EditarPersonajeModal({
       }
     >
       <div className="space-y-4">
-        <div className="flex gap-4">
-          <Retrato url={urlMostrada} nombre={personaje.name} />
+        <div className="flex flex-wrap gap-4">
+          {/* Con foto de trabajo se enseña el CUADRO DE ENCUADRE en vez de la
+              vista previa quieta: lo que se ve ahí dentro es exactamente lo que
+              se guarda, así que no hace falta una segunda miniatura al lado
+              diciendo lo mismo. */}
+          {fuente ? (
+            <MarcoDeEncuadre
+              url={fuente.url}
+              ancho={fuente.ancho}
+              alto={fuente.alto}
+              encuadre={encuadre}
+              onChange={setEncuadre}
+            />
+          ) : (
+            <Retrato url={urlMostrada} nombre={personaje.name} />
+          )}
+
           <div className="flex flex-col items-start gap-2">
             <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={preparando || guardando}>
-              {preparando ? 'Preparando…' : urlMostrada ? 'Cambiar foto' : 'Elegir foto'}
+              {preparando ? 'Preparando…' : urlMostrada || fuente ? 'Cambiar foto' : 'Elegir foto'}
             </Button>
             <input
               ref={fileRef}
@@ -466,15 +553,31 @@ function EditarPersonajeModal({
               className="hidden"
               onChange={(e) => elegirFoto(e.target.files?.[0])}
             />
-            {personaje.portraitUrl && !vistaPrevia && !quitarFoto && (
+            {personaje.portraitUrl && !fuente && !quitarFoto && (
+              <Button variant="secondary" disabled={preparando || guardando} onClick={reencuadrarActual}>
+                Reencuadrar esta foto
+              </Button>
+            )}
+            {fuente && (
+              <Button
+                variant="ghost"
+                disabled={guardando}
+                onClick={() => setEncuadre(ENCUADRE_CENTRADO)}
+                title="Vuelve al encuadre de partida: la foto entera, centrada"
+              >
+                Centrar
+              </Button>
+            )}
+            {personaje.portraitUrl && !fuente && !quitarFoto && (
               <Button variant="ghost" disabled={guardando} onClick={() => setQuitarFoto(true)}>
                 Quitar la foto
               </Button>
             )}
-            {quitarFoto && !vistaPrevia && <p className="text-mini text-ink-soft">Se quitará al guardar.</p>}
+            {quitarFoto && !fuente && <p className="text-mini text-ink-soft">Se quitará al guardar.</p>}
             <p className="max-w-xs text-mini leading-relaxed text-ink-soft/80">
-              Se le quita el fondo liso, se recorta a lo que hay y se le difumina el canto, para que no quede como un
-              recorte de papel sobre el pergamino.
+              {fuente
+                ? 'Arrastra la foto para moverla y usa la rueda o la barra para ampliarla. El hueco del retrato es cuadrado: lo que quede dentro es lo que se guarda.'
+                : 'Se le quita el fondo liso, se recorta a lo que hay y se le difumina el canto, para que no quede como un recorte de papel sobre el pergamino.'}
             </p>
           </div>
         </div>

@@ -13,6 +13,34 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.124 — 16/08/2026 16:10
+
+- **El retrato de un personaje se encuadra al ponerlo.** Se arrastra la foto
+  para moverla y se amplía con la rueda o con una barra (hasta 4×), dentro de un
+  cuadro que enseña exactamente lo que va a quedar. Antes el hueco del retrato
+  es cuadrado y la foto casi nunca lo es, así que el resultado quedaba a merced
+  del archivo: un retrato vertical salía con dos franjas vacías a los lados y la
+  cara diminuta en el centro, y la única forma de arreglarlo era recortar la
+  foto fuera del programa y volver a subirla.
+- **"Reencuadrar esta foto"** hace lo mismo con el retrato que ya tiene puesto,
+  sin volver a buscar el archivo. Parte de la imagen ya recortada, así que vale
+  para retocar; para un cambio grande sale mejor elegir otra vez la original.
+- **Lo que se ve en el cuadro es lo que se guarda.** La vista previa coloca la
+  imagen con las mismas cuentas que luego usa el lienzo, en fracciones del lado
+  y no en píxeles, así que el cuadro puede medir 224 px en pantalla y 512 px al
+  guardar sin una segunda conversión que pueda desviarse. Comprobado poniendo
+  las dos una al lado de la otra con tres encuadres distintos.
+- El encuadre **se aplica al guardar y no se guarda como dato**: lo que sube a
+  R2 ya es el cuadrado definitivo, así que no hay columnas nuevas ni una
+  transformación que reaplicar cada vez que se pinta la lámina.
+- Detalles: el sobrante queda transparente y no de color pergamino (rellenarlo
+  devolvería el recorte pegado sobre el papel que el difuminado del canto
+  evita); guías en tercios mientras se arrastra; y las URL de objeto de las
+  fotos de prueba se sueltan al cambiar de foto, que antes se quedaban
+  retenidas hasta recargar.
+
+---
+
 ## 0.123 — 16/08/2026 11:26
 
 - **Arreglado: "FOREIGN KEY constraint failed" y la sección de Personajes de
