@@ -13,6 +13,18 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.122 — 16/08/2026 11:16
+
+- **Un personaje oculto lo dice con todas las letras, no solo con un
+  distintivo.** "Oculto: solo lo ves tú. Nadie más lo encuentra, ni puede
+  meterlo en su ejército", con el atajo para deshacerlo. Antes eran dos palabras
+  en una esquina, y en cuanto cierras la pestaña se olvida: lo siguiente es
+  preguntarse por qué los demás no ven a un personaje que, según la propia
+  sección, es de todos. El aviso solo lo lee su autor — a los demás no les llega
+  la lámina.
+
+---
+
 ## 0.121 — 16/08/2026 11:11
 
 - **Los Personajes de Renombre ya no dejan nada en el Log.** Ni al crearlos, ni

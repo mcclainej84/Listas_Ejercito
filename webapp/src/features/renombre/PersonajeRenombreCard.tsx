@@ -212,6 +212,23 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
             <span className="h-px flex-1 bg-rule-dark/30" />
           </span>
 
+          {/* OCULTO, dicho con todas las letras y no solo con el distintivo.
+              Un personaje oculto solo lo ve su autor, así que para el resto del
+              grupo sencillamente NO EXISTE: no sale aquí, ni en el constructor
+              de listas, ni en el buscador. Con un distintivo de dos palabras en
+              una esquina eso se olvida en cuanto cierras la pestaña, y lo
+              siguiente es preguntarse por qué los demás no ven al personaje.
+              Solo lo lee su autor: a los demás no les llega la lámina. */}
+          {personaje.hidden && (
+            <p className="mt-2 flex items-start gap-1.5 rounded-sm border border-bronze/40 bg-bronze/10 px-2 py-1.5 text-mini leading-snug text-ink-soft">
+              <EyeOffIcon className="mt-px h-3.5 w-3.5 shrink-0 text-bronze" />
+              <span>
+                <strong className="font-semibold text-ink">Oculto: solo lo ves tú.</strong> Nadie más lo encuentra, ni
+                puede meterlo en su ejército. Pulsa el ojo de abajo para que vuelva a verlo todo el grupo.
+              </span>
+            </p>
+          )}
+
           {/* La FACCIÓN no se repite aquí: ya la dice la cabecera del grupo bajo
               la que cuelga esta lámina, y repetirla en cada una es ruido. */}
           <p className="mt-2 text-xs text-ink-soft">
