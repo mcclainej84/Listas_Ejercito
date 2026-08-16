@@ -13,6 +13,37 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.123 — 16/08/2026 11:26
+
+- **Arreglado: "FOREIGN KEY constraint failed" y la sección de Personajes de
+  Renombre vacía.** Eran el mismo fallo, y lo introduje yo en 0.119.
+
+  `units.user_id` (el autor de un personaje de renombre) se declaró con
+  `REFERENCES users(id)`. Pero `units` es una tabla de CATÁLOGO: viaja entera en
+  el snapshot y el navegador la reconstruye en memoria ejecutando
+  `db/schema.sql`, que activa `PRAGMA foreign_keys = ON`. Y `users` **no** viaja
+  en el snapshot —ni debe, que ahí van los hash de contraseña—, así que la copia
+  local tiene esa tabla vacía. Resultado: en cuanto un personaje tuvo autor, su
+  fila dejó de poder insertarse y **la carga del catálogo entero reventaba**.
+
+  Por eso los dos síntomas: Ejércitos enseñaba el error a la cara, y la sección
+  de personajes lo tragaba y salía como si no hubiera ninguno. Y por eso empezó
+  justo al ocultar el primer personaje, que es cuando se apuntó el primer autor
+  — y siguió después de volver a mostrarlo, porque el autor se queda.
+
+  La columna pasa a ser un `INTEGER` a secas, aquí y en la migración del Worker.
+  La integridad la guarda la D1, que sí tiene las dos tablas.
+
+  **Regla general, anotada en el esquema:** una tabla de catálogo no puede tener
+  una clave ajena exigida contra una tabla que no sea también de catálogo.
+  Comprobadas las 27 tablas de catálogo: no queda ninguna otra.
+- **Y si vuelve a pasar, el error dirá dónde.** Al insertar el snapshot, un fallo
+  ahora nombra la tabla y el id de la fila. "FOREIGN KEY constraint failed" a
+  secas no decía ni la tabla, y aparecía en una pantalla que no tenía nada que
+  ver con la que fallaba.
+
+---
+
 ## 0.122 — 16/08/2026 11:16
 
 - **Un personaje oculto lo dice con todas las letras, no solo con un

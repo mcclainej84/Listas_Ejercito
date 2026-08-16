@@ -377,7 +377,22 @@ CREATE TABLE units (
     -- Autor del personaje de renombre. Solo sirve para saber a quién le sigue
     -- apareciendo si está oculto; el resto del catálogo no tiene dueño. NULL =
     -- sin autor conocido (los creados antes de que existiera esta columna).
-    user_id           INTEGER REFERENCES users(id) ON DELETE SET NULL
+    --
+    -- SIN "REFERENCES users(id)", Y NO ES UN OLVIDO. `units` es una tabla de
+    -- CATÁLOGO: viaja entera en el snapshot y el navegador la reconstruye en
+    -- memoria (sql.js) ejecutando ESTE MISMO archivo. `users` NO viaja en el
+    -- snapshot —y no debe, que ahí van los hash de contraseña—, así que la copia
+    -- local tiene la tabla `users` VACÍA. Con el PRAGMA de arriba las claves
+    -- ajenas se comprueban de verdad, así que la primera unidad con autor hacía
+    -- reventar la carga entera del catálogo con "FOREIGN KEY constraint failed":
+    -- no se cargaba nada, ni unidades ni ejércitos. Pasó de verdad en cuanto se
+    -- ocultó el primer personaje.
+    --
+    -- REGLA GENERAL: una tabla de catálogo (las de CATALOG_TABLES en
+    -- localCatalog.ts) no puede tener una clave ajena EXIGIDA contra una tabla
+    -- que no sea también de catálogo. La integridad de esta columna la guarda la
+    -- D1, que sí tiene ambas tablas.
+    user_id           INTEGER
 );
 
 CREATE INDEX idx_units_faction ON units(faction_id);

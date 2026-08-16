@@ -102,7 +102,17 @@ async function fetchSnapshot(): Promise<CatalogSnapshot> {
   return (await res.json()) as CatalogSnapshot
 }
 
-/** Inserta una fila decodificando de vuelta cualquier valor `{__b64}` a Uint8Array (sql.js sí acepta Uint8Array nativo). */
+/**
+ * Inserta una fila decodificando de vuelta cualquier valor `{__b64}` a
+ * Uint8Array (sql.js sí acepta Uint8Array nativo).
+ *
+ * Si falla, el error DICE QUÉ FILA DE QUÉ TABLA. Un fallo aquí tumba la carga
+ * del catálogo entero y con él la aplicación, y el mensaje que suelta sql.js a
+ * secas —"FOREIGN KEY constraint failed"— no dice ni la tabla: pasó de verdad,
+ * con una clave ajena de `units` contra `users` (que no viaja en el snapshot,
+ * ver db/schema.sql), y salía en la pantalla de Ejércitos sin ninguna pista de
+ * que el problema estuviera en las unidades.
+ */
 function insertRow(db: Database, table: string, row: Record<string, unknown>): void {
   const columns = Object.keys(row)
   if (columns.length === 0) return
@@ -111,7 +121,12 @@ function insertRow(db: Database, table: string, row: Record<string, unknown>): v
     const value = row[column]
     return isBase64Blob(value) ? base64ToBytes(value.__b64) : (value as SqlParam)
   })
-  db.run(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values)
+  try {
+    db.run(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values)
+  } catch (err) {
+    const motivo = err instanceof Error ? err.message : String(err)
+    throw new Error(`No se pudo cargar la fila id=${String(row.id ?? '?')} de la tabla "${table}": ${motivo}`)
+  }
 }
 
 async function buildLocalDb(): Promise<Database> {

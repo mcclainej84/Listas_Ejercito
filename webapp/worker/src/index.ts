@@ -847,7 +847,12 @@ const MIGRATIONS: string[] = [
   // llevan los personajes de renombre; el resto del catálogo no tiene dueño.
   // Los creados antes de esta columna se quedan en NULL: sin autor, y quien lo
   // oculte pasa a serlo (ver SpecialCharacterRepository.setHidden).
-  'ALTER TABLE units ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL',
+  //
+  // SIN clave ajena contra `users`, a propósito: `units` viaja en el snapshot y
+  // el navegador la reconstruye contra una tabla `users` vacía, así que una FK
+  // exigida tumbaba la carga entera del catálogo. Ver la nota larga en
+  // db/schema.sql.
+  'ALTER TABLE units ADD COLUMN user_id INTEGER',
   // Ahora las listas los ofrecen POR DEFECTO, al revés que antes.
   //
   // Es una columna NUEVA en vez de darle la vuelta a la anterior con un UPDATE
