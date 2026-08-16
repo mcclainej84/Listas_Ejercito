@@ -494,6 +494,14 @@ export const UnitRepository = {
     const exists = await queryLocalOne('SELECT id FROM units WHERE id = ?', [unitId], (r) => r.id as number)
     if (!exists) return
     const label = await unitLabel(unitId)
+    // Se mira ANTES de borrar: el registro va después, y para entonces la fila
+    // ya no está y `ChangeLogRepository.record` no puede saber que era un
+    // Personaje de Renombre (que no se registra nunca — ver allí el motivo).
+    const deRenombre = await queryLocalOne<boolean>(
+      'SELECT is_special_character FROM units WHERE id = ?',
+      [unitId],
+      (row) => (row.is_special_character as number) === 1,
+    )
     await execCatalogBatch([
       { sql: 'DELETE FROM unit_profiles WHERE unit_id = ?', params: [unitId] },
       { sql: 'DELETE FROM unit_special_rules WHERE unit_id = ?', params: [unitId] },
@@ -502,7 +510,7 @@ export const UnitRepository = {
       { sql: 'DELETE FROM unit_command_options WHERE unit_id = ?', params: [unitId] },
       { sql: 'DELETE FROM units WHERE id = ?', params: [unitId] },
     ])
-    await ChangeLogRepository.record('unidad', 'borrar', `Borró ${label}`, unitId)
+    if (!deRenombre) await ChangeLogRepository.record('unidad', 'borrar', `Borró ${label}`, unitId)
   },
 
   /**

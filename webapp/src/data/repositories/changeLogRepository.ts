@@ -18,6 +18,7 @@
 // ejército. De ahí `exec`/`query` y no `execCatalog`/`queryLocal`.
 // ============================================================================
 import { exec, query } from '@/data/sqlite/client'
+import { queryLocalOne } from '@/data/sqlite/localCatalog'
 import { getCurrentUser } from '@/shared/session/useSession'
 
 export type ChangeLogEntity = 'faccion' | 'unidad' | 'regla' | 'equipo' | 'opcion' | 'montura' | 'carro'
@@ -62,6 +63,38 @@ function mapEntry(row: Record<string, unknown>): ChangeLogEntry {
   }
 }
 
+/**
+ * LOS PERSONAJES DE RENOMBRE NO SE REGISTRAN. Nunca, y por eso se decide aquí y
+ * no en cada sitio que llama a `record`.
+ *
+ * El motivo es que se pueden OCULTAR (ver units.hidden): un personaje oculto
+ * solo lo ve su autor, y de nada sirve esconderlo del listado si el Log le está
+ * contando a todo el mundo que existe, cómo se llama y cuánta experiencia lleva.
+ * El registro es una pantalla común y no filtra por autor.
+ *
+ * Se comprueba contra la copia local del catálogo, así que no cuesta red. Si la
+ * unidad ya no está —un borrado registra DESPUÉS de borrar— no se puede saber
+ * desde aquí, y por eso ese caso concreto lo mira `UnitRepository.remove` antes
+ * de borrar.
+ *
+ * Lo ya registrado se queda: son cosas que pasaron y reescribir el historial
+ * para maquillarlo sería peor que la fuga que se está tapando.
+ */
+async function esPersonajeDeRenombre(unitId: number): Promise<boolean> {
+  try {
+    const marca = await queryLocalOne<number>(
+      'SELECT is_special_character FROM units WHERE id = ?',
+      [unitId],
+      (row) => (row.is_special_character as number) ?? 0,
+    )
+    return marca === 1
+  } catch {
+    // Catálogo local aún sin cargar o columna inexistente: ante la duda se
+    // registra, que es el comportamiento de siempre.
+    return false
+  }
+}
+
 export const ChangeLogRepository = {
   /**
    * Anota un cambio. Nunca lanza: un fallo al registrar (tabla aún sin migrar,
@@ -75,6 +108,7 @@ export const ChangeLogRepository = {
     description: string,
     entityId?: number | null,
   ): Promise<void> {
+    if (entity === 'unidad' && entityId != null && (await esPersonajeDeRenombre(entityId))) return
     const user = getCurrentUser()
     try {
       await exec(

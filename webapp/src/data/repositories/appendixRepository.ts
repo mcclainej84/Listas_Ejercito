@@ -82,7 +82,21 @@ export const AppendixRepository = {
       sanearHtml(input.bodyHtml),
       id,
     ])
-    await ChangeLogRepository.record('unidad', 'editar', `Editó el apéndice "${input.title.trim()}"`, id)
+    // El Log guardaba aquí el id del APÉNDICE en una entrada de tipo "unidad",
+    // mientras que las de al lado guardan el de la unidad. Pasaba desapercibido
+    // —la pantalla del Log solo enseña el texto— hasta que ese id empezó a
+    // usarse para decidir si la entrada se registra o no (los Personajes de
+    // Renombre no se registran, ver changeLogRepository): con el id equivocado
+    // se consultaba la unidad que no era.
+    const [existente] = await queryLocal('SELECT unit_id FROM unit_appendices WHERE id = ?', [id], (row) => ({
+      unitId: row.unit_id as number,
+    }))
+    await ChangeLogRepository.record(
+      'unidad',
+      'editar',
+      `Editó el apéndice "${input.title.trim()}"`,
+      existente?.unitId ?? null,
+    )
   },
 
   async remove(id: number): Promise<void> {

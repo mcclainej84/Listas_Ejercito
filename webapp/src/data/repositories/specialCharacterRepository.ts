@@ -310,7 +310,10 @@ export const SpecialCharacterRepository = {
    * que nada lo explicara.
    */
   async degradarAPersonaje(unitId: number): Promise<void> {
+    // SIN línea de Log, aunque al terminar ya sea una unidad normal y el filtro
+    // de ChangeLogRepository no la fuese a parar: la entrada diría el nombre de
+    // un personaje que hasta hace un instante podía estar oculto, y ese nombre
+    // es justo lo que no tiene que llegar al registro común.
     await execCatalog('UPDATE units SET is_special_character = 0, hidden = 0 WHERE id = ?', [unitId])
-    await ChangeLogRepository.record('unidad', 'editar', 'Dejó de ser personaje de renombre', unitId)
   },
 }

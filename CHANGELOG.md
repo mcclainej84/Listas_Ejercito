@@ -13,6 +13,33 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.121 — 16/08/2026 11:11
+
+- **Los Personajes de Renombre ya no dejan nada en el Log.** Ni al crearlos, ni
+  al editar su ficha, ni al apuntarles experiencia, ni al ocultarlos, ni al
+  activarlos o borrarlos. El motivo es que se pueden ocultar: un personaje
+  oculto solo lo ve su autor, y de poco sirve esconderlo del listado si el Log
+  le está contando a todo el mundo que existe, cómo se llama y cuánta
+  experiencia lleva — el registro es una pantalla común y no filtra por autor.
+- **La decisión se toma en `ChangeLogRepository.record`, no en cada sitio que lo
+  llama.** Son treinta y una llamadas repartidas por los repositorios; confiar
+  en que cada una se acuerde es garantizar que la próxima se olvide. Se mira la
+  marca contra la copia local del catálogo, así que no cuesta red.
+  - Dos excepciones que no se pueden resolver ahí y van a mano: **borrar** una
+    unidad registra DESPUÉS de borrarla, cuando la fila ya no está para
+    consultarla, así que `UnitRepository.remove` mira la marca antes; y
+    `degradarAPersonaje` deja de registrar aunque al terminar ya sea una unidad
+    normal, porque la entrada diría el nombre de un personaje que hasta hace un
+    instante podía estar oculto.
+- **Lo ya registrado se queda.** Son cosas que pasaron, y reescribir el
+  historial para maquillarlo sería peor que la fuga que se está tapando.
+- De paso, arreglado que **editar un apéndice guardaba en el Log el id del
+  apéndice** en una entrada de tipo "unidad", donde las de al lado guardan el de
+  la unidad. Pasaba desapercibido —la pantalla del Log solo enseña el texto—
+  hasta que ese id ha empezado a decidir si la entrada se registra o no.
+
+---
+
 ## 0.120 — 16/08/2026 11:02
 
 - **Las secciones del constructor de listas caben en una sola línea.**
