@@ -79,6 +79,17 @@ export interface OpcionesDeMesa {
   suelo: FloorAsset | null
   piezas: SceneryPiece[]
   peanas?: PeanaParaPintar[]
+  /**
+   * Imagen de fondo propia del despliegue, estirada a la mesa entera. Se pinta
+   * ENCIMA del suelo y debajo de todo lo demás. null = sin imagen.
+   */
+  imagenFondoUrl?: string | null
+  /**
+   * El TERRENO se pinta girado 180°: es lo que se ve desde el lado norte de la
+   * mesa (ver ArmyList.deploymentSide). Las peanas NO giran — se colocan siempre
+   * abajo, que es lo cómodo para quien juega.
+   */
+  girado?: boolean
   /** Píxeles por centímetro. 8 da 1440 × 960 en una mesa normal: nítido e imprimible. */
   pxPorCm?: number
 }
@@ -91,7 +102,7 @@ export interface OpcionesDeMesa {
  * porque eso es justo lo que hay que ver.
  */
 export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLCanvasElement> {
-  const { mesa, textura, suelo, piezas, peanas = [], pxPorCm = 8 } = opciones
+  const { mesa, textura, suelo, piezas, peanas = [], imagenFondoUrl = null, girado = false, pxPorCm = 8 } = opciones
   const ancho = Math.round(mesa.anchoCm * pxPorCm)
   const alto = Math.round(mesa.altoCm * pxPorCm)
 
@@ -101,9 +112,29 @@ export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLC
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('No se pudo preparar el lienzo para exportar.')
 
+  // ---- Terreno, girado si toca -------------------------------------------
+  // El giro envuelve suelo, retícula, línea central y escenografía, y se
+  // deshace ANTES de las peanas: el terreno cambia de perspectiva con el lado
+  // de despliegue, las peanas no (ver `girado`). La retícula y la línea central
+  // caen dentro por comodidad y no por descuido — son simétricas respecto al
+  // centro, así que girarlas no cambia un solo píxel.
+  ctx.save()
+  if (girado) {
+    ctx.translate(ancho / 2, alto / 2)
+    ctx.rotate(Math.PI)
+    ctx.translate(-ancho / 2, -alto / 2)
+  }
+
   // ---- Suelo -------------------------------------------------------------
   ctx.fillStyle = textura === 'hierba' ? PERGAMINO_HIERBA : PERGAMINO
   ctx.fillRect(0, 0, ancho, alto)
+
+  if (imagenFondoUrl) {
+    // Estirada a la mesa entera, igual que en pantalla: la mesa se ajusta a la
+    // imagen al subirla, así que aquí no hay nada que recortar ni encajar.
+    const fondo = await cargarImagen(imagenFondoUrl)
+    if (fondo) ctx.drawImage(fondo, 0, 0, ancho, alto)
+  }
 
   if (suelo?.imageUrl) {
     const losa = await cargarImagen(suelo.imageUrl)
@@ -200,6 +231,9 @@ export async function renderTableCanvas(opciones: OpcionesDeMesa): Promise<HTMLC
     }
     ctx.restore()
   })
+
+  // Fin del terreno: se deshace el giro para que las peanas vayan derechas.
+  ctx.restore()
 
   // ---- Peanas ------------------------------------------------------------
   if (peanas.length > 0) {

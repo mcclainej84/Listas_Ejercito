@@ -84,6 +84,9 @@ const CHECKS: SchemaCheck[] = [
     label: 'Personajes de Renombre en las listas',
     probe: 'SELECT show_special_characters FROM army_lists LIMIT 1',
   },
+  { label: 'Listas marcadas como listas', probe: 'SELECT ready FROM army_lists LIMIT 1' },
+  { label: 'Lado de despliegue', probe: 'SELECT deployment_side FROM army_lists LIMIT 1' },
+  { label: 'Imagen de fondo del despliegue', probe: 'SELECT deployment_image_key FROM army_lists LIMIT 1' },
 ]
 
 /**

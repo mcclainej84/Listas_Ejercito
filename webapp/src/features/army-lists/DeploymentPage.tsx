@@ -97,7 +97,9 @@ import { SceneryShape } from '@/features/maps/SceneryShape'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 import { FloorAssetRepository } from '@/data/repositories/sceneryAssetRepository'
 import { Tooltip } from '@/shared/ui/Tooltip'
-import type { ArmyListEntry } from '@/domain/types'
+import { compressImageFile, medirImagen } from '@/shared/image'
+import { hashDeContenido, imageUrl, uploadImageAtKey } from '@/data/network/images'
+import type { ArmyListEntry, LadoDeDespliegue } from '@/domain/types'
 
 function nombreDeLaEntrada(entry: ArmyListEntry): string {
   return entry.alias ?? entry.unit.name
@@ -141,6 +143,20 @@ export function DeploymentPage() {
   const [encima, setEncima] = useState<number | null>(null)
   /** Mapa cargado; null = mesa libre. */
   const [mapaId, setMapaId] = useState<number | null>(null)
+  /**
+   * Imagen de fondo propia (clave en R2). Es una alternativa AL MAPA, no un
+   * añadido: o se despliega sobre un mapa del grupo, o sobre una imagen suelta
+   * de esta lista, o sobre la mesa desnuda. Mezclar las dos dejaría la
+   * escenografía de un mapa flotando sobre la foto de otro sitio.
+   */
+  const [imagenKey, setImagenKey] = useState<string | null>(null)
+  const [subiendoImagen, setSubiendoImagen] = useState(false)
+  const imagenRef = useRef<HTMLInputElement>(null)
+  /**
+   * Lado del tablero desde el que se despliega. Las peanas van SIEMPRE abajo;
+   * lo que cambia es la perspectiva del terreno (ver ArmyList.deploymentSide).
+   */
+  const [lado, setLado] = useState<LadoDeDespliegue>('sur')
 
   // Los mapas ocultos de otros no se ofrecen: para quien despliega no existen.
   const { data: mapasDisponibles } = useAsync(() => MapRepository.listAll(user?.id ?? null), [user?.id])
@@ -162,6 +178,8 @@ export function DeploymentPage() {
     if (!list) return
     setMesa({ anchoCm: list.tableWidthCm, altoCm: list.tableHeightCm })
     setMapaId(list.battleMapId)
+    setImagenKey(list.deploymentImageKey)
+    setLado(list.deploymentSide)
   }, [list])
 
   const mesaRef = useRef<HTMLDivElement>(null)
@@ -197,6 +215,9 @@ export function DeploymentPage() {
     ? { anchoCm: mapaCargado.anchoCm, altoCm: mapaCargado.altoCm }
     : (mesa ?? { anchoCm: list?.tableWidthCm ?? 180, altoCm: list?.tableHeightCm ?? 120 })
   const conMapa = mapaCargado != null
+  const imagenFondoUrl = !conMapa && imagenKey ? imageUrl(imagenKey) : null
+  /** El terreno se pinta del revés: es lo que se ve desde el norte de la mesa. */
+  const girado = lado === 'norte'
 
   function tamanoDe(entry: ArmyListEntry): TamanoCm {
     const pos = posiciones.get(entry.id)
@@ -258,6 +279,8 @@ export function DeploymentPage() {
       const canvas = await renderTableCanvas({
         mesa: mesaActual,
         textura: mapaCargado?.textura ?? 'ninguna',
+        imagenFondoUrl,
+        girado,
         suelo: sueloDelMapa ?? null,
         piezas: mapaCargado?.piezas ?? [],
         peanas: enMesa.map((entry) => {
@@ -468,10 +491,71 @@ export function DeploymentPage() {
     setDirty(true)
   }
 
+  /**
+   * Sube una imagen de fondo y AJUSTA LA MESA a su proporción.
+   *
+   * Lo segundo es la mitad del truco: la imagen se estira al tablero, así que si
+   * la mesa no tiene su misma proporción, el mapa sale deformado y las
+   * distancias mienten. Cambiando el fondo de la mesa para que cuadre con la
+   * imagen, se estira sin deformar y el ancho —que es lo que uno tiene decidido—
+   * no se toca. Después se puede reajustar con las barras de siempre.
+   *
+   * La imagen NO pasa por `prepararImagenDeEscenografia`: eso quita el fondo
+   * liso y recorta al contenido, que es lo que hay que hacerle a una pieza de
+   * escenografía recortada y justo lo contrario de lo que necesita la foto de un
+   * escenario, donde el fondo ES el contenido.
+   */
+  async function subirImagenDeFondo(file: File | undefined) {
+    if (!file) return
+    setSubiendoImagen(true)
+    setError(null)
+    try {
+      const comprimida = await compressImageFile(file, { maxSize: 2000, keepAlpha: false })
+      const ext = comprimida.mime === 'image/png' ? 'png' : comprimida.mime === 'image/jpeg' ? 'jpg' : 'webp'
+      const key = `despliegue/${listId}/${await hashDeContenido(comprimida.bytes)}.${ext}`
+      await uploadImageAtKey(key, comprimida.bytes, comprimida.mime)
+      // Las medidas de la imagen se leen del blob que acabamos de comprimir, no
+      // del archivo original: son las que de verdad se van a pintar.
+      const medidas = await medirImagen(comprimida.bytes, comprimida.mime)
+      setMapaId(null)
+      setImagenKey(key)
+      if (medidas) {
+        const alto = acotar(
+          Math.round((mesaActual.anchoCm * medidas.alto) / medidas.ancho),
+          MESA_ALTO_MIN_CM,
+          MESA_ALTO_MAX_CM,
+        )
+        cambiarMesa(mesaActual.anchoCm, alto)
+      }
+      setDirty(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSubiendoImagen(false)
+    }
+  }
+
+  function quitarImagenDeFondo() {
+    setImagenKey(null)
+    setDirty(true)
+  }
+
   async function handleSave() {
     setSaving(true)
     setError(null)
     try {
+      // EL LADO Y LA IMAGEN VAN APARTE Y NO PUEDEN TUMBAR EL RESTO. Son las
+      // columnas de la migración más reciente, así que con la D1 sin actualizar
+      // fallan; y colocar el ejército sobre la mesa funcionaba desde mucho antes
+      // que ellas. Dejar que se lleven por delante el guardado de las posiciones
+      // sería estrenar dos ajustes rompiendo la función que ya estaba.
+      let faltaEsquema = false
+      try {
+        await ArmyListRepository.setDeploymentSide(listId, lado)
+        await ArmyListRepository.setDeploymentImageKey(listId, conMapa ? null : imagenKey)
+      } catch {
+        faltaEsquema = true
+      }
       await ArmyListRepository.setBattleMap(listId, mapaId)
       // Las medidas propias solo se guardan sin mapa: con mapa son las suyas y
       // pisarlas aquí dejaría una copia que se desincroniza en cuanto alguien
@@ -479,6 +563,12 @@ export function DeploymentPage() {
       if (!conMapa) await ArmyListRepository.setTableSize(listId, mesaActual.anchoCm, mesaActual.altoCm)
       await ArmyListRepository.saveDeployment(listId, [...posiciones.values()])
       setDirty(false)
+      if (faltaEsquema) {
+        setError(
+          'El despliegue se ha guardado, pero el lado y la imagen de fondo no: a la base de datos le faltan esas ' +
+            'columnas. Se arregla desplegando el Worker (cd webapp/worker && npx wrangler deploy).',
+        )
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -760,15 +850,6 @@ export function DeploymentPage() {
                     // una letra ocupa siempre los mismos centímetros de mesa,
                     // se vea la pantalla como se vea.
                     containerType: 'inline-size',
-                    // El suelo lo pone el MAPA cargado. Sin mapa, la mesa libre
-                    // es el pergamino de siempre: quien despliega sobre una
-                    // mesa sin terreno está usando un plano, no un campo.
-                    ...estiloDeSueloDeMapa(
-                      mapaCargado?.textura ?? 'ninguna',
-                      sueloDelMapa ?? null,
-                      mesaActual.anchoCm,
-                      mesaActual.altoCm,
-                    ),
                   }}
                   onPointerDown={(e) => {
                     if (soloLectura || e.button !== 0) return
@@ -814,6 +895,57 @@ export function DeploymentPage() {
                   }}
                   className="relative w-full touch-none overflow-hidden border-2 border-ink/80 shadow-[inset_0_0_60px_rgba(90,76,54,0.22)] outline outline-1 outline-offset-[3px] outline-rule-dark/40"
                 >
+                  {/* EL TERRENO, EN SU PROPIA CAPA. Estaba pintado como fondo
+                    del tablero, y desde ahí no se puede girar sin llevarse por
+                    delante las peanas, que son sus hijas. Aquí dentro va todo lo
+                    que cambia de perspectiva con el lado de despliegue —el
+                    suelo, la imagen de fondo y la escenografía— y nada más.
+
+                    El suelo lo pone el MAPA cargado. Sin mapa, o la imagen
+                    propia, o el pergamino de siempre: quien despliega sobre una
+                    mesa sin terreno está usando un plano, no un campo. */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-0"
+                    style={{
+                      ...estiloDeSueloDeMapa(
+                        mapaCargado?.textura ?? 'ninguna',
+                        sueloDelMapa ?? null,
+                        mesaActual.anchoCm,
+                        mesaActual.altoCm,
+                      ),
+                      ...(imagenFondoUrl
+                        ? {
+                            backgroundImage: `url(${imagenFondoUrl})`,
+                            // Estirada, no recortada: la mesa ya se ajustó a su
+                            // proporción al subirla, así que no deforma.
+                            backgroundSize: '100% 100%',
+                            backgroundRepeat: 'no-repeat',
+                          }
+                        : null),
+                      transform: girado ? 'rotate(180deg)' : undefined,
+                    }}
+                  >
+                    {/* La escenografía del mapa, de FONDO y sin tocar: aquí se
+                      despliega el ejército, no se rehace el terreno. Va dentro
+                      de esta capa para girar con el resto del terreno. */}
+                    {mapaCargado?.piezas.map((pieza) => (
+                      <div
+                        key={pieza.id}
+                        className="absolute"
+                        style={{
+                          left: `${(pieza.xCm / mesaActual.anchoCm) * 100}%`,
+                          top: `${(pieza.yCm / mesaActual.altoCm) * 100}%`,
+                          width: `${(pieza.anchoCm / mesaActual.anchoCm) * 100}%`,
+                          height: `${(pieza.altoCm / mesaActual.altoCm) * 100}%`,
+                          transform: `translate(-50%, -50%) rotate(${pieza.rotacion}deg)`,
+                        }}
+                      >
+                        <SceneryShape kind={pieza.kind} imagenUrl={pieza.imageUrl} className="h-full w-full" />
+                      </div>
+                    ))}
+                  </div>
+
                   <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0 opacity-35"
@@ -834,28 +966,6 @@ export function DeploymentPage() {
                         'repeating-linear-gradient(to bottom, rgba(122,36,32,.55) 0 6px, transparent 6px 12px)',
                     }}
                   />
-
-                  {/* La escenografía del mapa, de FONDO y sin tocar: aquí se
-                    despliega el ejército, no se rehace el terreno.
-                    `pointer-events-none` en todo el bloque para que arrastrar
-                    sobre un bosque siga dibujando el recuadro de selección y no
-                    intente mover el bosque. */}
-                  {mapaCargado?.piezas.map((pieza) => (
-                    <div
-                      key={pieza.id}
-                      aria-hidden
-                      className="pointer-events-none absolute z-0"
-                      style={{
-                        left: `${(pieza.xCm / mesaActual.anchoCm) * 100}%`,
-                        top: `${(pieza.yCm / mesaActual.altoCm) * 100}%`,
-                        width: `${(pieza.anchoCm / mesaActual.anchoCm) * 100}%`,
-                        height: `${(pieza.altoCm / mesaActual.altoCm) * 100}%`,
-                        transform: `translate(-50%, -50%) rotate(${pieza.rotacion}deg)`,
-                      }}
-                    >
-                      <SceneryShape kind={pieza.kind} imagenUrl={pieza.imageUrl} className="h-full w-full" />
-                    </div>
-                  ))}
 
                   {recuadro && (
                     <div
@@ -1058,22 +1168,87 @@ export function DeploymentPage() {
         <aside className="w-full shrink-0 space-y-5 lg:w-56">
           <section>
             <Rotulo>Mesa</Rotulo>
-            {/* Mesa libre o uno de los mapas guardados. Los mapas son públicos:
-                aquí salen los de todo el mundo. */}
+            {/* TRES orígenes y un solo desplegable, porque son excluyentes: la
+                mesa desnuda, una imagen propia de esta lista, o uno de los mapas
+                del grupo (que son públicos, así que salen los de todo el mundo).
+                Con dos controles separados quedaría la duda de qué manda cuando
+                hay mapa Y imagen. */}
             <select
-              value={mapaId ?? ''}
+              value={mapaId != null ? String(mapaId) : imagenKey ? 'imagen' : 'libre'}
               disabled={soloLectura}
-              onChange={(e) => cambiarMapa(e.target.value ? Number(e.target.value) : null)}
-              aria-label="Mapa del despliegue"
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === 'libre') {
+                  cambiarMapa(null)
+                  quitarImagenDeFondo()
+                } else if (v === 'imagen') {
+                  cambiarMapa(null)
+                  // Sin imagen todavía, el propio desplegable abre el archivo:
+                  // elegir "Imagen propia" y no ver nada sería un callejón.
+                  if (!imagenKey) imagenRef.current?.click()
+                } else {
+                  setImagenKey(null)
+                  cambiarMapa(Number(v))
+                }
+              }}
+              aria-label="Fondo del despliegue"
               className="mb-3 w-full rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-xs text-ink outline-none focus:border-bronze disabled:opacity-50"
             >
-              <option value="">Mesa libre (sin mapa)</option>
+              <option value="libre">Mesa libre (sin mapa)</option>
+              <option value="imagen">Imagen propia…</option>
               {(mapasDisponibles ?? []).map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name} — {m.anchoCm} × {m.altoCm} cm
                 </option>
               ))}
             </select>
+
+            <input
+              ref={imagenRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                subirImagenDeFondo(e.target.files?.[0])
+                // Se limpia para que volver a elegir EL MISMO archivo dispare el
+                // change otra vez (si no, el navegador lo considera sin cambios).
+                e.target.value = ''
+              }}
+            />
+
+            {!conMapa && (imagenKey || subiendoImagen) && (
+              <div className="mb-3 space-y-2">
+                <div className="overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment-dark/30">
+                  {imagenFondoUrl ? (
+                    <img src={imagenFondoUrl} alt="" className="block w-full" />
+                  ) : (
+                    <p className="px-2 py-3 text-center text-[10px] text-ink-soft">Subiendo…</p>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    disabled={soloLectura || subiendoImagen}
+                    onClick={() => imagenRef.current?.click()}
+                    className="flex-1 rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-[10px] font-medium text-ink hover:bg-parchment-dark disabled:opacity-50"
+                  >
+                    {subiendoImagen ? 'Subiendo…' : 'Cambiar'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={soloLectura || subiendoImagen}
+                    onClick={quitarImagenDeFondo}
+                    className="rounded-sm px-2 py-1 text-[10px] font-medium text-ink-soft hover:bg-maroon/10 hover:text-danger disabled:opacity-50"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <p className="text-[10px] leading-snug text-ink-soft/80">
+                  La imagen se estira a la mesa entera. Al subirla se ajusta el fondo de la mesa a su proporción para
+                  que no salga deformada; el ancho no se toca.
+                </p>
+              </div>
+            )}
 
             {/* Con mapa cargado no hay barras: las medidas son las suyas. */}
             {conMapa ? (
@@ -1125,6 +1300,47 @@ export function DeploymentPage() {
                 ))}
               </div>
             )}
+          </section>
+
+          {/* LADO DE DESPLIEGUE. Lo que NO hace: mover las peanas. Se colocan
+              siempre abajo porque es lo cómodo para quien está sentado delante
+              de la mesa, y cambiar eso obligaría a desplegar del revés cada dos
+              partidas. Lo que hace es girar el TERRENO 180°, que es exactamente
+              lo que uno ve cuando le toca el otro borde. */}
+          <section>
+            <Rotulo>Lado de despliegue</Rotulo>
+            <div className="flex overflow-hidden rounded-sm border border-rule-dark/40">
+              {(
+                [
+                  { valor: 'sur', etiqueta: 'Sur' },
+                  { valor: 'norte', etiqueta: 'Norte' },
+                ] as Array<{ valor: LadoDeDespliegue; etiqueta: string }>
+              ).map((op) => (
+                <button
+                  key={op.valor}
+                  type="button"
+                  disabled={soloLectura}
+                  aria-pressed={lado === op.valor}
+                  onClick={() => {
+                    if (lado === op.valor) return
+                    setLado(op.valor)
+                    setDirty(true)
+                  }}
+                  className={clsx(
+                    'flex-1 px-2 py-1.5 text-[11px] font-semibold tracking-wide transition-colors disabled:opacity-50',
+                    lado === op.valor
+                      ? 'bg-maroon text-parchment'
+                      : 'bg-parchment text-ink-soft hover:bg-parchment-dark',
+                  )}
+                >
+                  {op.etiqueta}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] leading-snug text-ink-soft/80">
+              Tus unidades se colocan siempre abajo. Lo que cambia es la perspectiva: desde el norte, el terreno se ve
+              del revés.
+            </p>
           </section>
 
           {!soloLectura && (

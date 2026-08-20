@@ -11,7 +11,14 @@ import { queryLocal } from '@/data/sqlite/localCatalog'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { FactionRepository } from '@/data/repositories/factionRepository'
 import { computeCategoryInsertIndex } from '@/domain/armyValidation'
-import type { ArmyList, ArmyListDetail, ArmyListEntry, ArmyListEntryInput, EntryMagicPath } from '@/domain/types'
+import type {
+  ArmyList,
+  ArmyListDetail,
+  ArmyListEntry,
+  ArmyListEntryInput,
+  EntryMagicPath,
+  LadoDeDespliegue,
+} from '@/domain/types'
 import { MESA_ALTO_CM, MESA_ANCHO_CM, type DeploymentPosition } from '@/domain/deployment'
 
 function mapArmyList(row: Record<string, unknown>): ArmyList {
@@ -32,6 +39,13 @@ function mapArmyList(row: Record<string, unknown>): ArmyList {
     // de la columna y el que se pidió, y ante la duda es mejor ofrecer de más
     // que esconder una sección entera sin que nadie lo haya decidido.
     showSpecialCharacters: row.show_special_characters == null ? true : Boolean(row.show_special_characters),
+    // Las tres pueden no venir todavía si la D1 no se ha migrado. Sin ellas la
+    // lista se comporta como siempre: abierta, desplegando desde el sur y sin
+    // imagen de fondo. Nunca al revés — una lista que se abre bloqueada porque
+    // falta una columna es una lista que nadie puede desbloquear.
+    ready: Boolean(row.ready),
+    deploymentSide: row.deployment_side === 'norte' ? 'norte' : 'sur',
+    deploymentImageKey: (row.deployment_image_key as string) ?? null,
   }
 }
 
@@ -352,6 +366,27 @@ export const ArmyListRepository = {
       new Date().toISOString(),
       id,
     ])
+  },
+
+  /**
+   * Marca o desmarca la lista como TERMINADA (ver ArmyList.ready).
+   *
+   * No toca `updated_at`: cerrar una lista no es editarla, y si lo tocara, el
+   * orden del listado —que va por fecha— bailaría cada vez que alguien abre y
+   * cierra el candado.
+   */
+  async setReady(id: number, ready: boolean): Promise<void> {
+    await exec('UPDATE army_lists SET ready = ? WHERE id = ?', [ready ? 1 : 0, id])
+  },
+
+  /** Lado del tablero desde el que despliega (ver ArmyList.deploymentSide). */
+  async setDeploymentSide(id: number, lado: LadoDeDespliegue): Promise<void> {
+    await exec('UPDATE army_lists SET deployment_side = ? WHERE id = ?', [lado, id])
+  },
+
+  /** Clave en R2 de la imagen de fondo del despliegue; null la quita. */
+  async setDeploymentImageKey(id: number, key: string | null): Promise<void> {
+    await exec('UPDATE army_lists SET deployment_image_key = ? WHERE id = ?', [key, id])
   },
 
   async remove(id: number): Promise<void> {

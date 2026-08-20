@@ -358,6 +358,7 @@ export function ArmyListBuilderPage() {
     setName(list.name)
     setPointsLimit(list.pointsLimit)
     setMostrarRenombre(list.showSpecialCharacters)
+    setCerrada(list.ready)
     setReconcileNotes(notes)
     setNeedsReviewIds(new Set(notes.filter((n) => n.conflicts.length > 0).map((n) => n.entryId)))
     // Si algo ha cambiado, el borrador ya no coincide con lo guardado: se
@@ -400,7 +401,31 @@ export function ArmyListBuilderPage() {
     [esDeOtro, list?.id, user?.id],
   )
   /** Compartida contigo: se mira y se exporta, no se toca. */
-  const soloLectura = esDeOtro && acceso?.compartida === true
+  const compartidaConmigo = esDeOtro && acceso?.compartida === true
+  /**
+   * LISTA CERRADA (ver ArmyList.ready). Se guarda en estado local además de leerse
+   * de la lista para que al reabrirla desde aquí la pantalla se desbloquee en el
+   * acto, sin recargar.
+   */
+  const [cerrada, setCerrada] = useState(false)
+  /**
+   * Se mira pero no se toca. Dos motivos distintos que acaban en lo mismo: que
+   * la lista sea de otro y te la haya compartido, o que esté marcada como
+   * terminada. NO se usa para decidir si te dejamos ENTRAR —eso sigue siendo
+   * cosa de `compartidaConmigo`—, porque una lista de otro cerrada mezclaría las
+   * dos cosas y te abriría la puerta.
+   */
+  const soloLectura = compartidaConmigo || cerrada
+
+  async function reabrirLista() {
+    if (!list) return
+    try {
+      await ArmyListRepository.setReady(list.id, false)
+      setCerrada(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err))
+    }
+  }
   /**
    * El despliegue se comparte APARTE (ver ShareArmyListModal): en una lista de
    * otro solo se llega a él si te lo han compartido expresamente. En la tuya,
@@ -428,7 +453,7 @@ export function ArmyListBuilderPage() {
   // Los ejércitos son privados: si la lista es de otro y NO te la ha
   // compartido, no se abre aunque llegues por un enlace directo. Si te la ha
   // compartido, se abre en solo lectura (ver `soloLectura`).
-  if (esDeOtro && !soloLectura) {
+  if (esDeOtro && !compartidaConmigo) {
     return (
       <div>
         <button onClick={() => navigate('/ejercitos')} className="mb-3 text-sm text-ink-soft hover:text-ink">
@@ -1142,13 +1167,29 @@ export function ArmyListBuilderPage() {
             {/* Compartida contigo: se puede mirar y exportar, nada más. El
                 candado va en la cabecera, junto a los botones que SÍ funcionan,
                 para que se entienda antes de intentar cambiar algo. */}
-            {soloLectura && (
+            {compartidaConmigo && (
               <span
                 className="flex items-center gap-1.5 rounded-sm border border-rule-dark/40 px-2 py-1 text-xs font-medium text-ink-soft"
                 title="Este ejército es de otro usuario y te lo ha compartido: puedes verlo y exportarlo, pero no editarlo"
               >
                 <LockIcon className="h-3.5 w-3.5" />
                 Solo lectura
+              </span>
+            )}
+            {/* Cerrada por ti: el candado trae SU PROPIA salida. Sin ella habría
+                que volver al listado a buscar la casilla, y el bloqueo pasaría de
+                pestillo a castigo. */}
+            {cerrada && !compartidaConmigo && (
+              <span className="flex items-center gap-2 rounded-sm border border-bronze/50 bg-bronze/10 px-2 py-1 text-xs font-medium text-ink">
+                <LockIcon className="h-3.5 w-3.5 text-bronze" />
+                Lista terminada
+                <button
+                  type="button"
+                  onClick={reabrirLista}
+                  className="font-semibold text-maroon underline decoration-maroon/30 underline-offset-2 hover:decoration-maroon"
+                >
+                  Reabrir
+                </button>
               </span>
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Cambios sin guardar</span>}

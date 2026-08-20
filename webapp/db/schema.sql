@@ -716,7 +716,20 @@ CREATE TABLE army_lists (
     -- Si la lista OFRECE Personajes de Renombre en el constructor. Encendido por
     -- defecto: la decisión es de la partida (una campaña narrativa los quiere,
     -- un torneo no), pero lo normal es tenerlos. Apagado, ni aparecen.
-    show_special_characters INTEGER NOT NULL DEFAULT 1
+    show_special_characters INTEGER NOT NULL DEFAULT 1,
+    -- LISTA CERRADA. Marcada, el constructor se abre en solo lectura. No es un
+    -- permiso ni un camino de ida: se marca y se desmarca cuando se quiera. Lo
+    -- que evita es el manotazo que cambia una lista dada por buena.
+    ready INTEGER NOT NULL DEFAULT 0,
+    -- Lado del tablero desde el que despliega este ejército. Las peanas se
+    -- colocan SIEMPRE abajo —es lo cómodo para quien juega—; lo que cambia es
+    -- la PERSPECTIVA del terreno, que gira 180° cuando el lado es el norte.
+    deployment_side TEXT NOT NULL DEFAULT 'sur' CHECK (deployment_side IN ('sur', 'norte')),
+    -- Imagen de fondo propia del despliegue, en R2 (aquí solo la clave, como el
+    -- resto de imágenes). Alternativa suelta a los mapas de la sección Mapas:
+    -- sirve para la foto de un escenario concreto sin darla de alta como mapa
+    -- del grupo. NULL = sin imagen.
+    deployment_image_key TEXT
 );
 
 CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);

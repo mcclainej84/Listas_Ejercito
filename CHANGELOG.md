@@ -13,6 +13,51 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.126 — 20/08/2026 18:39
+
+> **Hace falta desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`).
+> Estas tres funciones traen columnas nuevas y, hasta que se despliegue, no se
+> guardan. El resto del despliegue —colocar el ejército— sigue guardándose con
+> normalidad: lo nuevo se escribe aparte y no puede tumbar lo de siempre. Si
+> falla, la pantalla lo dice con esas mismas palabras.
+
+- **Imagen propia como fondo del despliegue.** Tercera opción junto a "Mesa
+  libre" y los mapas del grupo, en un solo desplegable porque son excluyentes:
+  con dos controles quedaría la duda de qué manda cuando hay mapa Y imagen. Al
+  subirla **se ajusta el fondo de la mesa a la proporción de la imagen**
+  (respetando el ancho), que es lo que permite estirarla al tablero entero sin
+  deformarla y sin que las distancias mientan. La imagen es de esa lista, no del
+  grupo, y va a R2 como el resto.
+  - No pasa por el preparado de la escenografía, que quita el fondo liso y
+    recorta al contenido: eso es lo correcto para una pieza recortada y justo lo
+    contrario de lo que necesita la foto de un escenario, donde el fondo ES el
+    contenido.
+- **Lado de despliegue: Sur o Norte.** Lo que NO hace es mover las peanas: se
+  colocan siempre abajo, porque es lo cómodo para quien está sentado delante de
+  la mesa y cambiarlo obligaría a desplegar del revés cada dos partidas. Lo que
+  cambia es la **perspectiva del terreno**, que gira 180° — que es exactamente
+  lo que uno ve cuando le toca el otro borde.
+  - Para poder girarlo hubo que sacar el suelo del fondo del tablero y darle una
+    capa propia: desde el fondo no se puede girar sin llevarse por delante las
+    peanas, que son sus hijas. Dentro de esa capa va todo lo que cambia de
+    perspectiva (suelo, imagen y escenografía) y nada más.
+  - El PDF del despliegue gira igual. En el lienzo, el giro envuelve suelo,
+    retícula, línea central y escenografía, y se deshace antes de las peanas.
+- **Marca de "listo" en el listado de ejércitos.** Una casilla por lista,
+  siempre visible: es el estado de la lista, no una acción de mantenimiento, y
+  hay que poder leer de un vistazo cuáles están cerradas. Marcada, el
+  constructor se abre en solo lectura, con el mismo candado que una lista
+  compartida — pero este trae **su propio botón de "Reabrir"** en la cabecera,
+  porque un pestillo del que hay que salir yendo a otra pantalla deja de ser un
+  pestillo y pasa a ser un castigo. Se abre y se cierra las veces que haga falta.
+  - Cerrar una lista no toca su fecha de modificación: si la tocara, el orden del
+    listado bailaría cada vez que alguien abre y cierra el candado.
+  - Ojo con lo que NO cambió: la puerta de entrada al constructor sigue mirando
+    solo si la lista es tuya o te la han compartido. Mezclarla con "cerrada"
+    habría abierto las listas ajenas cerradas a cualquiera.
+
+---
+
 ## 0.125 — 20/08/2026 18:05
 
 - **Se puede borrar un Personaje de Renombre**, con un aviso que dice

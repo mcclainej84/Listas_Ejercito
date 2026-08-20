@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { clsx } from 'clsx'
 import { ArmyListRepository, type ArmyListSummary } from '@/data/repositories/armyListRepository'
 import { ensureArmyListsOwned } from '@/data/repositories/catalogMaintenance'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -49,6 +50,30 @@ export function ArmyListsPage() {
   const [editingComposition, setEditingComposition] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [sharing, setSharing] = useState<ArmyListSummary | null>(null)
+  const [cerrandoId, setCerrandoId] = useState<number | null>(null)
+  const [readyError, setReadyError] = useState<string | null>(null)
+
+  /**
+   * Marca o desmarca una lista como TERMINADA. Cerrada, el constructor se abre
+   * en solo lectura.
+   *
+   * Se puede abrir y cerrar las veces que haga falta: no es un permiso ni un
+   * camino de ida, es el pestillo que evita el manotazo sobre una lista dada por
+   * buena. Por eso el interruptor está aquí, a la vista en el listado, y no
+   * escondido dentro de un menú de la propia lista.
+   */
+  async function alternarListo(list: ArmyListSummary, ready: boolean) {
+    setCerrandoId(list.id)
+    setReadyError(null)
+    try {
+      await ArmyListRepository.setReady(list.id, ready)
+      reload()
+    } catch (err) {
+      setReadyError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCerrandoId(null)
+    }
+  }
 
   /**
    * Copia una lista con todas sus entradas y se queda en el listado (no abre
@@ -102,6 +127,7 @@ export function ArmyListsPage() {
       {loading && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
       {duplicateError && <p className="mb-3 text-sm text-danger">No se pudo duplicar la lista: {duplicateError}</p>}
+      {readyError && <p className="mb-3 text-sm text-danger">No se pudo cambiar el estado de la lista: {readyError}</p>}
 
       {!loading && (lists ?? []).length === 0 && (
         <EmptyState
@@ -120,6 +146,37 @@ export function ArmyListsPage() {
         <div className="divide-y divide-rule-dark/20 overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment/70">
           {(lists ?? []).map((list) => (
             <div key={list.id} className="group flex items-center justify-between gap-4 px-4 py-3">
+              {/* El interruptor de "listo" va SIEMPRE visible, no escondido tras
+                  el hover como duplicar o borrar: es el estado de la lista, no
+                  una acción de mantenimiento, y hay que poder leer de un vistazo
+                  cuáles están cerradas. En una lista compartida no sale: cerrar
+                  la lista de otro no es cosa tuya. */}
+              {!list.shared && (
+                <label
+                  className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-sm px-1.5 py-1 hover:bg-parchment-dark/50"
+                  title={
+                    list.ready
+                      ? 'Lista cerrada: se abre en solo lectura. Desmárcala para volver a editarla.'
+                      : 'Márcala cuando esté terminada: se cerrará a cambios hasta que la desmarques.'
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-maroon"
+                    checked={list.ready}
+                    disabled={cerrandoId === list.id}
+                    onChange={(e) => alternarListo(list, e.target.checked)}
+                  />
+                  <span
+                    className={clsx(
+                      'text-mini font-medium tracking-wide',
+                      list.ready ? 'text-maroon' : 'text-ink-soft/70',
+                    )}
+                  >
+                    Listo
+                  </span>
+                </label>
+              )}
               <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
                 <p className="flex items-center gap-1.5 font-display text-lg font-semibold text-maroon">
                   {list.name}
@@ -128,6 +185,14 @@ export function ArmyListsPage() {
                       entrar, no descubrirlo al intentar cambiar algo. */}
                   {list.shared && (
                     <Tooltip label="Compartida contigo: solo lectura" className="inline-flex text-ink-soft">
+                      <LockIcon className="h-4 w-4" />
+                    </Tooltip>
+                  )}
+                  {list.ready && !list.shared && (
+                    <Tooltip
+                      label="Terminada: se abre en solo lectura hasta que la desmarques"
+                      className="inline-flex text-bronze"
+                    >
                       <LockIcon className="h-4 w-4" />
                     </Tooltip>
                   )}

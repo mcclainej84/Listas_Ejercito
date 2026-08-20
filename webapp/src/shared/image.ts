@@ -618,3 +618,27 @@ export async function descargarImagenComoBytes(url: string): Promise<ResizedImag
   const buf = await blob.arrayBuffer()
   return { bytes: new Uint8Array(buf), mime: blob.type || 'image/webp' }
 }
+
+/**
+ * Cuánto mide una imagen que ya tenemos en bytes.
+ *
+ * Se decodifica con el mismo camino que el resto del archivo
+ * (`createImageBitmap` y, si no está, un `<img>`), en vez de montar aquí otro
+ * `<img>` a mano: las fotos grandes de móvil son justo las que fallan con el
+ * segundo, y ese error ya costó un rato de depuración una vez.
+ *
+ * Devuelve null si no se puede leer, para que quien llame pueda seguir con lo
+ * suyo — medir es un extra, no el trabajo.
+ */
+export async function medirImagen(bytes: Uint8Array, mime: string): Promise<{ ancho: number; alto: number } | null> {
+  try {
+    const buffer = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(buffer).set(bytes)
+    const archivo = new File([buffer], 'imagen', { type: mime || 'image/webp' })
+    const { source, width, height } = await decodeImage(archivo)
+    closeSource(source)
+    return width > 0 && height > 0 ? { ancho: width, alto: height } : null
+  } catch {
+    return null
+  }
+}

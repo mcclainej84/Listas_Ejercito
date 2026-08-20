@@ -420,7 +420,33 @@ export interface ArmyList {
    * construcción.
    */
   showSpecialCharacters: boolean
+  /**
+   * LISTA CERRADA: está terminada y no se toca. El constructor se abre en solo
+   * lectura, igual que una lista compartida por otro.
+   *
+   * No es un permiso ni un camino de ida: se marca y se desmarca las veces que
+   * haga falta desde el listado de ejércitos. Lo que evita es el manotazo que
+   * cambia una lista dada por buena la víspera de la partida.
+   */
+  ready: boolean
+  /**
+   * Lado del tablero desde el que despliega este ejército.
+   *
+   * Las peanas se colocan SIEMPRE abajo, porque es lo cómodo para quien está
+   * sentado delante de la mesa. Lo que cambia con esto es la PERSPECTIVA del
+   * terreno: con 'norte', el mapa (su suelo, su imagen y su escenografía) se
+   * pinta girado 180°, que es lo que se ve desde el otro lado.
+   */
+  deploymentSide: LadoDeDespliegue
+  /**
+   * Clave en R2 de una imagen de fondo propia para el despliegue. Alternativa
+   * suelta a los mapas de la sección Mapas. null = sin imagen.
+   */
+  deploymentImageKey: string | null
 }
+
+/** Desde qué borde despliega un ejército. Ver ArmyList.deploymentSide. */
+export type LadoDeDespliegue = 'sur' | 'norte'
 
 /**
  * Una entrada de una lista: "N unidades de tal Tropa, con este equipo,

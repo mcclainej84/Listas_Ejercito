@@ -864,6 +864,22 @@ const MIGRATIONS: string[] = [
   // —en silencio— todas las demás. La columna vieja se queda con lo que
   // tuviera; ya no la lee nadie.
   'ALTER TABLE army_lists ADD COLUMN show_special_characters INTEGER NOT NULL DEFAULT 1',
+  // --------------------------------------------------------------------------
+  // LISTA CERRADA Y DESPLIEGUE (agosto de 2026)
+  // --------------------------------------------------------------------------
+  // "Listo": la lista está terminada y no se toca. No es un permiso ni un
+  // estado del que no se pueda volver — se marca y se desmarca las veces que
+  // haga falta; lo que evita es el manotazo que cambia una lista cerrada la
+  // víspera de la partida.
+  'ALTER TABLE army_lists ADD COLUMN ready INTEGER NOT NULL DEFAULT 0',
+  // Lado del tablero desde el que despliega este ejército. Las peanas se
+  // colocan SIEMPRE abajo (es lo cómodo para quien juega); lo que cambia con
+  // esto es la perspectiva del terreno, que gira 180°.
+  "ALTER TABLE army_lists ADD COLUMN deployment_side TEXT NOT NULL DEFAULT 'sur'",
+  // Imagen de fondo propia del despliegue, en R2 (aquí solo la clave). Es una
+  // alternativa suelta a los mapas de la sección Mapas: vale para la foto de un
+  // escenario concreto sin tener que darla de alta como mapa del grupo.
+  'ALTER TABLE army_lists ADD COLUMN deployment_image_key TEXT',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {
