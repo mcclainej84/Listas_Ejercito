@@ -12,7 +12,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { LockIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
+import { CheckIcon, LockIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import { Tooltip } from '@/shared/ui/Tooltip'
 import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
 import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
@@ -145,38 +145,13 @@ export function ArmyListsPage() {
       {!loading && (lists ?? []).length > 0 && (
         <div className="divide-y divide-rule-dark/20 overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment/70">
           {(lists ?? []).map((list) => (
-            <div key={list.id} className="group flex items-center justify-between gap-4 px-4 py-3">
-              {/* El interruptor de "listo" va SIEMPRE visible, no escondido tras
-                  el hover como duplicar o borrar: es el estado de la lista, no
-                  una acción de mantenimiento, y hay que poder leer de un vistazo
-                  cuáles están cerradas. En una lista compartida no sale: cerrar
-                  la lista de otro no es cosa tuya. */}
-              {!list.shared && (
-                <label
-                  className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-sm px-1.5 py-1 hover:bg-parchment-dark/50"
-                  title={
-                    list.ready
-                      ? 'Lista cerrada: se abre en solo lectura. Desmárcala para volver a editarla.'
-                      : 'Márcala cuando esté terminada: se cerrará a cambios hasta que la desmarques.'
-                  }
-                >
-                  <input
-                    type="checkbox"
-                    className="accent-maroon"
-                    checked={list.ready}
-                    disabled={cerrandoId === list.id}
-                    onChange={(e) => alternarListo(list, e.target.checked)}
-                  />
-                  <span
-                    className={clsx(
-                      'text-mini font-medium tracking-wide',
-                      list.ready ? 'text-maroon' : 'text-ink-soft/70',
-                    )}
-                  >
-                    Listo
-                  </span>
-                </label>
+            <div
+              key={list.id}
+              className={clsx(
+                'group flex items-center justify-between gap-4 px-4 py-3 transition-colors',
+                list.ready && !list.shared && 'bg-maroon/[0.04]',
               )}
+            >
               <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
                 <p className="flex items-center gap-1.5 font-display text-lg font-semibold text-maroon">
                   {list.name}
@@ -188,14 +163,6 @@ export function ArmyListsPage() {
                       <LockIcon className="h-4 w-4" />
                     </Tooltip>
                   )}
-                  {list.ready && !list.shared && (
-                    <Tooltip
-                      label="Terminada: se abre en solo lectura hasta que la desmarques"
-                      className="inline-flex text-bronze"
-                    >
-                      <LockIcon className="h-4 w-4" />
-                    </Tooltip>
-                  )}
                 </p>
                 <p className="mt-0.5 text-xs text-ink-soft">
                   {list.factionName} · {list.entryCount} {list.entryCount === 1 ? 'entrada' : 'entradas'}
@@ -203,6 +170,46 @@ export function ArmyListsPage() {
                   {list.shared && list.ownerName && <> · de {list.ownerName}</>}
                 </p>
               </button>
+              {/* EL SELLO. Va al final de la fila y no pegado al nombre: los
+                  nombres miden lo que miden, así que ahí el sello bailaría de una
+                  fila a otra; al final forman una columna y el estado del montón
+                  se lee de arriba abajo de una pasada.
+
+                  Y va SIEMPRE visible, no escondido tras el hover como duplicar
+                  o borrar: aquello son acciones de mantenimiento y esto es el
+                  estado de la lista. Es el mismo gesto tipográfico que los
+                  rótulos del Despliegue —versalita espaciada— porque es lo que en
+                  este programa significa "esto es una etiqueta, no un botón
+                  más". En una lista compartida no sale: cerrar la de otro no es
+                  cosa tuya. */}
+              {!list.shared && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={list.ready}
+                  disabled={cerrandoId === list.id}
+                  onClick={() => alternarListo(list, !list.ready)}
+                  title={
+                    list.ready
+                      ? 'Terminada: se abre en solo lectura. Pulsa para volver a editarla.'
+                      : 'Márcala cuando esté terminada: se cerrará a cambios hasta que la desmarques.'
+                  }
+                  className={clsx(
+                    // Ancho FIJO para los dos estados: "Listo" y "Marcar" no
+                    // miden lo mismo, y sin fijarlo los sellos quedaban
+                    // escalonados de una fila a otra en vez de formar columna,
+                    // que es justo lo que se venía a arreglar.
+                    'flex w-24 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors disabled:opacity-50',
+                    list.ready
+                      ? 'border border-maroon/45 bg-maroon/10 text-maroon hover:bg-maroon/15'
+                      : 'border border-dashed border-rule-dark/35 text-ink-soft/45 hover:border-bronze/60 hover:text-bronze',
+                  )}
+                >
+                  {list.ready ? <LockIcon className="h-3 w-3" /> : <CheckIcon className="h-3 w-3" />}
+                  {list.ready ? 'Listo' : 'Marcar'}
+                </button>
+              )}
+
               {/* Duplicar, compartir y borrar son cosa del dueño. En una lista
                   compartida contigo no salen: no es que fallen, es que no
                   existen. */}

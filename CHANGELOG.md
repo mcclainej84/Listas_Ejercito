@@ -13,6 +13,32 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.127 — 20/08/2026 19:04
+
+- **La marca de "listo" pasa a ser un sello, al final de la fila.** Era una
+  casilla pegada delante del nombre, y ahí hacía tres cosas mal: desalineaba la
+  columna de nombres, se leía como la casilla de "seleccionar filas" (que
+  significa otra cosa) y competía con el propio nombre.
+  - Va al FINAL de la fila y no pegada al nombre aunque quede más cerca de él:
+    los nombres miden lo que miden, así que ahí el sello bailaría de una fila a
+    otra. Al final forman columna y el estado del montón se lee de una pasada.
+  - **Ancho fijo para los dos estados**, porque "Listo" y "Marcar" no miden lo
+    mismo y sin fijarlo los sellos quedaban escalonados — justo lo que se venía
+    a arreglar.
+  - Cerrado es un sello de tinta: filete granate, fondo apenas teñido, candado y
+    versalita espaciada (el mismo gesto tipográfico que los rótulos del
+    Despliegue). Abierto es un contorno de trazos, muy callado, que se enciende
+    en bronce al pasar por encima: está ahí cuando se le busca y no llama la
+    atención cuando no.
+  - La fila cerrada se tiñe un 4 %: se distingue de un vistazo sin parecer
+    desactivada.
+  - Es un `role="switch"` de verdad, con su `aria-checked`, así que funciona con
+    teclado y lo anuncia bien un lector de pantalla.
+  - Fuera el candado que salía junto al nombre en las listas cerradas: lo decía
+    dos veces.
+
+---
+
 ## 0.126 — 20/08/2026 18:39
 
 > **Hace falta desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`).
