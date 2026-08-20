@@ -13,6 +13,28 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.131 — 20/08/2026 23:51
+
+- **Las migraciones que fallan ya no se callan.** El bucle que las aplica en el
+  Worker tenía el `catch` vacío, con el comentario "ya aplicada, es
+  idempotente". Y casi siempre era verdad —"duplicate column name" es el caso
+  normal— pero por esa misma rendija se colaba el caso que no lo era: la tabla
+  `battles` no llegó a crearse, el Worker contestó `ok: true`, y la pantalla de
+  Batallas dijo "no such table" sin que nada apuntara a la causa. Un `catch`
+  que se traga los errores de verdad junto con los inocuos no es tolerancia,
+  es ceguera.
+  - Ahora se filtran por su mensaje los dos casos benignos (`duplicate column
+    name`, `already exists`) y **cualquier otro se devuelve** en `failed`, con
+    su SQL y su motivo. El cliente los escribe en la consola con `console.error`
+    en el momento en que ocurren, no cuando explota la función que dependía de
+    ellos.
+- **`db/migraciones-manuales.sql`**, salida de emergencia para aplicar a mano lo
+  que el Worker no haya podido, con `wrangler d1 execute --remote --file`. Es
+  un atajo, no una fuente de verdad: lo que vaya ahí tiene que estar también en
+  `MIGRATIONS` y en `db/schema.sql`.
+
+---
+
 ## 0.130 — 20/08/2026 23:44
 
 - **Batallas.** Una sección nueva, al lado de Ejércitos, para crear, editar y

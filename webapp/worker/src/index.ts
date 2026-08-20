@@ -911,15 +911,29 @@ async function onMigrate(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
   }
   const applied: string[] = []
+  const failed: { sql: string; error: string }[] = []
   for (const sql of MIGRATIONS) {
     try {
       await env.DB.prepare(sql).run()
       applied.push(sql)
-    } catch {
-      // Ya aplicada (o columna existente): se ignora, es idempotente.
+    } catch (err) {
+      // El caso NORMAL es "ya aplicada" (duplicate column name / table already
+      // exists), y por eso esto no rompe nada: las migraciones son idempotentes
+      // y se lanzan enteras en cada carga.
+      //
+      // Pero durante mucho tiempo este catch estaba VACÍO, y eso convirtió un
+      // fallo real —una tabla nueva que no llegaba a crearse— en un misterio:
+      // la pantalla decía "no such table" y el Worker juraba haber migrado
+      // bien. Un error que se traga a los verdaderos junto con los inocuos no
+      // es tolerancia, es ceguera. Ahora los de "ya estaba" se filtran por su
+      // mensaje y CUALQUIER OTRO se devuelve, con su SQL y su motivo.
+      const motivo = err instanceof Error ? err.message : String(err)
+      if (!/duplicate column name|already exists/i.test(motivo)) {
+        failed.push({ sql: sql.replace(/\s+/g, ' ').slice(0, 160), error: motivo })
+      }
     }
   }
-  return jsonResponse({ ok: true, applied })
+  return jsonResponse({ ok: true, applied, failed })
 }
 
 interface ResetSeedRequestBody {

@@ -268,13 +268,29 @@ export async function runMigrations(): Promise<void> {
   try {
     const passwordHash = await getStoredPasswordHash()
     if (!passwordHash) return
-    const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/migrate', { passwordHash })
+    const { status, data } = await postJson<{
+      ok?: boolean
+      error?: string
+      failed?: { sql: string; error: string }[]
+    }>('/admin/migrate', { passwordHash })
     if (status === 401) {
       clearPassword()
       throw new AuthRequiredError()
     }
     if (status !== 200) {
       throw new Error(data.error ?? `Error al migrar (${status}).`)
+    }
+    // Migraciones que el Worker intentó y NO pudo aplicar (descontadas las
+    // "ya estaba", que son lo normal). Se avisa por consola en vez de romper la
+    // carga: la aplicación arranca igual, pero la función que dependa de esa
+    // tabla fallará después con un "no such table" desconcertante si esto no
+    // se dice aquí, en el momento y con el motivo real.
+    if (data.failed?.length) {
+      console.error(
+        '[WHArmy] El Worker no pudo aplicar %d migración(es). Lo que falle a partir de aquí viene de esto:',
+        data.failed.length,
+      )
+      for (const f of data.failed) console.error('  ·', f.error, '\n    ', f.sql)
     }
   } finally {
     resolveMigrationsAttempted()
