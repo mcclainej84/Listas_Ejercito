@@ -44,6 +44,7 @@ import { MarcoDeEncuadre } from '@/features/renombre/MarcoDeEncuadre'
 import { aTextoPlano, sanearHtml, tieneTexto } from '@/shared/richText'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { runMigrations } from '@/data/sqlite/client'
+import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Modal } from '@/shared/ui/Modal'
@@ -178,7 +179,7 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
         onCambio()
       } catch (err) {
         console.error('[WHArmy] No se pudo cambiar la visibilidad:', primerErr, err)
-        setErrorOcultar(err instanceof Error ? err.message : String(err))
+        setErrorOcultar(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
       }
     } finally {
       setOcultando(false)

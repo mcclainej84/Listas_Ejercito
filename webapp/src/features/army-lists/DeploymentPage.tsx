@@ -566,7 +566,7 @@ export function DeploymentPage() {
       if (faltaEsquema) {
         setError(
           'El despliegue se ha guardado, pero el lado y la imagen de fondo no: a la base de datos le faltan esas ' +
-            'columnas. Se arregla desplegando el Worker (cd webapp/worker && npx wrangler deploy).',
+            'columnas. Se aplican desplegando el Worker: cd webapp/worker && npx wrangler deploy — y recargando.',
         )
       }
     } catch (err) {

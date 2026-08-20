@@ -13,6 +13,23 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.128 — 20/08/2026 23:08
+
+- **"No such column" deja de ser un error y pasa a ser una instrucción.** Cuando
+  a la D1 le falta una columna, la pantalla ya no suelta el error crudo
+  —`D1_ERROR: no such column: ready: SQLITE_ERROR`, que es exacto y no sirve de
+  nada— sino qué hacer: desplegar el Worker, con el comando, y recargar. El
+  detalle técnico va detrás, entre paréntesis, para quien vaya a mirarlo.
+  - La detección vive en un solo sitio (`schemaHealth#mensajeDeMigracionPendiente`)
+    y la usan el sello de "listo", el ocultar un personaje y el guardado del
+    despliegue. Este programa despliega el frontend y el Worker por separado a
+    propósito, así que esto se va a repetir con cada función que traiga columnas
+    nuevas: mejor una función que treinta mensajes escritos a mano.
+  - El aviso del listado de ejércitos pasa de línea suelta a recuadro: era una
+    frase en rojo perdida sobre el pergamino y se leía como decoración.
+
+---
+
 ## 0.127 — 20/08/2026 19:04
 
 - **La marca de "listo" pasa a ser un sello, al final de la fila.** Era una

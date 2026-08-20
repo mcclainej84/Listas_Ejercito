@@ -90,6 +90,29 @@ const CHECKS: SchemaCheck[] = [
 ]
 
 /**
+ * ¿Este error es "a la base de datos le falta una columna"? Devuelve entonces un
+ * mensaje que DICE QUÉ HACER; para cualquier otro error, null.
+ *
+ * Existe porque el error crudo de D1 —"D1_ERROR: no such column: ready:
+ * SQLITE_ERROR"— es exacto y no sirve de nada: quien lo lee no tiene forma de
+ * saber que lo que falta es desplegar el Worker, ni de adivinar el comando. Y
+ * este programa despliega el frontend y el Worker por separado a propósito, así
+ * que la situación se va a repetir con cada función nueva que traiga columnas.
+ *
+ * El texto no es un "ha ocurrido un error": es la instrucción, con el comando
+ * copiable, y el detalle técnico detrás para quien vaya a mirarlo.
+ */
+export function mensajeDeMigracionPendiente(err: unknown): string | null {
+  const detalle = err instanceof Error ? err.message : String(err)
+  if (!/no such (table|column)/i.test(detalle)) return null
+  return (
+    'A la base de datos le falta una columna que esta función necesita. Se aplica desplegando el Worker: ' +
+    'cd webapp/worker && npx wrangler deploy — y recargando la página. ' +
+    `(${detalle})`
+  )
+}
+
+/**
  * Devuelve las funciones cuya tabla o columna todavía no existe en D1. Lista
  * vacía = todo al día.
  *

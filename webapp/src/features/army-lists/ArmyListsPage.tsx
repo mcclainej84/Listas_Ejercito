@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { ArmyListRepository, type ArmyListSummary } from '@/data/repositories/armyListRepository'
 import { ensureArmyListsOwned } from '@/data/repositories/catalogMaintenance'
+import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
@@ -69,7 +70,9 @@ export function ArmyListsPage() {
       await ArmyListRepository.setReady(list.id, ready)
       reload()
     } catch (err) {
-      setReadyError(err instanceof Error ? err.message : String(err))
+      // Si lo que falla es que la columna no existe todavía, se dice qué hacer
+      // en vez de soltar el error crudo de D1, que es exacto y no sirve de nada.
+      setReadyError(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
     } finally {
       setCerrandoId(null)
     }
@@ -127,7 +130,11 @@ export function ArmyListsPage() {
       {loading && <Spinner />}
       {error && <p className="text-sm text-danger">{error}</p>}
       {duplicateError && <p className="mb-3 text-sm text-danger">No se pudo duplicar la lista: {duplicateError}</p>}
-      {readyError && <p className="mb-3 text-sm text-danger">No se pudo cambiar el estado de la lista: {readyError}</p>}
+      {readyError && (
+        <p className="mb-3 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
+          <b className="text-danger">No se pudo cambiar el estado de la lista.</b> {readyError}
+        </p>
+      )}
 
       {!loading && (lists ?? []).length === 0 && (
         <EmptyState
