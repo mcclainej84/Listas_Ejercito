@@ -42,6 +42,7 @@ import {
 } from '@/shared/image'
 import { MarcoDeEncuadre } from '@/features/renombre/MarcoDeEncuadre'
 import { aTextoPlano, sanearHtml, tieneTexto } from '@/shared/richText'
+import { UnitRepository } from '@/data/repositories/unitRepository'
 import { runMigrations } from '@/data/sqlite/client'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
@@ -51,7 +52,8 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { TextField } from '@/shared/ui/TextField'
 import { RichTextEditor } from '@/shared/ui/RichTextEditor'
 import { Badge } from '@/shared/ui/Badge'
-import { EyeIcon, EyeOffIcon, ImageIcon, PencilIcon, PlusIcon, StarIcon } from '@/shared/ui/icons'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
+import { EyeIcon, EyeOffIcon, ImageIcon, PencilIcon, PlusIcon, StarIcon, TrashIcon } from '@/shared/ui/icons'
 
 /**
  * A partir de cuántos caracteres de trasfondo se pliega el texto y aparece el
@@ -146,6 +148,7 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
   const [desplegado, setDesplegado] = useState(false)
   const [ocultando, setOcultando] = useState(false)
   const [errorOcultar, setErrorOcultar] = useState<string | null>(null)
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false)
 
   const trasfondo = personaje.background ?? ''
   const tieneTrasfondo = tieneTexto(trasfondo)
@@ -328,6 +331,20 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
               {personaje.hidden ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
             </button>
           )}
+          {/* Borrar es de todos, como el resto de la sección (mismo criterio que
+              los mapas). Lo que evita el accidente no es esconder el botón sino
+              el aviso, que enumera lo que se lleva por delante — sobre todo la
+              experiencia, que es lo único aquí que no se puede volver a montar
+              a mano. */}
+          <button
+            type="button"
+            onClick={() => setConfirmandoBorrado(true)}
+            aria-label={`Borrar ${personaje.name}`}
+            title="Borrar este personaje"
+            className="rounded-sm p-1.5 text-ink-soft transition-colors hover:bg-maroon/10 hover:text-danger"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
           {/* Los atributos, el equipo y el coste se editan en la ficha de
               unidad, que sigue estando en "Editor" y por tanto solo se ofrece en
               modo administrador. */}
@@ -349,6 +366,29 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
           onClose={() => setEditando(false)}
           onGuardado={() => {
             setEditando(false)
+            onCambio()
+          }}
+        />
+      )}
+
+      {confirmandoBorrado && (
+        <ConfirmDialog
+          title="Borrar Personaje de Renombre"
+          message={
+            `¿Seguro que quieres borrar a "${personaje.name}"? Se borra la unidad entera —perfil, equipo, reglas, ` +
+            'opciones y monturas— junto con su retrato, su trasfondo y toda la experiencia que tenga apuntada, y ' +
+            'desaparece de cualquier lista de ejército que lo llevara. ESTO ES IRREVERSIBLE: no hay papelera ni ' +
+            'forma de recuperarlo, y los apuntes de experiencia no se pueden volver a montar.'
+          }
+          confirmLabel="Borrar definitivamente"
+          onCancel={() => setConfirmandoBorrado(false)}
+          onConfirm={async () => {
+            // Lo borra UnitRepository, que ya sabía hacerlo para las unidades y
+            // se lleva también las tablas que cuelgan de ella. Aquí no hay una
+            // versión propia: un personaje de renombre ES una unidad, y dos
+            // formas de borrar lo mismo acaban divergiendo.
+            await UnitRepository.remove(personaje.id)
+            setConfirmandoBorrado(false)
             onCambio()
           }}
         />
@@ -574,11 +614,12 @@ function EditarPersonajeModal({
               </Button>
             )}
             {quitarFoto && !fuente && <p className="text-mini text-ink-soft">Se quitará al guardar.</p>}
-            <p className="max-w-xs text-mini leading-relaxed text-ink-soft/80">
-              {fuente
-                ? 'Arrastra la foto para moverla y usa la rueda o la barra para ampliarla. El hueco del retrato es cuadrado: lo que quede dentro es lo que se guarda.'
-                : 'Se le quita el fondo liso, se recorta a lo que hay y se le difumina el canto, para que no quede como un recorte de papel sobre el pergamino.'}
-            </p>
+            {fuente && (
+              <p className="max-w-xs text-mini leading-relaxed text-ink-soft/80">
+                Arrastra la foto para moverla y usa la rueda o la barra para ampliarla. El hueco del retrato es
+                cuadrado: lo que quede dentro es lo que se guarda.
+              </p>
+            )}
           </div>
         </div>
 

@@ -13,6 +13,32 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.125 — 20/08/2026 18:05
+
+- **Se puede borrar un Personaje de Renombre**, con un aviso que dice
+  exactamente lo que se lleva por delante: la unidad entera (perfil, equipo,
+  reglas, opciones y monturas), el retrato, el trasfondo, toda la experiencia
+  apuntada, y su presencia en cualquier lista de ejército que lo llevara. El
+  aviso deja claro que **es irreversible**: no hay papelera ni forma de
+  recuperarlo, y los apuntes de experiencia no se pueden volver a montar.
+  - Lo borra `UnitRepository.remove`, el mismo que ya usaba Editor > Unidades.
+    Un personaje de renombre ES una unidad, y dos formas de borrar lo mismo
+    acaban divergiendo. El diálogo es el `ConfirmDialog` de siempre, que además
+    ya está protegido contra el doble clic.
+- **Filtro por facción** sobre el listado, con el número de personajes al lado.
+  En el desplegable solo salen las facciones que tienen alguno: con las 22 del
+  catálogo, elegir una y encontrarse la pantalla vacía sería lo más probable, y
+  el desplegable estaría diciendo que allí hay algo. El filtro se aplica antes de
+  agrupar, así que grupos, contadores y mensaje de vacío salen del mismo sitio y
+  no pueden contradecirse.
+  - Filtrando sin resultados el mensaje lo dice y ofrece quitar el filtro, en vez
+    del "todavía no hay ninguno" que sería mentira.
+- Fuera el texto "Se le quita el fondo liso, se recorta a lo que hay y se le
+  difumina el canto…" del diálogo del retrato. Mientras se encuadra sigue
+  saliendo la ayuda del arrastre y el zoom; el resto del tiempo, nada.
+
+---
+
 ## 0.124 — 16/08/2026 16:10
 
 - **El retrato de un personaje se encuadra al ponerlo.** Se arrastra la foto

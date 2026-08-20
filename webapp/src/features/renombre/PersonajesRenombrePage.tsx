@@ -57,15 +57,24 @@ function CabeceraDeFaccion({ faccion, cuantos }: { faccion: Pick<Faction, 'name'
   )
 }
 
+/** Valor del filtro cuando no filtra nada. Es una cadena porque sale de un <select>. */
+const TODAS = 'todas'
+
 export function PersonajesRenombrePage() {
   const { data: personajes, loading, reload } = useAsync(() => SpecialCharacterRepository.listAll())
   const { data: facciones } = useAsync(() => FactionRepository.listAll())
   const [creando, setCreando] = useState(false)
+  const [faccionFiltro, setFaccionFiltro] = useState<string>(TODAS)
   const [error, setError] = useState<string | null>(null)
 
   if (loading) return <Spinner />
 
-  const lista = personajes ?? []
+  const todos = personajes ?? []
+  // El filtro se aplica ANTES de agrupar, así que los grupos, los contadores y
+  // el mensaje de "no hay ninguno" salen todos del mismo sitio y no pueden
+  // contradecirse (un contador que suma los de todas las facciones sobre una
+  // lista filtrada es el fallo clásico de esta pantalla).
+  const lista = faccionFiltro === TODAS ? todos : todos.filter((p) => String(p.factionId) === faccionFiltro)
   // Agrupados por facción y en el orden en que vienen las facciones, no
   // alfabético: es el orden que el usuario ya conoce del resto del programa.
   const porFaccion = new Map<number, PersonajeEspecial[]>()
@@ -82,6 +91,12 @@ export function PersonajesRenombrePage() {
   // forma de llegar ni a su ficha para arreglarlos.
   const conocidas = new Set(ordenadas.map((f) => f.id))
   const huerfanos = lista.filter((p) => !conocidas.has(p.factionId))
+
+  // En el desplegable solo las facciones que TIENEN personajes. Con las 22 del
+  // catálogo, elegir una y encontrarse la pantalla vacía es lo más probable que
+  // podría pasar, y el desplegable estaría diciendo que allí hay algo.
+  const conPersonajes = new Set(todos.map((p) => p.factionId))
+  const faccionesDelFiltro = (facciones ?? []).filter((f) => conPersonajes.has(f.id))
 
   return (
     <div>
@@ -102,15 +117,44 @@ export function PersonajesRenombrePage() {
 
       {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
+      {faccionesDelFiltro.length > 1 && (
+        <div className="mb-5 flex flex-wrap items-end gap-3">
+          <div className="w-64">
+            <Select label="Facción" value={faccionFiltro} onChange={(e) => setFaccionFiltro(e.target.value)}>
+              <option value={TODAS}>Todas las facciones</option>
+              {faccionesDelFiltro.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <p className="pb-1.5 text-xs text-ink-soft">
+            {lista.length === 1 ? '1 personaje' : `${lista.length} personajes`}
+            {faccionFiltro !== TODAS && todos.length !== lista.length && ` de ${todos.length}`}
+          </p>
+        </div>
+      )}
+
       {lista.length === 0 ? (
         <EmptyState
-          title="Todavía no hay ninguno"
-          description="Elige un personaje de una facción y se copiará entero para darle nombre e historia."
+          title={faccionFiltro === TODAS ? 'Todavía no hay ninguno' : 'Ninguno en esta facción'}
+          description={
+            faccionFiltro === TODAS
+              ? 'Elige un personaje de una facción y se copiará entero para darle nombre e historia.'
+              : 'Prueba con otra facción, o quita el filtro para verlos todos.'
+          }
           action={
-            <Button variant="primary" onClick={() => setCreando(true)}>
-              <PlusIcon className="h-4 w-4" />
-              Nuevo personaje
-            </Button>
+            faccionFiltro === TODAS ? (
+              <Button variant="primary" onClick={() => setCreando(true)}>
+                <PlusIcon className="h-4 w-4" />
+                Nuevo personaje
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => setFaccionFiltro(TODAS)}>
+                Ver todas las facciones
+              </Button>
+            )
           }
         />
       ) : (
