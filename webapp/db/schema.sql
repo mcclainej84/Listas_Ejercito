@@ -732,6 +732,37 @@ CREATE TABLE army_lists (
     deployment_image_key TEXT
 );
 
+-- ---------------------------------------------------------------------------
+-- BATALLAS: dos ejércitos COMPLETADOS enfrentados sobre la misma mesa.
+--
+-- NO guarda posiciones. Lee el despliegue de cada lista, y puede hacerlo porque
+-- para entrar en una batalla la lista tiene que estar completada, y una lista
+-- que está en una batalla ya no se puede reabrir (ver ArmyListRepository.
+-- setReady). Congelar una copia sería guardar dos veces lo mismo y tener que
+-- mantenerlas iguales.
+--
+-- Los dos ejércitos tienen que compartir ESCENARIO —el mismo mapa, o la misma
+-- mesa libre con la misma imagen y medidas—; si no, no se deja crear la batalla
+-- (ver domain/battle#mismoEscenario). Una batalla ocurre en un sitio, no en dos.
+--
+-- ON DELETE CASCADE en las dos listas: una batalla sin uno de sus ejércitos no
+-- es media batalla, no es nada.
+-- ---------------------------------------------------------------------------
+CREATE TABLE battles (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    -- Quién la creó. Las batallas son privadas de su autor, como los ejércitos.
+    user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    -- El bando A es el ANFITRIÓN: despliega abajo, y su perspectiva es la que
+    -- se pinta. El B se coloca girado 180° sobre la misma mesa.
+    army_list_a_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+    army_list_b_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX idx_battles_user ON battles(user_id);
+
 CREATE INDEX idx_army_lists_faction ON army_lists(faction_id);
 
 -- Una entrada = una línea de la lista ("Nº unidades de Tropa X, con este

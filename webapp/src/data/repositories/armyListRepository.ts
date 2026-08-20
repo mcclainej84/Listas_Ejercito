@@ -289,6 +289,29 @@ export const ArmyListRepository = {
    * borrar su fila: si solo se insertara lo que hay colocado, lo retirado se
    * quedaría clavado en la mesa para siempre.
    */
+  /**
+   * Cuántas peanas tiene desplegadas cada una de estas listas, en UNA consulta.
+   *
+   * Lo usa el alta de una batalla para poder avisar de que a un ejército le
+   * falta el despliegue. Una consulta por lista serían tantos viajes a la red
+   * como listas completadas tenga el usuario, y todos para contar enteros.
+   */
+  async contarDespliegues(armyListIds: number[]): Promise<Map<number, number>> {
+    const total = new Map<number, number>()
+    if (armyListIds.length === 0) return total
+    const marcas = armyListIds.map(() => '?').join(',')
+    const filas = await query(
+      `SELECT army_list_id, COUNT(*) AS n
+         FROM army_list_deployments
+        WHERE army_list_id IN (${marcas})
+        GROUP BY army_list_id`,
+      armyListIds,
+      (r) => ({ id: r.army_list_id as number, n: r.n as number }),
+    )
+    for (const f of filas) total.set(f.id, f.n)
+    return total
+  },
+
   async saveDeployment(armyListId: number, posiciones: DeploymentPosition[]): Promise<void> {
     await execBatch([
       {
@@ -369,13 +392,45 @@ export const ArmyListRepository = {
   },
 
   /**
-   * Marca o desmarca la lista como TERMINADA (ver ArmyList.ready).
+   * Marca o desmarca la lista como COMPLETADA (ver ArmyList.ready).
+   *
+   * REABRIR UNA LISTA METIDA EN UNA BATALLA NO SE PUEDE. Una batalla no guarda
+   * copia de nada: enseña el despliegue y las unidades tal y como están, y puede
+   * permitírselo precisamente porque sus dos listas están cerradas. Si se
+   * pudiera reabrir una, la batalla cambiaría a espaldas de quien la creó — y de
+   * su rival. Para poder reabrirla hay que borrar antes la batalla.
+   *
+   * La comprobación va AQUÍ, en el único sitio por el que se pasa, y no en cada
+   * botón: son tres (el sello del listado y los "Reabrir" del constructor y del
+   * despliegue) y el cuarto que se añada se olvidaría. La consulta se hace a
+   * mano en vez de llamar a BattleRepository para no montar un círculo de
+   * importaciones entre los dos repositorios.
    *
    * No toca `updated_at`: cerrar una lista no es editarla, y si lo tocara, el
    * orden del listado —que va por fecha— bailaría cada vez que alguien abre y
    * cierra el candado.
    */
   async setReady(id: number, ready: boolean): Promise<void> {
+    if (!ready) {
+      let enBatallas = 0
+      try {
+        const filas = await query<number>(
+          'SELECT COUNT(*) AS n FROM battles WHERE army_list_a_id = ? OR army_list_b_id = ?',
+          [id, id],
+          (r) => r.n as number,
+        )
+        enBatallas = filas[0] ?? 0
+      } catch {
+        // Sin tabla de batallas todavía: no hay ninguna que proteger.
+      }
+      if (enBatallas > 0) {
+        throw new Error(
+          enBatallas === 1
+            ? 'Este ejército está en una batalla. Bórrala o cámbiale el ejército para poder reabrirlo.'
+            : `Este ejército está en ${enBatallas} batallas. Bórralas o cámbiales el ejército para poder reabrirlo.`,
+        )
+      }
+    }
     await exec('UPDATE army_lists SET ready = ? WHERE id = ?', [ready ? 1 : 0, id])
   },
 

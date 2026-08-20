@@ -880,6 +880,29 @@ const MIGRATIONS: string[] = [
   // alternativa suelta a los mapas de la sección Mapas: vale para la foto de un
   // escenario concreto sin tener que darla de alta como mapa del grupo.
   'ALTER TABLE army_lists ADD COLUMN deployment_image_key TEXT',
+  // --------------------------------------------------------------------------
+  // BATALLAS (agosto de 2026)
+  //
+  // Dos ejércitos COMPLETADOS enfrentados sobre la misma mesa. La batalla no
+  // guarda posiciones: lee el despliegue de cada lista. Puede hacerlo porque
+  // para entrar en una batalla la lista tiene que estar completada, y una lista
+  // que está en una batalla ya no se puede reabrir (ver
+  // ArmyListRepository.setReady). Congelar una copia habría sido guardar dos
+  // veces lo mismo y tener que mantenerlas iguales.
+  //
+  // ON DELETE CASCADE en las dos listas: una batalla sin uno de sus ejércitos no
+  // es media batalla, no es nada.
+  // --------------------------------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS battles (
+     id              INTEGER PRIMARY KEY AUTOINCREMENT,
+     name            TEXT NOT NULL,
+     user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+     army_list_a_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+     army_list_b_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+     created_at      TEXT NOT NULL,
+     updated_at      TEXT NOT NULL
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_battles_user ON battles(user_id)',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

@@ -13,6 +13,37 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.130 — 20/08/2026 23:44
+
+- **Batallas.** Una sección nueva, al lado de Ejércitos, para crear, editar y
+  borrar batallas. Una batalla es un nombre y **dos ejércitos completados**
+  —propios o compartidos contigo—, y lo que produce es la mesa con los dos
+  despliegues enfrentados, las dos listas para consultarlas, y los PDF.
+- **Nada se edita dentro de una batalla.** No es una pantalla de solo lectura
+  por pereza: es que una batalla es la foto del momento en que dos ejércitos se
+  plantan uno frente al otro. Si se pudiera mover una peana desde aquí, dejaría
+  de ser eso. Por lo mismo, **un ejército metido en una batalla no se puede
+  reabrir**: el sello "Completado" queda deshabilitado y `setReady` lo rechaza
+  también desde el repositorio, con el motivo dicho (borra la batalla o
+  cámbiale el ejército). Cerrar la puerta solo en la pantalla habría dejado la
+  de atrás abierta.
+- **Mesas distintas, error y no te deja.** Si los dos ejércitos no despliegan
+  sobre el mismo escenario —mapa distinto, o medidas distintas— el formulario
+  lo dice y no deja guardar. Enfrentar dos despliegues sobre mesas que no
+  coinciden no da una batalla mal dibujada: da una batalla falsa.
+- **Un bando sin desplegar sí se admite, pero avisando.** Es normal ir a la
+  partida con el despliegue oculto, así que en lugar de prohibirlo se avisa de
+  cuál falta y se pregunta si continuar.
+- **Cómo se enfrentan.** El ejército de abajo se pinta tal cual, y el de arriba
+  se gira 180° sobre la mesa (`enfrentarPosicion`: `x → ancho − x`,
+  `y → alto − y`), que es exactamente lo que pasa cuando el rival se sienta al
+  otro lado. Los dos bandos comparten el mismo cuerpo de alias, para que la
+  peana «A» de un ejército y la «A» del otro no se confundan en la leyenda.
+- **Tres exportaciones.** El PDF de cada lista por separado, y el de la mesa
+  —apaisado, con las dos leyendas y una página de orden de batalla por bando.
+
+---
+
 ## 0.129 — 20/08/2026 23:15
 
 - **El sello dice "Completado", y lo dice en los dos estados.** Un interruptor

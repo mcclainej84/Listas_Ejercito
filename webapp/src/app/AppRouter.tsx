@@ -19,6 +19,8 @@ import { FichasPage } from '@/features/fichas/FichasPage'
 import { ArmyListsPage } from '@/features/army-lists/ArmyListsPage'
 import { ArmyListBuilderPage } from '@/features/army-lists/ArmyListBuilderPage'
 import { DeploymentPage } from '@/features/army-lists/DeploymentPage'
+import { BattlesListPage } from '@/features/battles/BattlesListPage'
+import { BattlePage } from '@/features/battles/BattlePage'
 import { MapsListPage } from '@/features/maps/MapsListPage'
 import { MapEditorPage } from '@/features/maps/MapEditorPage'
 
@@ -191,6 +193,22 @@ const router = createHashRouter([
         element: (
           <PasswordGate>
             <DeploymentPage />
+          </PasswordGate>
+        ),
+      },
+      {
+        path: '/batallas',
+        element: (
+          <PasswordGate>
+            <BattlesListPage />
+          </PasswordGate>
+        ),
+      },
+      {
+        path: '/batallas/:id',
+        element: (
+          <PasswordGate>
+            <BattlePage />
           </PasswordGate>
         ),
       },

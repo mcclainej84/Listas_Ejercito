@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { ArmyListRepository, type ArmyListSummary } from '@/data/repositories/armyListRepository'
+import { BattleRepository } from '@/data/repositories/battleRepository'
 import { ensureArmyListsOwned } from '@/data/repositories/catalogMaintenance'
 import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -52,6 +53,10 @@ export function ArmyListsPage() {
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [sharing, setSharing] = useState<ArmyListSummary | null>(null)
   const [cerrandoId, setCerrandoId] = useState<number | null>(null)
+  // Qué listas están metidas en alguna batalla. No se pueden reabrir (lo impide
+  // ArmyListRepository.setReady); esto es solo para poder DECIRLO antes, en vez
+  // de dejar que el usuario pulse el sello y se coma un error.
+  const { data: enBatalla } = useAsync(() => BattleRepository.idsDeListasEnBatalla(), [])
   const [readyError, setReadyError] = useState<string | null>(null)
 
   /**
@@ -194,12 +199,14 @@ export function ArmyListsPage() {
                   type="button"
                   role="switch"
                   aria-checked={list.ready}
-                  disabled={cerrandoId === list.id}
+                  disabled={cerrandoId === list.id || (enBatalla?.has(list.id) ?? false)}
                   onClick={() => alternarListo(list, !list.ready)}
                   title={
-                    list.ready
-                      ? 'Completada: la lista y su despliegue se abren en solo lectura. Pulsa para volver a editarlos.'
-                      : 'Márcala cuando esté completada: se cerrará a cambios —la lista y su despliegue— hasta que la desmarques.'
+                    enBatalla?.has(list.id)
+                      ? 'Está en una batalla, así que no se puede reabrir: lo que la batalla enseña no puede cambiar. Borra la batalla o cámbiale el ejército.'
+                      : list.ready
+                        ? 'Completada: la lista y su despliegue se abren en solo lectura. Pulsa para volver a editarlos.'
+                        : 'Márcala cuando esté completada: se cerrará a cambios —la lista y su despliegue— hasta que la desmarques.'
                   }
                   className={clsx(
                     // Ancho FIJO: sin fijarlo los sellos quedaban escalonados de

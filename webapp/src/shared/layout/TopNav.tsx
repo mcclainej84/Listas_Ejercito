@@ -43,6 +43,7 @@ const TOOL_ITEMS: NavItem[] = [
   { to: '/hojas', label: 'Hojas de Unidad' },
   { to: '/ejercitos', label: 'Ejércitos' },
   { to: '/renombre', label: 'Personajes de Renombre' },
+  { to: '/batallas', label: 'Batallas' },
   { to: '/mapas', label: 'Mapas' },
 ]
 
