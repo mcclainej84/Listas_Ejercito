@@ -13,6 +13,26 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.129 — 20/08/2026 23:15
+
+- **El sello dice "Completado", y lo dice en los dos estados.** Un interruptor
+  no se cambia de nombre según esté encendido o apagado: lo que el rótulo dice
+  es de QUÉ trata, y si está puesto o no lo dicen el sello frente al contorno de
+  trazos, el candado frente al visto, y el `aria-checked` para quien no ve
+  ninguno de los dos. Antes ponía "Listo" encendido y "Marcar" apagado, que son
+  dos palabras para una sola cosa.
+- **Una lista completada tampoco deja editar su despliegue.** Colocar el
+  ejército sobre la mesa es parte de llevar esa lista a la partida, así que
+  cerrar la lista y dejar la mesa abierta era cerrar media puerta. La pantalla de
+  Despliegue se abre en solo lectura, con su distintivo y **su propio "Reabrir"**
+  en la cabecera, igual que el constructor.
+  - Ojo con lo que NO cambió, que es la misma trampa de la vez anterior: la
+    puerta de entrada al despliegue sigue mirando solo si la lista es tuya o te
+    han compartido su despliegue. Mezclarla con "completada" habría abierto los
+    despliegues ajenos cerrados a cualquiera.
+
+---
+
 ## 0.128 — 20/08/2026 23:08
 
 - **"No such column" deja de ser un error y pasa a ser una instrucción.** Cuando

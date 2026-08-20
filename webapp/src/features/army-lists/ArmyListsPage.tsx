@@ -198,22 +198,27 @@ export function ArmyListsPage() {
                   onClick={() => alternarListo(list, !list.ready)}
                   title={
                     list.ready
-                      ? 'Terminada: se abre en solo lectura. Pulsa para volver a editarla.'
-                      : 'Márcala cuando esté terminada: se cerrará a cambios hasta que la desmarques.'
+                      ? 'Completada: la lista y su despliegue se abren en solo lectura. Pulsa para volver a editarlos.'
+                      : 'Márcala cuando esté completada: se cerrará a cambios —la lista y su despliegue— hasta que la desmarques.'
                   }
                   className={clsx(
-                    // Ancho FIJO para los dos estados: "Listo" y "Marcar" no
-                    // miden lo mismo, y sin fijarlo los sellos quedaban
-                    // escalonados de una fila a otra en vez de formar columna,
-                    // que es justo lo que se venía a arreglar.
-                    'flex w-24 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors disabled:opacity-50',
+                    // Ancho FIJO: sin fijarlo los sellos quedaban escalonados de
+                    // una fila a otra en vez de formar columna, que es justo lo
+                    // que se venía a arreglar.
+                    'flex w-32 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors disabled:opacity-50',
                     list.ready
                       ? 'border border-maroon/45 bg-maroon/10 text-maroon hover:bg-maroon/15'
                       : 'border border-dashed border-rule-dark/35 text-ink-soft/45 hover:border-bronze/60 hover:text-bronze',
                   )}
                 >
+                  {/* EL MISMO RÓTULO EN LOS DOS ESTADOS. Un interruptor no se
+                      cambia de nombre según esté encendido o apagado: lo que
+                      dice es de QUÉ trata, y si está puesto o no lo dicen el
+                      sello frente al contorno de trazos, el candado frente al
+                      visto, y `aria-checked` para quien no ve ninguno de los
+                      dos. */}
                   {list.ready ? <LockIcon className="h-3 w-3" /> : <CheckIcon className="h-3 w-3" />}
-                  {list.ready ? 'Listo' : 'Marcar'}
+                  Completado
                 </button>
               )}
 

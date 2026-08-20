@@ -98,6 +98,7 @@ import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 import { FloorAssetRepository } from '@/data/repositories/sceneryAssetRepository'
 import { Tooltip } from '@/shared/ui/Tooltip'
 import { compressImageFile, medirImagen } from '@/shared/image'
+import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 import { hashDeContenido, imageUrl, uploadImageAtKey } from '@/data/network/images'
 import type { ArmyListEntry, LadoDeDespliegue } from '@/domain/types'
 
@@ -180,6 +181,7 @@ export function DeploymentPage() {
     setMapaId(list.battleMapId)
     setImagenKey(list.deploymentImageKey)
     setLado(list.deploymentSide)
+    setCerrada(list.ready)
   }, [list])
 
   const mesaRef = useRef<HTMLDivElement>(null)
@@ -207,7 +209,33 @@ export function DeploymentPage() {
         : Promise.resolve({ compartida: false, conDespliegue: false }),
     [esDeOtro, list?.id, user?.id],
   )
-  const soloLectura = esDeOtro && acceso?.compartida === true
+  const compartidaConmigo = esDeOtro && acceso?.compartida === true
+  /**
+   * Lista dada por COMPLETADA (ver ArmyList.ready): el despliegue tampoco se
+   * toca. Colocar el ejército sobre la mesa es parte de llevar esa lista a la
+   * partida, así que cerrarla y dejar la mesa abierta sería cerrar media puerta.
+   *
+   * En estado local además de leerse de la lista, para que al reabrirla desde
+   * aquí la pantalla se desbloquee en el acto y sin recargar.
+   */
+  const [cerrada, setCerrada] = useState(false)
+  /**
+   * Se mira pero no se toca. Dos motivos que acaban en lo mismo: la lista es de
+   * otro y te la ha compartido, o está completada. NO decide si te dejamos
+   * ENTRAR —eso es cosa de `compartidaConmigo` y `puedeVerlo`—, porque una lista
+   * ajena y cerrada mezclaría las dos cosas y te abriría la puerta.
+   */
+  const soloLectura = compartidaConmigo || cerrada
+
+  async function reabrirLista() {
+    if (!list) return
+    try {
+      await ArmyListRepository.setReady(list.id, false)
+      setCerrada(false)
+    } catch (err) {
+      setError(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
+    }
+  }
   const puedeVerlo = !esDeOtro || acceso?.conDespliegue === true
 
   // Con mapa cargado, sus medidas MANDAN: el tablero es el suyo y no se toca.
@@ -591,7 +619,7 @@ export function DeploymentPage() {
 
   // Dos negativas distintas y con mensajes distintos: no es lo mismo "esta
   // lista no es tuya" que "esta lista sí, pero su despliegue no".
-  if (esDeOtro && !soloLectura) {
+  if (esDeOtro && !compartidaConmigo) {
     return (
       <div>
         <button onClick={() => navigate('/ejercitos')} className="mb-3 text-sm text-ink-soft hover:text-ink">
@@ -679,10 +707,26 @@ export function DeploymentPage() {
           </dl>
 
           <div className="flex shrink-0 items-center gap-3">
-            {soloLectura && (
+            {compartidaConmigo && (
               <span className="flex items-center gap-1.5 rounded-sm border border-rule-dark/40 px-2 py-1 text-xs font-medium text-ink-soft">
                 <LockIcon className="h-3.5 w-3.5" />
                 Solo lectura
+              </span>
+            )}
+            {/* Completada por ti: el candado trae SU PROPIA salida, igual que en
+                el constructor. Sin ella habría que volver al listado a buscar el
+                sello, y el pestillo pasaría a ser un castigo. */}
+            {cerrada && !compartidaConmigo && (
+              <span className="flex items-center gap-2 rounded-sm border border-maroon/45 bg-maroon/10 px-2 py-1 text-xs font-medium text-ink">
+                <LockIcon className="h-3.5 w-3.5 text-maroon" />
+                Lista completada
+                <button
+                  type="button"
+                  onClick={reabrirLista}
+                  className="font-semibold text-maroon underline decoration-maroon/30 underline-offset-2 hover:decoration-maroon"
+                >
+                  Reabrir
+                </button>
               </span>
             )}
             {dirty && <span className="text-xs font-medium text-bronze">● Sin guardar</span>}

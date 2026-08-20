@@ -1176,13 +1176,13 @@ export function ArmyListBuilderPage() {
                 Solo lectura
               </span>
             )}
-            {/* Cerrada por ti: el candado trae SU PROPIA salida. Sin ella habría
-                que volver al listado a buscar la casilla, y el bloqueo pasaría de
-                pestillo a castigo. */}
+            {/* Completada por ti: el candado trae SU PROPIA salida. Sin ella
+                habría que volver al listado a buscar el sello, y el bloqueo
+                pasaría de pestillo a castigo. */}
             {cerrada && !compartidaConmigo && (
-              <span className="flex items-center gap-2 rounded-sm border border-bronze/50 bg-bronze/10 px-2 py-1 text-xs font-medium text-ink">
-                <LockIcon className="h-3.5 w-3.5 text-bronze" />
-                Lista terminada
+              <span className="flex items-center gap-2 rounded-sm border border-maroon/45 bg-maroon/10 px-2 py-1 text-xs font-medium text-ink">
+                <LockIcon className="h-3.5 w-3.5 text-maroon" />
+                Lista completada
                 <button
                   type="button"
                   onClick={reabrirLista}
