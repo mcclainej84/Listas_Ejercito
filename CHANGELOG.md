@@ -13,6 +13,33 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.142 — 21/08/2026 14:21
+
+- **El aviso de "falta desplegar el Worker" estaba acusando de lo que no era.**
+  Y era un fallo de bulto, porque llevaba a desplegar una y otra vez algo que
+  ya estaba desplegado. **Desplegar el Worker solo SUBE el código con las
+  migraciones dentro**; quien las EJECUTA es el navegador, llamando a
+  `/admin/migrate` con la contraseña de grupo. Entre una cosa y la otra hay
+  tres sitios donde puede quedarse parado, y el aviso los daba todos por el
+  primero:
+  1. El Worker desplegado no trae todavía esa migración → sí, falta desplegar.
+  2. **Este navegador no tiene guardada la contraseña de grupo** → no se piden
+     siquiera, y eso ocurría en el más absoluto silencio: `runMigrations`
+     devolvía `void` y se iba sin decir nada, así que "no se intentó" y "salió
+     bien" eran indistinguibles desde fuera.
+  3. Se piden, el Worker las intenta y **alguna falla** → hace falta el motivo,
+     no el consejo de siempre.
+- **Ahora el aviso distingue los tres y dice el motivo real**, con el error del
+  Worker cuando lo hay.
+- **Y trae un botón "Aplicar ahora"**: se piden en el sitio y se vuelve a
+  comprobar, sin recargar. Si el problema era el (1) y acabas de desplegar, se
+  arregla desde ahí y **se ve** que se ha arreglado, que es lo que faltaba para
+  poder cerrar el asunto en vez de quedarse con la duda.
+- El mensaje de "no such column" que sale al guardar dice lo mismo: los dos
+  pasos, no solo el despliegue.
+
+---
+
 ## 0.141 — 21/08/2026 11:48
 
 - **Encontrado lo del "mapa mal encuadrado": no era el mapa, eran las peanas.**

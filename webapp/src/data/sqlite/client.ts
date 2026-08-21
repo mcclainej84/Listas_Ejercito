@@ -259,15 +259,46 @@ export async function resetToSeed(): Promise<void> {
 }
 
 /**
+ * EN QUÉ QUEDÓ el último intento de migrar. Existe porque durante mucho tiempo
+ * quedar en nada y salir bien eran indistinguibles desde fuera:
+ * `runMigrations` devolvía `void` y se iba en silencio si no había contraseña.
+ * El resultado es que el aviso de la pantalla acusaba siempre de lo mismo
+ * —"falta desplegar el Worker"— aunque el Worker estuviera desplegado y el
+ * problema fuera otro, y quien lo leía desplegaba una y otra vez algo que ya
+ * estaba desplegado.
+ */
+export type ResultadoDeMigraciones =
+  /** Se pidieron y el Worker contestó. `fallidas` puede traer las que no pudo. */
+  | { estado: 'aplicadas'; fallidas: { sql: string; error: string }[] }
+  /** No se pidieron: no hay contraseña de grupo guardada en este navegador. */
+  | { estado: 'sin-contrasena' }
+  /** Se pidieron y la petición falló entera (red, 500, Worker sin la ruta…). */
+  | { estado: 'error'; motivo: string }
+
+/** El último resultado, para que el aviso de pantalla pueda DECIR qué pasó. */
+let ultimoResultado: ResultadoDeMigraciones | null = null
+export function ultimoResultadoDeMigraciones(): ResultadoDeMigraciones | null {
+  return ultimoResultado
+}
+
+/**
  * Aplica las migraciones de esquema idempotentes en el servidor (ver
  * worker/src/index.ts#MIGRATIONS): añadir columnas nuevas a la D1 en
  * producción, algo que /mutate no permite (solo INSERT/UPDATE/DELETE).
- * Requiere la contraseña de grupo; si no hay, no hace nada.
+ *
+ * OJO CON LO QUE SIGNIFICA "DESPLEGAR EL WORKER": desplegarlo solo sube el
+ * código con las migraciones dentro. Quien las EJECUTA es esta función, desde
+ * el navegador, y necesita la contraseña de grupo. Por eso se devuelve el
+ * resultado en vez de tragárselo: sin él no hay forma de distinguir "no se
+ * intentó" de "se intentó y salió bien".
  */
-export async function runMigrations(): Promise<void> {
+export async function runMigrations(): Promise<ResultadoDeMigraciones> {
   try {
     const passwordHash = await getStoredPasswordHash()
-    if (!passwordHash) return
+    if (!passwordHash) {
+      ultimoResultado = { estado: 'sin-contrasena' }
+      return ultimoResultado
+    }
     const { status, data } = await postJson<{
       ok?: boolean
       error?: string
@@ -285,13 +316,19 @@ export async function runMigrations(): Promise<void> {
     // carga: la aplicación arranca igual, pero la función que dependa de esa
     // tabla fallará después con un "no such table" desconcertante si esto no
     // se dice aquí, en el momento y con el motivo real.
-    if (data.failed?.length) {
+    const fallidas = data.failed ?? []
+    if (fallidas.length > 0) {
       console.error(
         '[WHArmy] El Worker no pudo aplicar %d migración(es). Lo que falle a partir de aquí viene de esto:',
-        data.failed.length,
+        fallidas.length,
       )
-      for (const f of data.failed) console.error('  ·', f.error, '\n    ', f.sql)
+      for (const f of fallidas) console.error('  ·', f.error, '\n    ', f.sql)
     }
+    ultimoResultado = { estado: 'aplicadas', fallidas }
+    return ultimoResultado
+  } catch (err) {
+    ultimoResultado = { estado: 'error', motivo: err instanceof Error ? err.message : String(err) }
+    throw err
   } finally {
     resolveMigrationsAttempted()
   }
