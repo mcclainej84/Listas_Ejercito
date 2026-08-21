@@ -68,9 +68,9 @@ export function Divisa({ color, className }: { color: string; className?: string
 function LadoDeCartela({ bando, derecha }: { bando: BandoHeraldico; derecha: boolean }) {
   return (
     <div className={clsx('flex min-w-0 items-center gap-3 sm:gap-4', derecha && 'flex-row-reverse text-right')}>
-      <FactionEmblem faction={bando.faccion} size="lg" className="hidden shrink-0 sm:block" />
+      <FactionEmblem faction={bando.faccion} size="md" className="hidden shrink-0 sm:block" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-display text-xl leading-tight font-bold text-maroon sm:text-2xl">
+        <p className="truncate font-display text-lg leading-tight font-bold text-maroon sm:text-xl">
           {bando.faccion.name}
         </p>
         <p className="truncate text-sm leading-snug text-ink">{bando.nombreLista}</p>
@@ -104,7 +104,7 @@ export function BalanzaDePuntos({ a, b }: { a: BandoHeraldico; b: BandoHeraldico
   const ventaja = diferencia === 0 ? null : a.puntos > b.puntos ? a : b
 
   return (
-    <div className="border-t border-rule-dark/25 bg-parchment/40 px-4 py-2.5 sm:px-6">
+    <div className="border-t border-rule-dark/25 bg-parchment/40 px-4 py-2 sm:px-6">
       <div className="mx-auto flex max-w-4xl items-center gap-3">
         <span className="w-16 shrink-0 font-display text-lg leading-none tabular-nums text-ink">{a.puntos}</span>
 
@@ -184,10 +184,10 @@ export function CartelaDeEnfrentamiento({
       />
       <Escuadras />
 
-      <div className="relative px-4 pt-4 sm:px-6">
+      <div className="relative px-4 pt-3 sm:px-6">
         <p className="text-center text-micro font-semibold tracking-[0.4em] text-ink-soft/70 uppercase">Batalla</p>
-        <h1 className="mt-1 text-center font-display text-3xl leading-none font-bold text-ink sm:text-4xl">{titulo}</h1>
-        <div aria-hidden className="mx-auto mt-3 mb-4 flex max-w-md items-center gap-2">
+        <h1 className="mt-1 text-center font-display text-2xl leading-none font-bold text-ink sm:text-3xl">{titulo}</h1>
+        <div aria-hidden className="mx-auto mt-2 mb-3 flex max-w-md items-center gap-2">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent to-rule-dark/50" />
           <span className="h-1.5 w-1.5 rotate-45 bg-bronze/70" />
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-rule-dark/50" />
@@ -215,7 +215,7 @@ export function CartelaDeEnfrentamiento({
           <LadoDeCartela bando={b} derecha />
         </div>
 
-        <div aria-hidden className="h-4" />
+        <div aria-hidden className="h-3" />
       </div>
 
       <BalanzaDePuntos a={a} b={b} />

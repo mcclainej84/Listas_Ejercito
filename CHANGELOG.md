@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.139 — 21/08/2026 11:27
+
+- **Corregido: la batalla se salía de la pantalla por la izquierda.** La
+  pantalla se escapa de la columna de 56rem del programa con un margen
+  negativo, y ese margen se calculaba como `(100vw - 56rem)/2` a secas. Eso
+  deja el bloque más ancho que el hueco real por dos motivos que se suman:
+  `main` tiene su propio `px-6` a cada lado, y `100vw` **incluye la barra de
+  desplazamiento**. El sobrante no se puede alcanzar hacia la izquierda —una
+  página no scrollea a la izquierda—, así que la mesa aparecía cortada por ese
+  lado. Ahora se restan los dos: el padding y un dedo para la barra.
+  - La proporción de la mesa nunca estuvo mal: es la misma que en el
+    Despliegue. Lo que fallaba era la caja que la contenía.
+- **Y se le pone techo al ancho.** Escaparse de la columna no quiere decir
+  ocupar todo lo que haya: en una pantalla muy ancha la mesa se estiraba hasta
+  un tamaño en el que hay que mover la cabeza para recorrerla, que es lo
+  contrario de lo que sirve una vista de conjunto.
+- **Todo un punto más pequeño**, para que la batalla entre de una vez en la
+  pantalla: la mesa (por el techo y por unas columnas laterales algo más
+  estrechas), el texto de los dos órdenes de batalla, sus marcas, y el título y
+  los emblemas de la cartela.
+
+---
+
 ## 0.138 — 21/08/2026 11:21
 
 - **Los dos órdenes de batalla, a los LADOS de la mesa.** Debajo y en dos

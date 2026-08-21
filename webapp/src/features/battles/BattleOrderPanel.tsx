@@ -80,7 +80,7 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
   if (ref_ == null) {
     return (
       <span
-        className="inline-flex h-7 min-w-9 items-center justify-center rounded-[2px] border border-dashed border-rule-dark/45 px-1.5 text-mini text-ink-soft/40"
+        className="inline-flex h-6 min-w-8 items-center justify-center rounded-[2px] border border-dashed border-rule-dark/45 px-1 text-micro text-ink-soft/40"
         title="No está desplegada sobre la mesa"
       >
         —
@@ -90,7 +90,7 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
   return (
     <span
       className={clsx(
-        'inline-flex h-7 min-w-9 items-center justify-center overflow-hidden rounded-[2px] border px-1.5 text-mini leading-none font-bold tracking-tight transition-shadow',
+        'inline-flex h-6 min-w-8 items-center justify-center overflow-hidden rounded-[2px] border px-1 text-micro leading-none font-bold tracking-tight transition-shadow',
         resaltada ? 'border-ink shadow-[0_0_0_2px_var(--color-maroon)]' : 'border-ink/60',
       )}
       style={estiloDePeana(color)}
@@ -145,14 +145,14 @@ export function BattleOrderPanel({
           el panel se identifique con su bando desde el otro lado de la pantalla. */}
       <span aria-hidden className="absolute inset-x-0 top-0 h-1 rounded-t-sm" style={{ backgroundColor: color }} />
 
-      <header className="flex items-center gap-3 border-b border-rule-dark/25 px-4 pt-4 pb-3">
+      <header className="flex items-center gap-2.5 border-b border-rule-dark/25 px-3 pt-3 pb-2.5">
         <FactionEmblem faction={lista.faction} size="sm" />
         {/* TRES LÍNEAS y no dos. Con el panel al costado de la mesa la columna
             es estrecha, y meter facción y recuentos en el mismo renglón acababa
             en "Bretonia · 18 unidades · 14 en la…", que es peor que no decirlo:
             el dato que se corta es justo el que se venía a mirar. */}
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-display text-lg leading-tight font-semibold text-ink">{lista.name}</h2>
+          <h2 className="truncate font-display text-base leading-tight font-semibold text-ink">{lista.name}</h2>
           <p className="truncate text-mini leading-snug text-ink-soft">{lista.faction.name}</p>
           <p className="truncate text-micro leading-snug text-ink-soft/70">
             {entradas.length} {entradas.length === 1 ? 'unidad' : 'unidades'}
@@ -160,11 +160,11 @@ export function BattleOrderPanel({
             {enMesa} en la mesa
           </p>
         </div>
-        <span className="shrink-0 font-display text-xl leading-none text-maroon tabular-nums">{puntos}</span>
+        <span className="shrink-0 font-display text-lg leading-none text-maroon tabular-nums">{puntos}</span>
         <span className="-ml-1.5 shrink-0 self-end pb-0.5 text-micro text-ink-soft">pts</span>
       </header>
 
-      <div className="px-4 pt-1 pb-3">
+      <div className="px-3 pt-1 pb-2.5">
         {grupos.map((grupo) => (
           <div key={grupo.clave} className="mt-3 first:mt-1">
             <div className="flex items-center gap-2">
@@ -189,19 +189,19 @@ export function BattleOrderPanel({
                     onPointerEnter={() => onEncima(entry.id)}
                     onPointerLeave={() => onEncima(null)}
                     className={clsx(
-                      'relative -mx-1.5 flex items-center gap-2.5 rounded-sm px-1.5 py-1 transition-colors',
+                      'relative -mx-1.5 flex items-center gap-2 rounded-sm px-1.5 py-0.5 transition-colors',
                       resaltada ? 'bg-bronze/15' : 'hover:bg-bronze/8',
                     )}
                   >
                     {/* Celda de ancho fijo: la marca crece con su texto, pero
                         los nombres tienen que seguir alineados entre filas. */}
-                    <span className="flex w-14 shrink-0 justify-start">
+                    <span className="flex w-12 shrink-0 justify-start">
                       <MarcaDeUnidad ref_={marca} color={entry.unit.faction.color} resaltada={resaltada} />
                     </span>
 
                     <span
                       className={clsx(
-                        'min-w-0 flex-1 truncate text-sm',
+                        'min-w-0 flex-1 truncate text-xs',
                         marca ? 'text-ink' : 'text-ink-soft/70 italic',
                       )}
                     >
@@ -212,7 +212,7 @@ export function BattleOrderPanel({
                       {entry.quantity > 1 && <span className="text-ink-soft"> ×{entry.quantity}</span>}
                     </span>
 
-                    <span className="shrink-0 text-xs text-ink-soft tabular-nums">
+                    <span className="shrink-0 text-mini text-ink-soft tabular-nums">
                       {computeEntryCost(entry.unit, entry)}
                     </span>
 
