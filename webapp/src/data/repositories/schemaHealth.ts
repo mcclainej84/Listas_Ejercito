@@ -88,6 +88,8 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Lado de despliegue', probe: 'SELECT deployment_side FROM army_lists LIMIT 1' },
   { label: 'Imagen de fondo del despliegue', probe: 'SELECT deployment_image_key FROM army_lists LIMIT 1' },
   { label: 'Mapas con imagen de fondo', probe: 'SELECT image_key FROM battle_maps LIMIT 1' },
+  { label: 'Emblema propio del ejército', probe: 'SELECT emblem_key FROM army_lists LIMIT 1' },
+  { label: 'Emblema de otra facción en el ejército', probe: 'SELECT emblem_faction_id FROM army_lists LIMIT 1' },
   { label: 'Batallas', probe: 'SELECT id FROM battles LIMIT 1' },
   { label: 'Batallas', probe: 'SELECT army_list_a_id FROM battles LIMIT 1' },
 ]

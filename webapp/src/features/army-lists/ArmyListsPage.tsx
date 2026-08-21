@@ -16,6 +16,8 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { CheckIcon, LockIcon, PlusIcon, TrashIcon } from '@/shared/ui/icons'
 import { Tooltip } from '@/shared/ui/Tooltip'
+import { FactionEmblem } from '@/shared/ui/FactionEmblem'
+import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
 import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
 import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
 import { ShareArmyListModal } from '@/features/army-lists/ShareArmyListModal'
@@ -238,10 +240,19 @@ export function ArmyListsPage() {
             <div
               key={list.id}
               className={clsx(
-                'group flex items-center justify-between gap-4 px-4 py-3 transition-colors',
+                'group flex items-center gap-3 px-4 py-3 transition-colors',
                 list.ready && !list.shared && 'bg-maroon/[0.04]',
               )}
             >
+              {/* El emblema de ESTE ejército —el de su facción salvo que se le
+                  haya puesto otro—, en el mismo recuadro cuadrado de siempre. */}
+              <FactionEmblem
+                faction={{
+                  name: list.factionName,
+                  emblemUrl: urlDelEmblemaDeLista(list, factions ?? []),
+                }}
+                size="sm"
+              />
               <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
                 <p className="flex items-center gap-1.5 font-display text-lg font-semibold text-maroon">
                   {list.name}

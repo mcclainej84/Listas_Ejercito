@@ -32,6 +32,7 @@ import { PageHeader } from '@/shared/ui/PageHeader'
 import { Panel } from '@/shared/ui/Panel'
 import { Badge } from '@/shared/ui/Badge'
 import { FactionEmblem } from '@/shared/ui/FactionEmblem'
+import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Tooltip } from '@/shared/ui/Tooltip'
 import { Button } from '@/shared/ui/Button'
@@ -246,6 +247,9 @@ export function ArmyListBuilderPage() {
   const [pointsLimit, setPointsLimit] = useState<number | null>(null)
   /** Si esta lista ofrece Personajes de Renombre (ver ArmyList.showSpecialCharacters). Nacen encendidos. */
   const [mostrarRenombre, setMostrarRenombre] = useState(true)
+  /** Emblema propio de ESTA lista (ver domain/armyEmblem). null/null = el de su facción. */
+  const [emblemFactionId, setEmblemFactionId] = useState<number | null>(null)
+  const [emblemKey, setEmblemKey] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [savingList, setSavingList] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -358,6 +362,8 @@ export function ArmyListBuilderPage() {
     setName(list.name)
     setPointsLimit(list.pointsLimit)
     setMostrarRenombre(list.showSpecialCharacters)
+    setEmblemFactionId(list.emblemFactionId)
+    setEmblemKey(list.emblemKey)
     setCerrada(list.ready)
     setReconcileNotes(notes)
     setNeedsReviewIds(new Set(notes.filter((n) => n.conflicts.length > 0).map((n) => n.entryId)))
@@ -1162,6 +1168,20 @@ export function ArmyListBuilderPage() {
       <PageHeader
         title={name}
         description={`Facción principal: ${list.faction.name}${pointsLimit != null ? ` · límite ${pointsLimit} pts` : ' · sin límite de puntos'}`}
+        // El emblema de ESTE ejército, en pequeño: aquí es una seña de
+        // identidad, no el asunto de la pantalla. Se cambia en "Editar lista".
+        leading={
+          <FactionEmblem
+            faction={{
+              name: list.faction.name,
+              emblemUrl: urlDelEmblemaDeLista(
+                { factionId: list.factionId, emblemFactionId, emblemKey },
+                factions ?? [],
+              ),
+            }}
+            size="md"
+          />
+        }
         actions={
           <div className="flex items-center gap-3">
             {/* Compartida contigo: se puede mirar y exportar, nada más. El
@@ -2050,7 +2070,15 @@ export function ArmyListBuilderPage() {
 
       {editingSettings && (
         <ArmyListSettingsModal
-          list={{ ...list, name, pointsLimit, showSpecialCharacters: mostrarRenombre, entries: currentEntries }}
+          list={{
+            ...list,
+            name,
+            pointsLimit,
+            showSpecialCharacters: mostrarRenombre,
+            emblemFactionId,
+            emblemKey,
+            entries: currentEntries,
+          }}
           onClose={() => setEditingSettings(false)}
           onSaved={(values) => {
             // Actualiza solo los metadatos en el estado local (ya persistidos
@@ -2059,6 +2087,8 @@ export function ArmyListBuilderPage() {
             setName(values.name)
             setPointsLimit(values.pointsLimit)
             setMostrarRenombre(values.showSpecialCharacters)
+            setEmblemFactionId(values.emblemFactionId)
+            setEmblemKey(values.emblemKey)
             setEditingSettings(false)
           }}
         />

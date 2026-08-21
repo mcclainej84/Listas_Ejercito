@@ -86,6 +86,7 @@ import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Modal } from '@/shared/ui/Modal'
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { TextField } from '@/shared/ui/TextField'
 import { ArrowLeftIcon, CategoryShield, FileTextIcon, LockIcon, TrashIcon } from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
@@ -167,6 +168,8 @@ export function DeploymentPage() {
     altoCm: number
   } | null>(null)
   const [nombreDelMapaNuevo, setNombreDelMapaNuevo] = useState('')
+  /** Unidades que cruzan la línea central, a la espera de que se confirme el guardado. */
+  const [cruzanLaMitad, setCruzanLaMitad] = useState<string[] | null>(null)
   const imagenRef = useRef<HTMLInputElement>(null)
   /**
    * Lado del tablero desde el que se despliega. Las peanas van SIEMPRE abajo;
@@ -624,7 +627,49 @@ export function DeploymentPage() {
     setDirty(true)
   }
 
+  /**
+   * Qué unidades asoman al otro lado de la línea central.
+   *
+   * Se mira la PEANA ENTERA, no su centro: una unidad cuyo centro está en su
+   * mitad pero cuyo frente ya ha cruzado está cruzando igual, y es justo el
+   * caso que se cuela sin darse cuenta. El eje Y crece hacia abajo y este
+   * ejército despliega siempre abajo (el lado solo cambia la perspectiva del
+   * mapa, ver la cabecera), así que cruzar es tener el canto de arriba por
+   * encima de la mitad.
+   */
+  function unidadesQueCruzanLaMitad(): string[] {
+    const mitad = mesaActual.altoCm / 2
+    const fuera: string[] = []
+    for (const entry of list?.entries ?? []) {
+      const pos = posiciones.get(entry.id)
+      if (!pos) continue
+      const alto = tamanoDe(entry).altoCm
+      if (pos.yCm - alto / 2 < mitad) fuera.push(entry.alias ?? entry.unit.name)
+    }
+    return fuera
+  }
+
+  /**
+   * Guardar avisa, pero no impide.
+   *
+   * Cruzar la línea central en el despliegue no es legal en una partida normal,
+   * y sin embargo aquí NO se bloquea: este programa dibuja lo que el jugador
+   * quiere colocar, no arbitra. Hay escenarios y reglas especiales que lo
+   * permiten, y un programa que decide por su cuenta que algo es imposible se
+   * equivoca justo en el caso raro, que es cuando más molesta. Así que se dice
+   * lo que se ha visto, se dice cuáles son, y se deja continuar.
+   */
+  function intentarGuardar() {
+    const cruzan = unidadesQueCruzanLaMitad()
+    if (cruzan.length > 0) {
+      setCruzanLaMitad(cruzan)
+      return
+    }
+    void handleSave()
+  }
+
   async function handleSave() {
+    setCruzanLaMitad(null)
     setSaving(true)
     setError(null)
     try {
@@ -805,7 +850,7 @@ export function DeploymentPage() {
               {exportando ? 'Exportando…' : 'Exportar'}
             </Button>
             {!soloLectura && (
-              <Button variant="primary" onClick={handleSave} disabled={!dirty || saving}>
+              <Button variant="primary" onClick={intentarGuardar} disabled={!dirty || saving}>
                 {saving ? 'Guardando…' : 'Guardar despliegue'}
               </Button>
             )}
@@ -1526,6 +1571,23 @@ export function DeploymentPage() {
           </section>
         </aside>
       </div>
+
+      {/* Cruzar la mitad: se avisa, se dice cuáles, y se deja continuar. */}
+      {cruzanLaMitad && (
+        <ConfirmDialog
+          title="Hay unidades pasada la línea central"
+          message={
+            (cruzanLaMitad.length === 1
+              ? `"${cruzanLaMitad[0]}" asoma al otro lado de la línea central`
+              : `${cruzanLaMitad.length} unidades asoman al otro lado de la línea central (${cruzanLaMitad.join(', ')})`) +
+            '. En un despliegue normal cada ejército se queda en su mitad, pero hay escenarios y reglas que lo ' +
+            'permiten, así que esto es un aviso y no una prohibición: se puede guardar tal cual.'
+          }
+          confirmLabel="Guardar de todas formas"
+          onCancel={() => setCruzanLaMitad(null)}
+          onConfirm={() => void handleSave()}
+        />
+      )}
 
       {/* ---------------------------------------------------------------------
           El nombre del mapa nuevo. Se pide DESPUÉS de subir la imagen: hasta

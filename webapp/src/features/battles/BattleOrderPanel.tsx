@@ -102,6 +102,8 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
 
 export interface BattleOrderPanelProps {
   lista: ArmyListDetail
+  /** El emblema del EJÉRCITO, ya resuelto (ver domain/armyEmblem). */
+  emblemUrl: string | null
   color: string
   puntos: number
   /** Iniciales por entrada; sin entrada aquí = no está desplegada. */
@@ -120,6 +122,7 @@ export interface BattleOrderPanelProps {
 
 export function BattleOrderPanel({
   lista,
+  emblemUrl,
   color,
   puntos,
   refPorEntrada,
@@ -146,7 +149,7 @@ export function BattleOrderPanel({
       <span aria-hidden className="absolute inset-x-0 top-0 h-1 rounded-t-sm" style={{ backgroundColor: color }} />
 
       <header className="flex items-center gap-2.5 border-b border-rule-dark/25 px-3 pt-3 pb-2.5">
-        <FactionEmblem faction={lista.faction} size="sm" />
+        <FactionEmblem faction={{ name: lista.faction.name, emblemUrl }} size="sm" />
         {/* TRES LÍNEAS y no dos. Con el panel al costado de la mesa la columna
             es estrecha, y meter facción y recuentos en el mismo renglón acababa
             en "Bretonia · 18 unidades · 14 en la…", que es peor que no decirlo:

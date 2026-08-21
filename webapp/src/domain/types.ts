@@ -443,6 +443,17 @@ export interface ArmyList {
    * suelta a los mapas de la sección Mapas. null = sin imagen.
    */
   deploymentImageKey: string | null
+  /**
+   * EMBLEMA DE ESTE EJÉRCITO, y solo de este. No es un emblema de facción.
+   *
+   * Casi siempre valdrá el de su facción —por eso los dos campos empiezan a
+   * null, que significa exactamente eso— y existen para la excepción: la hueste
+   * de un señor concreto que se presenta a la batalla con su propia enseña.
+   * `emblemKey` (imagen propia) manda sobre `emblemFactionId` (el de otra
+   * facción). Ver domain/armyEmblem.
+   */
+  emblemFactionId: number | null
+  emblemKey: string | null
 }
 
 /** Desde qué borde despliega un ejército. Ver ArmyList.deploymentSide. */

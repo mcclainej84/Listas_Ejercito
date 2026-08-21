@@ -33,3 +33,5 @@ CREATE INDEX IF NOT EXISTS idx_battles_user ON battles(user_id);
 -- que si la columna ya está, esta línea falla con "duplicate column name" y
 -- corta el archivo. Si eso pasa, bórrala y vuelve a lanzar el resto.
 ALTER TABLE battle_maps ADD COLUMN image_key TEXT;
+ALTER TABLE army_lists ADD COLUMN emblem_faction_id INTEGER REFERENCES factions(id);
+ALTER TABLE army_lists ADD COLUMN emblem_key TEXT;

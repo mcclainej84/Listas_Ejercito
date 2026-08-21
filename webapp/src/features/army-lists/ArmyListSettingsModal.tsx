@@ -1,7 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArmyListRepository } from '@/data/repositories/armyListRepository'
+import { hashDeContenido, uploadImageAtKey } from '@/data/network/images'
+import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
+import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
+import { compressImageFile } from '@/shared/image'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
+import { Select } from '@/shared/ui/Select'
 import { TextField } from '@/shared/ui/TextField'
 import type { ArmyListDetail } from '@/domain/types'
 
@@ -9,7 +14,13 @@ interface ArmyListSettingsModalProps {
   list: ArmyListDetail
   onClose: () => void
   /** Devuelve los valores ya persistidos para que la página actualice su estado local SIN recargar (una recarga descartaría el borrador de entradas sin guardar). */
-  onSaved: (values: { name: string; pointsLimit: number | null; showSpecialCharacters: boolean }) => void
+  onSaved: (values: {
+    name: string
+    pointsLimit: number | null
+    showSpecialCharacters: boolean
+    emblemFactionId: number | null
+    emblemKey: string | null
+  }) => void
 }
 
 /** Renombrar la lista y/o cambiar su límite de puntos. La facción no se puede cambiar (las entradas dependen de ella). */
@@ -24,6 +35,41 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
   const yaMetidos = list.entries.filter((e) => e.unit.isSpecialCharacter)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // ---- Emblema del ejército -------------------------------------------------
+  // Tres estados y no dos: "el de mi facción" NO es lo mismo que "el de la
+  // facción X que resulta ser la mía". El primero sigue a la facción si algún
+  // día le cambian el emblema; el segundo la congela. Casi todos los ejércitos
+  // se quedan en el primero para siempre, así que tiene que ser el que está
+  // puesto y el que se entiende sin leer nada.
+  const { factions } = useVisibleFactions()
+  const [emblemFactionId, setEmblemFactionId] = useState<number | null>(list.emblemFactionId)
+  const [emblemKey, setEmblemKey] = useState<string | null>(list.emblemKey)
+  const [subiendoEmblema, setSubiendoEmblema] = useState(false)
+  const archivoRef = useRef<HTMLInputElement>(null)
+  const urlDelEmblema = urlDelEmblemaDeLista({ factionId: list.factionId, emblemFactionId, emblemKey }, factions ?? [])
+  const origen: 'faccion' | 'otra' | 'imagen' = emblemKey ? 'imagen' : emblemFactionId != null ? 'otra' : 'faccion'
+
+  async function subirEmblema(file: File | undefined) {
+    if (!file) return
+    setSubiendoEmblema(true)
+    setError(null)
+    try {
+      // Cuadrado y con el mismo tamaño que los emblemas de facción (480 px):
+      // el recuadro es el mismo en todas partes, así que la imagen tiene que
+      // llegar preparada para ese recuadro y no al revés.
+      const comprimida = await compressImageFile(file, { maxSize: 480, keepAlpha: true })
+      const ext = comprimida.mime === 'image/png' ? 'png' : comprimida.mime === 'image/jpeg' ? 'jpg' : 'webp'
+      const key = `emblemas/${await hashDeContenido(comprimida.bytes)}.${ext}`
+      await uploadImageAtKey(key, comprimida.bytes, comprimida.mime)
+      setEmblemKey(key)
+      setEmblemFactionId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSubiendoEmblema(false)
+    }
+  }
 
   async function handleSubmit() {
     if (!name.trim()) {
@@ -43,9 +89,16 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
       // pantalla enseñándole todavía los valores viejos. Yendo la primera, o se
       // guarda todo o no se guarda nada.
       await ArmyListRepository.setShowSpecialCharacters(list.id, mostrarRenombre)
+      await ArmyListRepository.setEmblem(list.id, emblemFactionId, emblemKey)
       await ArmyListRepository.rename(list.id, nextName)
       await ArmyListRepository.setPointsLimit(list.id, nextPointsLimit)
-      onSaved({ name: nextName, pointsLimit: nextPointsLimit, showSpecialCharacters: mostrarRenombre })
+      onSaved({
+        name: nextName,
+        pointsLimit: nextPointsLimit,
+        showSpecialCharacters: mostrarRenombre,
+        emblemFactionId,
+        emblemKey,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -100,6 +153,92 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
             los borras de la lista, no podrás volver a añadirlos sin marcar esto otra vez.
           </p>
         )}
+        {/* ---- Emblema del ejército ---- */}
+        <div>
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">Emblema del ejército</p>
+          <div className="flex items-start gap-3">
+            {/* El MISMO recuadro que los emblemas de facción: cuadrado, esquina
+                suave y las dos sombras. Si aquí se viera de otra forma, el
+                usuario no reconocería lo que va a ver luego en la batalla. */}
+            <span className="relative inline-block h-16 w-16 shrink-0 overflow-hidden rounded-sm bg-parchment-dark/40 shadow-md shadow-black/25">
+              {urlDelEmblema ? (
+                <img src={urlDelEmblema} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="grid h-full w-full place-items-center text-micro text-ink-soft/60">sin emblema</span>
+              )}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-sm"
+                style={{ boxShadow: 'inset 0 0 12px rgba(20,14,6,0.35)' }}
+              />
+            </span>
+
+            <div className="min-w-0 flex-1 space-y-2">
+              <Select
+                label=""
+                value={origen}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === 'faccion') {
+                    setEmblemKey(null)
+                    setEmblemFactionId(null)
+                  } else if (v === 'otra') {
+                    setEmblemKey(null)
+                    setEmblemFactionId(list.faction.id)
+                  } else {
+                    archivoRef.current?.click()
+                  }
+                }}
+              >
+                <option value="faccion">El de su facción ({list.faction.name})</option>
+                <option value="otra">El de otra facción…</option>
+                <option value="imagen">Una imagen propia…</option>
+              </Select>
+
+              {origen === 'otra' && (
+                <Select
+                  label=""
+                  value={emblemFactionId ?? ''}
+                  onChange={(e) => setEmblemFactionId(Number(e.target.value) || null)}
+                >
+                  {(factions ?? []).map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+
+              {origen === 'imagen' && (
+                <button
+                  type="button"
+                  disabled={subiendoEmblema}
+                  onClick={() => archivoRef.current?.click()}
+                  className="rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-xs text-ink hover:bg-parchment-dark disabled:opacity-50"
+                >
+                  {subiendoEmblema ? 'Subiendo…' : 'Cambiar la imagen'}
+                </button>
+              )}
+
+              <p className="text-xs leading-snug text-ink-soft">
+                Es de <b className="text-ink">este ejército</b> y de ningún otro: no toca el emblema de la facción, que
+                es común. Se ve en el listado de Ejércitos y en las batallas.
+              </p>
+            </div>
+          </div>
+
+          <input
+            ref={archivoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              subirEmblema(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+        </div>
+
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     </Modal>

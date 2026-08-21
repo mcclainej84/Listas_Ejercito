@@ -729,7 +729,17 @@ CREATE TABLE army_lists (
     -- resto de imágenes). Alternativa suelta a los mapas de la sección Mapas:
     -- sirve para la foto de un escenario concreto sin darla de alta como mapa
     -- del grupo. NULL = sin imagen.
-    deployment_image_key TEXT
+    deployment_image_key TEXT,
+    -- EMBLEMA DE ESTE EJÉRCITO, y solo de este. No es un emblema de facción:
+    -- casi siempre valdrá el de su facción —de ahí que las dos columnas
+    -- empiecen a NULL, que significa exactamente eso— y existe para la
+    -- excepción: la hueste de un señor concreto que se presenta a la batalla
+    -- con su propia enseña.
+    --   · emblem_faction_id: el emblema de OTRA facción del catálogo.
+    --   · emblem_key: una imagen propia en R2. Manda sobre la anterior.
+    --   · las dos a NULL: el de la facción de la lista. El caso normal.
+    emblem_faction_id INTEGER REFERENCES factions(id),
+    emblem_key   TEXT
 );
 
 -- ---------------------------------------------------------------------------

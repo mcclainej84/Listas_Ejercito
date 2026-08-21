@@ -46,6 +46,9 @@ function mapArmyList(row: Record<string, unknown>): ArmyList {
     ready: Boolean(row.ready),
     deploymentSide: row.deployment_side === 'norte' ? 'norte' : 'sur',
     deploymentImageKey: (row.deployment_image_key as string) ?? null,
+    // Igual que las anteriores: sin columna, null, que es "el de su facción".
+    emblemFactionId: (row.emblem_faction_id as number) ?? null,
+    emblemKey: (row.emblem_key as string) ?? null,
   }
 }
 
@@ -495,6 +498,23 @@ export const ArmyListRepository = {
   /** Clave en R2 de la imagen de fondo del despliegue; null la quita. */
   async setDeploymentImageKey(id: number, key: string | null): Promise<void> {
     await exec('UPDATE army_lists SET deployment_image_key = ? WHERE id = ?', [key, id])
+  },
+
+  /**
+   * El emblema de ESTA lista. Los dos a null = el de su facción, que es el caso
+   * normal (ver domain/armyEmblem).
+   *
+   * Se escriben las dos columnas de una vez, aunque solo se cambie una: son
+   * excluyentes —imagen propia o facción ajena, no las dos— y guardarlas por
+   * separado dejaría estados en los que la anterior sigue puesta y sigue
+   * mandando. Un ajuste que no se puede deshacer del todo no es un ajuste.
+   */
+  async setEmblem(id: number, emblemFactionId: number | null, emblemKey: string | null): Promise<void> {
+    await exec('UPDATE army_lists SET emblem_faction_id = ?, emblem_key = ? WHERE id = ?', [
+      emblemKey != null ? null : emblemFactionId,
+      emblemKey,
+      id,
+    ])
   },
 
   async remove(id: number): Promise<void> {

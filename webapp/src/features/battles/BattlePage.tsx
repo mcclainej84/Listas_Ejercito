@@ -41,6 +41,7 @@ import { FloorAssetRepository } from '@/data/repositories/sceneryAssetRepository
 import { UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
 import { imageUrl } from '@/data/network/images'
 import { computeEntryCost } from '@/domain/armyValidation'
+import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
 import { enfrentarPosicion } from '@/domain/battle'
 import { RETICULA_CM, tamanoDeEntrada, type DeploymentPosition, type Mesa, type TamanoCm } from '@/domain/deployment'
 import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
@@ -57,6 +58,7 @@ import {
 } from '@/features/battles/BattleHeraldry'
 import { BattleOrderPanel } from '@/features/battles/BattleOrderPanel'
 import { useAsync } from '@/shared/hooks/useAsync'
+import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { ArrowLeftIcon, FileTextIcon, LockIcon } from '@/shared/ui/icons'
@@ -74,11 +76,18 @@ interface Bando {
   puntos: number
 }
 
-/** Lo que la heráldica necesita de un bando, sacado del bando completo. */
-function heraldicaDe(bando: Bando): BandoHeraldico {
+/**
+ * Lo que la heráldica necesita de un bando.
+ *
+ * El emblema es EL DEL EJÉRCITO, no el de su facción: una batalla es
+ * justamente donde un contingente se presenta con su propia enseña, y es el
+ * sitio donde este ajuste tiene sentido (ver domain/armyEmblem). Cuando nadie
+ * lo ha tocado —el caso normal— sale el de la facción igual que antes.
+ */
+function heraldicaDe(bando: Bando, emblemUrl: string | null): BandoHeraldico {
   return {
     nombreLista: bando.lista.name,
-    faccion: bando.lista.faction,
+    faccion: { name: bando.lista.faction.name, emblemUrl },
     color: bando.color,
     puntos: bando.puntos,
     unidades: bando.lista.entries.length,
@@ -92,6 +101,7 @@ export function BattlePage() {
   const [exportando, setExportando] = useState<string | null>(null)
   const [encima, setEncima] = useState<number | null>(null)
 
+  const { factions } = useVisibleFactions()
   const { data: batalla, loading } = useAsync(() => BattleRepository.getById(battleId), [battleId])
   const { data: etiquetas } = useAsync(() => UnitTypeTagRepository.listAll())
 
@@ -195,6 +205,13 @@ export function BattlePage() {
   const bandoSur = aEsNorte ? bandoB : bandoA
   const bandoNorte = aEsNorte ? bandoA : bandoB
   const bandos = [bandoSur, bandoNorte]
+
+  /** El emblema que le toca a este bando, resuelto una sola vez. */
+  function emblemaDe(bando: Bando): string | null {
+    return urlDelEmblemaDeLista(bando.lista, factions ?? [])
+  }
+  const heraldicaSur = heraldicaDe(bandoSur, emblemaDe(bandoSur))
+  const heraldicaNorte = heraldicaDe(bandoNorte, emblemaDe(bandoNorte))
 
   /**
    * Cuerpo de letra de las iniciales, calculado sobre las peanas DE LOS DOS
@@ -346,8 +363,8 @@ export function BattlePage() {
         {/* ---------- El cartel del enfrentamiento ---------- */}
         <CartelaDeEnfrentamiento
           titulo={batalla.name}
-          a={heraldicaDe(bandoSur)}
-          b={heraldicaDe(bandoNorte)}
+          a={heraldicaSur}
+          b={heraldicaNorte}
           medidas={`${mesa.anchoCm} × ${mesa.altoCm} cm`}
           mapa={nombreDelMapa}
         />
@@ -375,7 +392,7 @@ export function BattlePage() {
               la mesa pasaba por detrás de los rótulos, que es lo que hacía que
               parecieran pegados encima en vez de formar parte de la lámina. */}
           <div className="w-full self-start overflow-hidden rounded-sm border-2 border-ink/80 outline outline-1 outline-offset-[3px] outline-rule-dark/40 xl:order-2">
-            <EstandarteDeBando bando={heraldicaDe(bandoNorte)} posicion="arriba" />
+            <EstandarteDeBando bando={heraldicaNorte} posicion="arriba" />
 
             <div
               style={{ aspectRatio: `${mesa.anchoCm} / ${mesa.altoCm}`, containerType: 'inline-size' }}
@@ -521,7 +538,7 @@ export function BattlePage() {
               )}
             </div>
 
-            <EstandarteDeBando bando={heraldicaDe(bandoSur)} posicion="abajo" />
+            <EstandarteDeBando bando={heraldicaSur} posicion="abajo" />
           </div>
 
           {/* El del SUR a la izquierda y el del NORTE a la derecha, el mismo
@@ -530,6 +547,7 @@ export function BattlePage() {
           <div className="xl:order-1">
             <BattleOrderPanel
               lista={bandoSur.lista}
+              emblemUrl={emblemaDe(bandoSur)}
               color={bandoSur.color}
               puntos={bandoSur.puntos}
               refPorEntrada={bandoSur.refPorEntrada}
@@ -541,6 +559,7 @@ export function BattlePage() {
           <div className="xl:order-3">
             <BattleOrderPanel
               lista={bandoNorte.lista}
+              emblemUrl={emblemaDe(bandoNorte)}
               color={bandoNorte.color}
               puntos={bandoNorte.puntos}
               refPorEntrada={bandoNorte.refPorEntrada}

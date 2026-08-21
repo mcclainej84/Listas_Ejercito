@@ -13,6 +13,38 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.140 — 21/08/2026 11:42
+
+- **Guardar el despliegue avisa si hay unidades pasada la línea central**, dice
+  cuáles, y deja continuar. Se mira la PEANA ENTERA y no su centro: una unidad
+  cuyo centro está en su mitad pero cuyo frente ya ha cruzado está cruzando
+  igual, y es justo el caso que se cuela sin darse cuenta.
+  - **Avisa, no prohíbe.** Cruzar no es legal en una partida normal, pero hay
+    escenarios y reglas que lo permiten, y este programa dibuja lo que el
+    jugador quiere colocar: no arbitra. Un programa que decide por su cuenta
+    que algo es imposible se equivoca justo en el caso raro, que es cuando más
+    molesta.
+- **Emblema propio de cada ejército.** Por defecto el de su facción —el caso
+  normal, y por eso las dos columnas nuevas nacen a NULL, que significa
+  exactamente eso—, y si se quiere, el de **otra facción** o **una imagen
+  propia**. Se cambia en "Editar lista".
+  - **No es un emblema de facción y esa es la diferencia importante.** El de
+    una facción es del catálogo: lo comparte todo el que la juegue y cambiarlo
+    se lo cambia a todos. Este pertenece a UNA lista y a nadie más. Existe para
+    la excepción —la hueste de un señor concreto que se presenta a la batalla
+    con su propia enseña—, no para renombrar facciones por la puerta de atrás.
+  - Se ve en el **listado de Ejércitos**, en la cabecera del **constructor** (en
+    pequeño: ahí es una seña de identidad, no el asunto de la pantalla) y en la
+    **batalla**, tanto en la cartela como en cada orden de batalla.
+  - Mismo recuadro que los emblemas de facción en todas partes; una imagen
+    propia se comprime a 480 px, el tamaño con el que se guardan aquellos.
+  - Columnas nuevas: `army_lists.emblem_faction_id` y `army_lists.emblem_key`.
+    Se escriben siempre las dos a la vez aunque solo cambie una: son
+    excluyentes, y guardarlas por separado dejaría estados en los que la
+    anterior sigue puesta y sigue mandando.
+
+---
+
 ## 0.139 — 21/08/2026 11:27
 
 - **Corregido: la batalla se salía de la pantalla por la izquierda.** La

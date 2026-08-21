@@ -912,6 +912,18 @@ const MIGRATIONS: string[] = [
   // en el listado común y cualquiera puede cargarla.
   // --------------------------------------------------------------------------
   'ALTER TABLE battle_maps ADD COLUMN image_key TEXT',
+  // --------------------------------------------------------------------------
+  // EMBLEMA DE UN EJÉRCITO CONCRETO. No es un emblema de facción: es el de ESTA
+  // lista y solo de ella. Casi siempre valdrá el de su facción —de ahí que las
+  // dos columnas empiecen a NULL, que significa exactamente eso— y existe para
+  // la excepción: la hueste de un señor concreto, un contingente, un ejército
+  // que se presenta a una batalla con su propia enseña.
+  //   · emblem_faction_id: el emblema de OTRA facción del catálogo.
+  //   · emblem_key: una imagen propia subida a R2. Manda sobre la anterior.
+  //   · las dos a NULL: el de la facción de la lista. Es el caso normal.
+  // --------------------------------------------------------------------------
+  'ALTER TABLE army_lists ADD COLUMN emblem_faction_id INTEGER REFERENCES factions(id)',
+  'ALTER TABLE army_lists ADD COLUMN emblem_key TEXT',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {
