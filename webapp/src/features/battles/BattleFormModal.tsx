@@ -92,8 +92,14 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
   const mismoEjercito = aId != null && aId === bId
   const motivoEscenario = a && b && !mismoEjercito ? motivoDeEscenarioDistinto(a, b) : null
 
+  /**
+   * "Sin dato todavía" NO es "sin despliegue". Mientras el recuento no ha
+   * llegado —o si su consulta falla— no se avisa: avisar de algo que no se sabe
+   * es peor que no avisar, porque el aviso se lee como un hecho comprobado.
+   */
   function sinDespliegue(l: ArmyListSummary | null): boolean {
-    return l != null && (despliegues?.get(l.id) ?? 0) === 0
+    if (l == null || despliegues == null) return false
+    return (despliegues.get(l.id) ?? 0) === 0
   }
   const faltanDespliegues = [a, b].filter(sinDespliegue) as ArmyListSummary[]
 

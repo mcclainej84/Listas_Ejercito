@@ -13,6 +13,24 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.135 — 21/08/2026 10:38
+
+- **Corregido: el alta de una batalla avisaba de que a los ejércitos "les falta
+  el despliegue" aunque lo tuvieran.** Y avisaba de los dos, siempre. El
+  recuento de peanas contaba por `army_list_deployments.army_list_id`, una
+  columna **que no existe**: una peana se guarda por ENTRADA (`entry_id`) y a
+  la lista se llega por `army_list_entries`, como ya hacía `getDeployment` diez
+  líneas más arriba en el mismo archivo. La consulta reventaba entera y el
+  recuento se quedaba vacío.
+- **Y el aviso no se conformaba con no saber.** "Sin dato todavía" y "cero
+  peanas" se estaban tratando como lo mismo, así que un recuento que no llegaba
+  —por el fallo de arriba, o por la red— se leía como un hecho comprobado.
+  Ahora, mientras no hay recuento no se avisa: un aviso falso sobre algo
+  comprobable es peor que no avisar, porque quien lo lee no tiene forma de
+  saber que es falso.
+
+---
+
 ## 0.134 — 21/08/2026 10:35
 
 - **La ficha emergente de la batalla deja de verse translúcida**, que era un

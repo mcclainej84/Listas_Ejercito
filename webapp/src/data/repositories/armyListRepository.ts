@@ -337,12 +337,21 @@ export const ArmyListRepository = {
   async contarDespliegues(armyListIds: number[]): Promise<Map<number, number>> {
     const total = new Map<number, number>()
     if (armyListIds.length === 0) return total
+    // OJO: `army_list_deployments` NO tiene columna `army_list_id`. Una peana
+    // se guarda por ENTRADA (entry_id) y a la lista se llega por
+    // `army_list_entries`, igual que hace `getDeployment` un poco más arriba.
+    // Contarlas por una columna que no existe fue justo el fallo que hacía que
+    // el formulario de Batallas avisara de "no tiene despliegue creado" para
+    // los DOS ejércitos aunque los dos lo tuvieran: la consulta reventaba, el
+    // recuento se quedaba vacío, y "sin dato" y "cero peanas" se estaban
+    // tratando como lo mismo.
     const marcas = armyListIds.map(() => '?').join(',')
     const filas = await query(
-      `SELECT army_list_id, COUNT(*) AS n
-         FROM army_list_deployments
-        WHERE army_list_id IN (${marcas})
-        GROUP BY army_list_id`,
+      `SELECT e.army_list_id AS army_list_id, COUNT(*) AS n
+         FROM army_list_deployments d
+         JOIN army_list_entries e ON e.id = d.entry_id
+        WHERE e.army_list_id IN (${marcas})
+        GROUP BY e.army_list_id`,
       armyListIds,
       (r) => ({ id: r.army_list_id as number, n: r.n as number }),
     )
