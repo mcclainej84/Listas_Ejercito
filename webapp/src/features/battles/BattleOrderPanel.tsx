@@ -16,7 +16,7 @@
 // ============================================================================
 import { clsx } from 'clsx'
 import { categoryInsertRank, computeEntryCost } from '@/domain/armyValidation'
-import { textoSobre } from '@/domain/factionColor'
+import { estiloDePeana } from '@/domain/factionColor'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { EntryDetailCard } from '@/features/army-lists/EntryDetailCard'
 import { FactionEmblem } from '@/shared/ui/FactionEmblem'
@@ -58,12 +58,29 @@ function agruparPorCategoria(entradas: ArmyListEntry[]): GrupoDeCategoria[] {
   return [...grupos.values()].sort((x, y) => categoryInsertRank(x.clave) - categoryInsertRank(y.clave))
 }
 
-/** La marca de la unidad: llena y del color de su facción si está en la mesa. */
-function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color: string; resaltada: boolean }) {
+/**
+ * La marca de la unidad: la MISMA PEANA que hay sobre la mesa, en pequeño.
+ *
+ * Dos decisiones, y las dos vienen de haberlas hecho mal antes:
+ *
+ *   · EL COLOR ES EL DE LA UNIDAD, no el de la lista. Sobre la mesa cada peana
+ *     se pinta con el color de la facción de SU unidad, así que pintar aquí el
+ *     de la lista dejaba las marcas de un color y las peanas de otro en cuanto
+ *     un ejército llevaba aliados. Una referencia que no coincide con lo que
+ *     señala no es una referencia. Y va con `estiloDePeana`, la misma pintura
+ *     desgastada: un plano liso al lado de la mesa tampoco se reconoce.
+ *
+ *   · EL ANCHO ES ELÁSTICO. Las referencias no son una letra: son el alias de
+ *     la unidad y, si se repite, su número — "GS1", "CDR2". En un cuadrado fijo
+ *     de 28 px eso se salía por los lados. Alto fijo para que la columna no
+ *     baile, ancho mínimo para que las cortas no queden ridículas, y que crezca
+ *     lo que haga falta.
+ */
+function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color: string | null; resaltada: boolean }) {
   if (ref_ == null) {
     return (
       <span
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-[2px] border border-dashed border-rule-dark/45 text-mini text-ink-soft/40"
+        className="inline-flex h-7 min-w-9 items-center justify-center rounded-[2px] border border-dashed border-rule-dark/45 px-1.5 text-mini text-ink-soft/40"
         title="No está desplegada sobre la mesa"
       >
         —
@@ -73,10 +90,10 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
   return (
     <span
       className={clsx(
-        'grid h-7 w-7 shrink-0 place-items-center rounded-[2px] border text-xs leading-none font-bold transition-shadow',
+        'inline-flex h-7 min-w-9 items-center justify-center overflow-hidden rounded-[2px] border px-1.5 text-mini leading-none font-bold tracking-tight transition-shadow',
         resaltada ? 'border-ink shadow-[0_0_0_2px_var(--color-maroon)]' : 'border-ink/60',
       )}
-      style={{ backgroundColor: color, color: textoSobre(color) }}
+      style={estiloDePeana(color)}
     >
       {ref_}
     </span>
@@ -92,9 +109,24 @@ export interface BattleOrderPanelProps {
   /** Entrada sobre la que está el ratón, sea desde aquí o desde la mesa. */
   encima: number | null
   onEncima: (id: number | null) => void
+  /**
+   * Hacia dónde se abre la ficha emergente. Con los dos órdenes de batalla a
+   * los lados de la mesa, la ficha es más ancha que su panel: la del panel
+   * izquierdo tiene que crecer hacia la derecha (sobre la mesa) y la del
+   * derecho hacia la izquierda. Al revés, se saldría de la pantalla.
+   */
+  ladoDeLaFicha?: 'izquierda' | 'derecha'
 }
 
-export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, onEncima }: BattleOrderPanelProps) {
+export function BattleOrderPanel({
+  lista,
+  color,
+  puntos,
+  refPorEntrada,
+  encima,
+  onEncima,
+  ladoDeLaFicha = 'derecha',
+}: BattleOrderPanelProps) {
   const entradas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
   const grupos = agruparPorCategoria(entradas)
   const enMesa = entradas.filter((e) => refPorEntrada.has(e.id)).length
@@ -115,13 +147,16 @@ export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, 
 
       <header className="flex items-center gap-3 border-b border-rule-dark/25 px-4 pt-4 pb-3">
         <FactionEmblem faction={lista.faction} size="sm" />
+        {/* TRES LÍNEAS y no dos. Con el panel al costado de la mesa la columna
+            es estrecha, y meter facción y recuentos en el mismo renglón acababa
+            en "Bretonia · 18 unidades · 14 en la…", que es peor que no decirlo:
+            el dato que se corta es justo el que se venía a mirar. */}
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-display text-lg leading-tight font-semibold text-ink">{lista.name}</h2>
-          <p className="truncate text-mini text-ink-soft">
-            {lista.faction.name}
-            <span className="text-ink-soft/50"> · </span>
+          <p className="truncate text-mini leading-snug text-ink-soft">{lista.faction.name}</p>
+          <p className="truncate text-micro leading-snug text-ink-soft/70">
             {entradas.length} {entradas.length === 1 ? 'unidad' : 'unidades'}
-            <span className="text-ink-soft/50"> · </span>
+            <span className="text-ink-soft/45"> · </span>
             {enMesa} en la mesa
           </p>
         </div>
@@ -158,7 +193,11 @@ export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, 
                       resaltada ? 'bg-bronze/15' : 'hover:bg-bronze/8',
                     )}
                   >
-                    <MarcaDeUnidad ref_={marca} color={color} resaltada={resaltada} />
+                    {/* Celda de ancho fijo: la marca crece con su texto, pero
+                        los nombres tienen que seguir alineados entre filas. */}
+                    <span className="flex w-14 shrink-0 justify-start">
+                      <MarcaDeUnidad ref_={marca} color={entry.unit.faction.color} resaltada={resaltada} />
+                    </span>
 
                     <span
                       className={clsx(
@@ -186,7 +225,8 @@ export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, 
                       // recuadro del tamaño justo.
                       <div
                         className={clsx(
-                          'pointer-events-none absolute right-0 z-50 w-[23rem] max-w-[calc(100vw-3rem)]',
+                          'pointer-events-none absolute z-50 w-[23rem] max-w-[calc(100vw-3rem)]',
+                          ladoDeLaFicha === 'izquierda' ? 'left-0' : 'right-0',
                           (posicionDeFila.get(entry.id) ?? 0) >= orden.length - ULTIMAS
                             ? 'bottom-full pb-1.5'
                             : 'top-full pt-1.5',

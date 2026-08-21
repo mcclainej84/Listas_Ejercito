@@ -13,6 +13,40 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.138 — 21/08/2026 11:21
+
+- **Los dos órdenes de batalla, a los LADOS de la mesa.** Debajo y en dos
+  columnas sobraba media pantalla a izquierda y derecha mientras las listas se
+  estiraban a lo ancho sin necesitarlo —una lista es una columna estrecha por
+  naturaleza— y la mesa quedaba a una pantalla de scroll de ellas, que es justo
+  lo que hay que mirar a la vez. A los lados, las tres cosas caben de una vez y
+  cada una ocupa la forma que le corresponde. El del sur a la izquierda y el
+  del norte a la derecha, el mismo reparto que la cartela: si el ojo aprende
+  que la izquierda es de uno, no puede cambiar dos bloques más abajo.
+  - Solo en pantallas anchas. Por debajo se apilan, y **la mesa va primera**:
+    es lo que se ha venido a ver.
+  - Y la ficha emergente se abre hacia la mesa —a la derecha en el panel
+    izquierdo, a la izquierda en el derecho—: es más ancha que su panel, así
+    que hacia fuera se saldría de la pantalla.
+- **La marca de cada unidad ES SU PEANA, en pequeño.** Antes se pintaba con el
+  color de la LISTA mientras la mesa usa el de la facción de cada UNIDAD, así
+  que en cuanto un ejército llevaba aliados las marcas decían un color y las
+  peanas otro. Una referencia que no coincide con lo que señala no es una
+  referencia. Ahora comparten color y también pintura: el mismo `estiloDePeana`
+  con su desgaste, porque un plano liso tampoco se reconoce al lado de la mesa.
+- **Y deja de salirse el texto.** Las referencias no son una letra: son el
+  alias de la unidad y, si se repite, su número —"GS1", "CDR2"—, y en un
+  cuadrado fijo de 28 px eso se salía por los lados. Alto fijo para que la
+  columna no baile, ancho mínimo para que las cortas no queden ridículas, y que
+  crezca lo que haga falta dentro de una celda de ancho fijo, para que los
+  nombres sigan alineados.
+- **La cabecera de cada orden de batalla, en tres líneas.** Con el panel al
+  costado la columna es estrecha y facción + recuentos en el mismo renglón
+  acababa en "Bretonia · 18 unidades · 14 en la…": el dato que se cortaba era
+  justo el que se venía a mirar.
+
+---
+
 ## 0.137 — 21/08/2026 11:15
 
 - **Filtro de estado en Ejércitos: Todos · Completados · Sin completar.** Por

@@ -334,13 +334,29 @@ export function BattlePage() {
         mapa={nombreDelMapa}
       />
 
-      {/* ---------- La mesa ---------- */}
-      <div className="wh-surgir mb-5 flex justify-center" style={{ animationDelay: '90ms' }}>
+      {/* ======================================================================
+          EL REPARTO: los dos órdenes de batalla A LOS LADOS de la mesa.
+          Debajo, uno al lado del otro, sobraba media pantalla a izquierda y
+          derecha mientras las listas se estiraban a lo ancho sin necesitarlo —
+          una lista es una columna estrecha por naturaleza— y la mesa quedaba a
+          una pantalla de scroll de ellas, justo lo que hay que mirar a la vez.
+          A los lados, las tres cosas caben de una vez y cada una ocupa la forma
+          que le corresponde.
+
+          Solo en pantallas anchas (xl). Por debajo se apilan, y la MESA VA
+          PRIMERA: es lo que se ha venido a ver. De ahí el orden del DOM —mesa,
+          sur, norte— y los `xl:order-*` que lo recolocan.
+          ================================================================== */}
+      <div
+        className="wh-surgir mb-5 grid items-start gap-4 xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)_minmax(0,19rem)]"
+        style={{ animationDelay: '90ms' }}
+      >
+        {/* ---------- La mesa ---------- */}
         {/* UN SOLO MARCO para los tres: estandarte de arriba, mesa y estandarte
             de abajo. Antes cada pieza llevaba el suyo y el filete exterior de
             la mesa pasaba por detrás de los rótulos, que es lo que hacía que
             parecieran pegados encima en vez de formar parte de la lámina. */}
-        <div className="w-full max-w-5xl overflow-hidden rounded-sm border-2 border-ink/80 outline outline-1 outline-offset-[3px] outline-rule-dark/40">
+        <div className="w-full self-start overflow-hidden rounded-sm border-2 border-ink/80 outline outline-1 outline-offset-[3px] outline-rule-dark/40 xl:order-2">
           <EstandarteDeBando bando={heraldicaDe(bandoNorte)} posicion="arriba" />
 
           <div
@@ -488,21 +504,32 @@ export function BattlePage() {
 
           <EstandarteDeBando bando={heraldicaDe(bandoSur)} posicion="abajo" />
         </div>
-      </div>
 
-      {/* ---------- Los dos órdenes de batalla ---------- */}
-      <div className="wh-surgir grid gap-4 lg:grid-cols-2" style={{ animationDelay: '160ms' }}>
-        {bandos.map((bando) => (
+        {/* El del SUR a la izquierda y el del NORTE a la derecha, el mismo
+            reparto que en la cartela de arriba: si el ojo aprende que la
+            izquierda es de uno, no puede cambiar dos bloques más abajo. */}
+        <div className="xl:order-1">
           <BattleOrderPanel
-            key={bando.lista.id}
-            lista={bando.lista}
-            color={bando.color}
-            puntos={bando.puntos}
-            refPorEntrada={bando.refPorEntrada}
+            lista={bandoSur.lista}
+            color={bandoSur.color}
+            puntos={bandoSur.puntos}
+            refPorEntrada={bandoSur.refPorEntrada}
             encima={encima}
             onEncima={setEncima}
+            ladoDeLaFicha="izquierda"
           />
-        ))}
+        </div>
+        <div className="xl:order-3">
+          <BattleOrderPanel
+            lista={bandoNorte.lista}
+            color={bandoNorte.color}
+            puntos={bandoNorte.puntos}
+            refPorEntrada={bandoNorte.refPorEntrada}
+            encima={encima}
+            onEncima={setEncima}
+            ladoDeLaFicha="derecha"
+          />
+        </div>
       </div>
     </div>
   )
