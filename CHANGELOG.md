@@ -13,6 +13,24 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.137 — 21/08/2026 11:15
+
+- **Filtro de estado en Ejércitos: Todos · Completados · Sin completar.** Por
+  defecto, todos. Es deliberadamente discreto —tres palabras y un filete, sin
+  caja ni fondo—: que un ejército esté completado es un dato de una sola letra
+  y no merece un control con presencia. Lo que sí merece es llevar el
+  **recuento** al lado de cada opción, para que informe aunque no se toque
+  (cuántos llevas cerrados y cuántos te quedan) en vez de ser tres botones
+  mudos. Con una sola lista no aparece: elegir entre ella y ella misma es ruido.
+- **Los ejércitos se ordenan por FECHA DE CREACIÓN**, del más nuevo al más
+  viejo. Iban por fecha de modificación, y eso hacía que el listado se
+  reordenara solo: tocabas un ejército y saltaba al principio, así que el sitio
+  donde estaba cada uno no significaba nada y había que volver a buscarlo cada
+  vez. La fecha de creación no cambia nunca, y un listado estable se aprende de
+  memoria. Los tuyos siguen yendo antes que los compartidos contigo.
+
+---
+
 ## 0.136 — 21/08/2026 10:49
 
 - **Los dos ejércitos de una batalla tienen que desplegar en lados DISTINTOS.**

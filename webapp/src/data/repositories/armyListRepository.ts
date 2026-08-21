@@ -166,6 +166,12 @@ export const ArmyListRepository = {
    * de cada uno (es el concepto central de la sección). Las que quedaran sin
    * dueño de antes de existir los usuarios se asignan al usuario "admin" con
    * una corrección de datos, en vez de mostrarse a todo el mundo.
+   *
+   * ORDEN: por FECHA DE CREACIÓN, de la más nueva a la más vieja. Antes iban
+   * por `updated_at`, y eso hacía que la lista se reordenara sola: tocabas un
+   * ejército y saltaba al principio, así que el sitio donde estaba cada uno no
+   * significaba nada y había que volver a buscarlo cada vez. La fecha de
+   * creación no cambia nunca, y un listado estable se aprende de memoria.
    */
   async listAll(userId: number): Promise<ArmyListSummary[]> {
     // Dos orígenes en una sola consulta: las TUYAS y las que te han
@@ -185,7 +191,7 @@ export const ArmyListRepository = {
        JOIN factions f ON f.id = al.faction_id
        WHERE al.user_id = ?1
           OR EXISTS (SELECT 1 FROM army_list_shares s WHERE s.army_list_id = al.id AND s.user_id = ?1)
-       ORDER BY es_mia DESC, al.updated_at DESC`
+       ORDER BY es_mia DESC, al.created_at DESC, al.id DESC`
 
     const mapear = (row: Record<string, unknown>): ArmyListSummary => {
       const mia = (row.es_mia as number) !== 0
@@ -208,7 +214,7 @@ export const ArmyListRepository = {
          FROM army_lists al
          JOIN factions f ON f.id = al.faction_id
          WHERE al.user_id = ?
-         ORDER BY al.updated_at DESC`,
+         ORDER BY al.created_at DESC, al.id DESC`,
         [userId],
         mapear,
       )

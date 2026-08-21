@@ -20,6 +20,61 @@ import { ArmyListFormModal } from '@/features/army-lists/ArmyListFormModal'
 import { CompositionRulesModal } from '@/features/army-lists/CompositionRulesModal'
 import { ShareArmyListModal } from '@/features/army-lists/ShareArmyListModal'
 
+/** Qué ejércitos se enseñan. Por defecto, todos. */
+type FiltroDeEstado = 'todos' | 'completados' | 'pendientes'
+
+const FILTROS: { clave: FiltroDeEstado; etiqueta: string }[] = [
+  { clave: 'todos', etiqueta: 'Todos' },
+  { clave: 'completados', etiqueta: 'Completados' },
+  { clave: 'pendientes', etiqueta: 'Sin completar' },
+]
+
+/**
+ * El filtro de estado: tres palabras y un filete, sin caja ni fondo.
+ *
+ * Discreto a propósito. Un ejército está completado o no lo está; es un dato
+ * de una sola letra y no merece un control con presencia. Lo que sí merece es
+ * llevar el RECUENTO al lado de cada opción: así el filtro informa aunque no
+ * se toque —cuántas llevas cerradas y cuántas te quedan— en vez de ser tres
+ * botones mudos.
+ */
+function FiltroDeEstadoSelector({
+  valor,
+  onChange,
+  recuentos,
+}: {
+  valor: FiltroDeEstado
+  onChange: (v: FiltroDeEstado) => void
+  recuentos: Record<FiltroDeEstado, number>
+}) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <span aria-hidden className="h-px flex-1 bg-rule-dark/20" />
+      <div role="group" aria-label="Filtrar por estado" className="flex items-center gap-0.5">
+        {FILTROS.map((f, i) => (
+          <span key={f.clave} className="flex items-center">
+            {i > 0 && <span aria-hidden className="mx-1 h-3 w-px bg-rule-dark/25" />}
+            <button
+              type="button"
+              aria-pressed={valor === f.clave}
+              onClick={() => onChange(f.clave)}
+              className={clsx(
+                'rounded-sm px-1.5 py-0.5 text-mini transition-colors',
+                valor === f.clave ? 'font-semibold text-maroon' : 'text-ink-soft/70 hover:bg-bronze/10 hover:text-ink',
+              )}
+            >
+              {f.etiqueta}
+              <span className={clsx('ml-1 tabular-nums', valor === f.clave ? 'text-maroon/70' : 'text-ink-soft/45')}>
+                {recuentos[f.clave]}
+              </span>
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /**
  * "Mis ejércitos": listado de listas guardadas, con crear/renombrar/borrar y
  * abrir en el constructor. Sustituye al antiguo guardado/cargado como
@@ -58,6 +113,7 @@ export function ArmyListsPage() {
   // de dejar que el usuario pulse el sello y se coma un error.
   const { data: enBatalla } = useAsync(() => BattleRepository.idsDeListasEnBatalla(), [])
   const [readyError, setReadyError] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState<FiltroDeEstado>('todos')
 
   /**
    * Marca o desmarca una lista como TERMINADA. Cerrada, el constructor se abre
@@ -112,6 +168,14 @@ export function ArmyListsPage() {
     }
   }
 
+  const todas = lists ?? []
+  const recuentos: Record<FiltroDeEstado, number> = {
+    todos: todas.length,
+    completados: todas.filter((l) => l.ready).length,
+    pendientes: todas.filter((l) => !l.ready).length,
+  }
+  const visibles = filtro === 'todos' ? todas : todas.filter((l) => (filtro === 'completados' ? l.ready : !l.ready))
+
   return (
     <div>
       <PageHeader
@@ -141,7 +205,7 @@ export function ArmyListsPage() {
         </p>
       )}
 
-      {!loading && (lists ?? []).length === 0 && (
+      {!loading && todas.length === 0 && (
         <EmptyState
           title="Todavía no tienes ninguna lista"
           description='Crea la primera con "+ Nueva lista".'
@@ -154,9 +218,23 @@ export function ArmyListsPage() {
         />
       )}
 
-      {!loading && (lists ?? []).length > 0 && (
+      {/* El filtro solo aparece si hay algo que filtrar: con una lista sola,
+          tres botones para elegir entre ella y ella misma son ruido. */}
+      {!loading && todas.length > 1 && (
+        <FiltroDeEstadoSelector valor={filtro} onChange={setFiltro} recuentos={recuentos} />
+      )}
+
+      {!loading && todas.length > 0 && visibles.length === 0 && (
+        <p className="rounded-sm border border-rule-dark/30 bg-parchment/60 px-4 py-6 text-center text-sm text-ink-soft">
+          {filtro === 'completados'
+            ? 'Ninguno de tus ejércitos está marcado como completado todavía.'
+            : 'Todos tus ejércitos están completados.'}
+        </p>
+      )}
+
+      {!loading && visibles.length > 0 && (
         <div className="divide-y divide-rule-dark/20 overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment/70">
-          {(lists ?? []).map((list) => (
+          {visibles.map((list) => (
             <div
               key={list.id}
               className={clsx(
