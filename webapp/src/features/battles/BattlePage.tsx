@@ -43,7 +43,14 @@ import { imageUrl } from '@/data/network/images'
 import { computeEntryCost } from '@/domain/armyValidation'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
 import { enfrentarPosicion } from '@/domain/battle'
-import { RETICULA_CM, tamanoDeEntrada, type DeploymentPosition, type Mesa, type TamanoCm } from '@/domain/deployment'
+import {
+  RETICULA_CM,
+  limitarAMesa,
+  tamanoDeEntrada,
+  type DeploymentPosition,
+  type Mesa,
+  type TamanoCm,
+} from '@/domain/deployment'
 import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
@@ -133,7 +140,13 @@ export function BattlePage() {
     [mapaCargado?.floorId],
   )
 
-  if (loading || cargandoBandos) return <Spinner />
+  // SE ESPERA TAMBIÉN A LAS ETIQUETAS, y no es una espera de más: son las que
+  // dicen cuánto mide la peana de cada tipo de unidad. Sin ellas, `tamanoDe`
+  // se cae al tamaño genérico —más grande que la mayoría de las peanas
+  // reales— y las unidades pegadas a un borde se pintan asomando fuera de la
+  // mesa, comidas por el marco. Sus posiciones se guardaron para el tamaño de
+  // verdad; dibujarlas con otro es dibujar una mesa que no existe.
+  if (loading || cargandoBandos || etiquetas == null) return <Spinner />
 
   if (!batalla || !listaA || !listaB) {
     return (
@@ -228,8 +241,11 @@ export function BattlePage() {
   function peanasParaElLienzo() {
     return bandos.flatMap((b) =>
       b.enMesa.map((e) => {
-        const pos = b.posiciones.get(e.id)!
-        const tamano = tamanoDe(e, pos)
+        const guardada = b.posiciones.get(e.id)!
+        const tamano = tamanoDe(e, guardada)
+        // La misma red que en la pantalla, para que el PDF no enseñe una mesa
+        // distinta de la que se está mirando.
+        const pos = limitarAMesa(guardada.xCm, guardada.yCm, tamano, mesa)
         return {
           xCm: pos.xCm,
           yCm: pos.yCm,
@@ -490,8 +506,17 @@ export function BattlePage() {
 
               {bandos.map((bando, indiceBando) =>
                 bando.enMesa.map((entry, indice) => {
-                  const pos = bando.posiciones.get(entry.id)!
-                  const tamano = tamanoDe(entry, pos)
+                  const guardada = bando.posiciones.get(entry.id)!
+                  const tamano = tamanoDe(entry, guardada)
+                  // ÚLTIMA RED. La mesa es el mundo: nada se pinta fuera de
+                  // ella. El despliegue ya sujeta cada peana dentro al
+                  // colocarla, así que esto no debería hacer nada nunca; pero
+                  // si algo llega descuadrado —una peana redimensionada, un
+                  // mapa que cambió de medidas después de desplegar— es mejor
+                  // enseñarla entera en el borde que medio comida por el marco,
+                  // que es lo que parece un fallo de encuadre del mapa.
+                  const dentro = limitarAMesa(guardada.xCm, guardada.yCm, tamano, mesa)
+                  const pos = { ...guardada, ...dentro }
                   const resaltada = encima === entry.id
                   return (
                     <div

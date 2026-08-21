@@ -13,6 +13,35 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.141 — 21/08/2026 11:48
+
+- **Encontrado lo del "mapa mal encuadrado": no era el mapa, eran las peanas.**
+  Lo que se cortaba contra el marco era una unidad pintada con un tamaño que no
+  es el suyo.
+  - La causa: la pantalla no esperaba a las **etiquetas de tipo de unidad**, que
+    son las que dicen cuánto mide la peana de cada tipo. Mientras no llegaban,
+    `tamanoDe` se caía al tamaño genérico —12 × 10 cm, más grande que la mayoría
+    de las peanas reales—, y una unidad colocada pegada a un borde se pintaba
+    asomando por fuera. Sus posiciones se guardaron para el tamaño de verdad;
+    dibujarlas con otro es dibujar una mesa que no existe. Comprobado sobre
+    200.000 colocaciones al azar: con el tamaño genérico se sale **el 23 %** de
+    las peanas; el giro del bando de arriba, en cambio, no saca ninguna (0 de
+    200.000), que era la otra sospecha y queda descartada.
+  - Ahora la batalla no pinta hasta saber el tamaño de cada peana.
+  - **Y en el Despliegue lo mismo, donde además era peor**: ahí ese tamaño no
+    solo se pinta, se GUARDA — al soltar una unidad se la sujeta dentro de la
+    mesa usando su tamaño, así que con el genérico la sujeción la dejaba en un
+    sitio que no le corresponde y se escribía así. Un dibujo mal se arregla
+    repintando; un dato mal guardado, no.
+- **Última red en la batalla:** ninguna peana se pinta fuera de la mesa. No
+  debería hacer falta nunca —el despliegue ya sujeta cada una dentro—, pero si
+  algo llega descuadrado es mejor enseñarla entera en el borde que medio comida
+  por el marco, que es exactamente lo que parecía un fallo de encuadre del mapa.
+  El PDF aplica la misma red, para que no enseñe una mesa distinta de la que se
+  está mirando.
+
+---
+
 ## 0.140 — 21/08/2026 11:42
 
 - **Guardar el despliegue avisa si hay unidades pasada la línea central**, dice

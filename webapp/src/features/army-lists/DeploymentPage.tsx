@@ -705,7 +705,13 @@ export function DeploymentPage() {
     }
   }
 
-  if (loading || cargandoPlan || cargandoComparticion) return <Spinner />
+  // Las etiquetas entran en la espera a propósito: son las que dicen cuánto
+  // mide cada peana, y aquí ese dato no solo se pinta, se GUARDA — al soltar
+  // una unidad se la sujeta dentro de la mesa usando su tamaño. Con el tamaño
+  // genérico, esa sujeción deja la peana en un sitio que no le corresponde y se
+  // escribe así en la base. Un dibujo mal se arregla repintando; un dato mal
+  // guardado, no.
+  if (loading || cargandoPlan || cargandoComparticion || etiquetas == null) return <Spinner />
 
   if (!list) {
     return (
