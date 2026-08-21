@@ -215,6 +215,44 @@ export const ArmyListRepository = {
     }
   },
 
+  /**
+   * Resúmenes de listas CONCRETAS por id, sin mirar de quién son.
+   *
+   * Es la excepción a que los ejércitos sean privados, y existe por las
+   * batallas: una batalla la puede editar cualquiera, así que el formulario
+   * tiene que poder enseñar los dos ejércitos que ya tiene puestos aunque no
+   * sean del que está editando. Sin esto, abrir la batalla de otro mostraba dos
+   * desplegables en blanco y no dejaba guardar.
+   *
+   * No abre ninguna puerta nueva: hay que saber el id de antemano, y esos ids
+   * salen de una batalla, que ya es pública. Para descubrir listas ajenas sigue
+   * sin servir — eso lo hace `listAll`, que sí filtra.
+   */
+  async resumenesPorIds(ids: number[], userId: number): Promise<ArmyListSummary[]> {
+    if (ids.length === 0) return []
+    const huecos = ids.map(() => '?').join(', ')
+    return query(
+      `SELECT al.*, f.name AS faction_name,
+              (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count,
+              (SELECT u.username FROM users u WHERE u.id = al.user_id) AS owner_name,
+              al.user_id AS dueno
+       FROM army_lists al
+       JOIN factions f ON f.id = al.faction_id
+       WHERE al.id IN (${huecos})`,
+      ids,
+      (row) => {
+        const mia = (row.dueno as number | null) === userId
+        return {
+          ...mapArmyList(row),
+          factionName: row.faction_name as string,
+          entryCount: row.entry_count as number,
+          shared: !mia,
+          ownerName: mia ? null : ((row.owner_name as string) ?? null),
+        }
+      },
+    )
+  },
+
   // ---- Compartir --------------------------------------------------------
 
   /** Con quién está compartida una lista, y si a cada uno se le enseña el despliegue. */

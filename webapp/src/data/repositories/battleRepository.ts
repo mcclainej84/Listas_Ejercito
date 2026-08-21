@@ -9,6 +9,11 @@
 // sido guardar dos veces lo mismo, con dos tablas más y el deber de mantenerlas
 // iguales para siempre.
 //
+// SON DE TODOS. A diferencia de los ejércitos, que son privados de su dueño,
+// una batalla la ve y la administra cualquiera del grupo: es de solo lectura,
+// le interesa a los dos bandos por igual, y guardarla bajo llave habría
+// obligado a inventar un "compartir batalla" para volver a abrirla.
+//
 // Van por RED como las listas de ejército, no en el snapshot del catálogo: son
 // dato de partida y se leen cuando alguien abre la sección, no mil veces al
 // pintar.
@@ -63,9 +68,20 @@ export interface BattleInput {
 }
 
 export const BattleRepository = {
-  /** Las batallas del usuario. Son privadas de quien las crea, como los ejércitos. */
-  async listAll(userId: number): Promise<BattleSummary[]> {
-    return query(`${SELECT_CON_BANDOS} WHERE b.user_id = ? ORDER BY b.updated_at DESC`, [userId], mapBattle)
+  /**
+   * TODAS las batallas, las haya creado quien las haya creado.
+   *
+   * Aquí se rompe a propósito la regla de la sección de Ejércitos, donde cada
+   * lista es privada de su dueño. Una batalla no es de nadie: es el acta de una
+   * partida entre dos, y dentro no se puede tocar nada (ver BattlePage). Un
+   * dato que solo se mira y que le interesa a los dos bandos no gana nada con
+   * estar guardado bajo llave, y esconderlo obligaría a inventar un "compartir
+   * batalla" para deshacer el escondite.
+   *
+   * `user_id` se sigue guardando —dice quién la montó— pero ya no filtra.
+   */
+  async listAll(): Promise<BattleSummary[]> {
+    return query(`${SELECT_CON_BANDOS} ORDER BY b.updated_at DESC`, [], mapBattle)
   },
 
   async getById(id: number): Promise<BattleSummary | null> {

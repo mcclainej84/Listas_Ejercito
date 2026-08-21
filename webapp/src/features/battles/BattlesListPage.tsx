@@ -4,6 +4,11 @@
 // Una batalla son dos ejércitos completados enfrentados sobre la misma mesa.
 // Aquí solo se administran; verla es entrar en ella (ver BattlePage), y dentro
 // no se toca nada.
+//
+// EL LISTADO ES EL MISMO PARA TODOS. No se filtra por usuario: una batalla es
+// de solo lectura y le interesa a los dos bandos, así que la ve y la administra
+// cualquiera del grupo. Por eso el aviso de borrado dice que se la quita a
+// todos: quien borra puede no ser quien la creó.
 // ============================================================================
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -22,12 +27,7 @@ import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 export function BattlesListPage() {
   const navigate = useNavigate()
   const { user } = useSession()
-  const {
-    data: batallas,
-    loading,
-    error,
-    reload,
-  } = useAsync(() => (user ? BattleRepository.listAll(user.id) : Promise.resolve([])), [user?.id])
+  const { data: batallas, loading, error, reload } = useAsync(() => BattleRepository.listAll(), [])
 
   const [creando, setCreando] = useState(false)
   const [editando, setEditando] = useState<BattleSummary | null>(null)
@@ -41,7 +41,7 @@ export function BattlesListPage() {
     <div>
       <PageHeader
         title="Batallas"
-        description="Dos ejércitos completados, enfrentados sobre la misma mesa: los dos despliegues cara a cara, las dos listas y los PDF para llevar a la partida."
+        description="Dos ejércitos completados, enfrentados sobre la misma mesa: los dos despliegues cara a cara, las dos listas y los PDF para llevar a la partida. Las batallas las ve todo el grupo."
         actions={
           <Button variant="primary" onClick={() => setCreando(true)}>
             <PlusIcon className="h-4 w-4" />
@@ -133,8 +133,9 @@ export function BattlesListPage() {
         <ConfirmDialog
           title="Borrar batalla"
           message={
-            `¿Seguro que quieres borrar "${borrando.name}"? Se borra solo la batalla: los dos ejércitos y sus ` +
-            'despliegues se quedan como están. Al borrarla, además, sus ejércitos vuelven a poder reabrirse.'
+            `¿Seguro que quieres borrar "${borrando.name}"? Las batallas son de todos, así que desaparece ` +
+            'también para los demás jugadores, la creara quien la creara. Se borra solo la batalla: los dos ' +
+            'ejércitos y sus despliegues se quedan como están, y vuelven a poder reabrirse.'
           }
           confirmLabel="Borrar"
           onCancel={() => setBorrando(null)}

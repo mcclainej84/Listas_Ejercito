@@ -7,6 +7,11 @@
 // cambiar; lo segundo porque un ejército que no puedes ni ver no lo puedes
 // enfrentar.
 //
+// Con una excepción: al EDITAR una batalla se añaden a la lista sus dos
+// ejércitos actuales aunque no sean tuyos. Las batallas las administra
+// cualquiera, y sin esto abrir la de otro enseñaba dos desplegables vacíos y no
+// dejaba ni cambiarle el nombre.
+//
 // DOS COMPROBACIONES, Y SON DISTINTAS ENTRE SÍ:
 //
 //   · MESAS DISTINTAS → no se deja crear. Una batalla ocurre en un sitio. Con
@@ -43,9 +48,22 @@ interface BattleFormModalProps {
 
 export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFormModalProps) {
   const { data: elegibles, loading } = useAsync(async () => {
-    const todas = await ArmyListRepository.listAll(userId)
-    return todas.filter((l) => l.ready)
-  }, [userId])
+    // Los tuyos (y los compartidos contigo) completados, MÁS los dos que la
+    // batalla ya tenga puestos aunque no sean tuyos: las batallas las edita
+    // cualquiera, y si no, editar la de otro mostraba dos desplegables en
+    // blanco. Los de la batalla están completados por fuerza —una lista metida
+    // en una batalla no se puede reabrir— así que no hay que filtrarlos.
+    const [mios, deLaBatalla] = await Promise.all([
+      ArmyListRepository.listAll(userId),
+      batalla
+        ? ArmyListRepository.resumenesPorIds([batalla.armyListAId, batalla.armyListBId], userId)
+        : Promise.resolve([]),
+    ])
+    const porId = new Map<number, ArmyListSummary>()
+    for (const l of mios) if (l.ready) porId.set(l.id, l)
+    for (const l of deLaBatalla) porId.set(l.id, l)
+    return [...porId.values()]
+  }, [userId, batalla?.id])
   // Cuántas peanas tiene desplegada cada candidata, para poder avisar. Se piden
   // todas de una vez (ver contarDespliegues).
   const { data: despliegues } = useAsync(

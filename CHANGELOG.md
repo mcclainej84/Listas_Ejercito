@@ -13,6 +13,27 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.132 — 21/08/2026 09:42
+
+- **Las batallas son de todos.** El listado ya no filtra por usuario: la ve, la
+  abre, la edita y la borra cualquiera del grupo, la montara quien la montara.
+  Es la excepción deliberada a que los ejércitos sean privados, y se sostiene
+  en que una batalla no se puede tocar por dentro: un acta de solo lectura que
+  les interesa a los dos bandos no gana nada bajo llave, y esconderla habría
+  obligado a inventar un "compartir batalla" para deshacer el escondite. El
+  `user_id` se sigue guardando —dice quién la montó— pero ya no decide quién la
+  ve.
+- **Editar la batalla de otro ya no enseña dos desplegables en blanco.** El
+  formulario ofrece tus ejércitos completados **más los dos que la batalla ya
+  tenga puestos**, aunque no sean tuyos (`resumenesPorIds`). Sin eso, "de todos"
+  habría sido verdad solo para mirar: al abrir la de otro no se podía ni
+  cambiarle el nombre. Esa consulta no descubre nada ajeno por su cuenta —hay
+  que traer los ids, y salen de una batalla, que ya es pública.
+- **El aviso de borrado lo dice.** "Desaparece también para los demás
+  jugadores, la creara quien la creara": quien borra puede no ser quien creó.
+
+---
+
 ## 0.131 — 20/08/2026 23:51
 
 - **Las migraciones que fallan ya no se callan.** El bucle que las aplica en el
