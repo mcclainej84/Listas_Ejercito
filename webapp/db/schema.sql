@@ -816,6 +816,16 @@ CREATE TABLE battle_maps (
     -- Suelo de la biblioteca, con su versión (ver floor_assets). NULL = el de
     -- fábrica que diga `texture`.
     floor_id   INTEGER REFERENCES floor_assets(id),
+    -- Foto del escenario, ESTIRADA a la mesa entera (no enlosada como los
+    -- suelos: aquí la imagen ES el mapa, no su textura). Manda sobre `texture`
+    -- y sobre `floor_id`. NULL = mapa dibujado con escenografía, lo de siempre.
+    --
+    -- Vive aquí y no en la lista de ejército —donde estuvo primero— porque una
+    -- imagen pegada a una lista no tiene nombre, no la ve nadie más y el rival
+    -- no puede elegirla; y una batalla exige que los dos desplieguen sobre el
+    -- mismo sitio. Dentro del mapa, la imagen hereda nombre, listado común y
+    -- la posibilidad de que cualquiera la cargue.
+    image_key  TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

@@ -903,6 +903,15 @@ const MIGRATIONS: string[] = [
      updated_at      TEXT NOT NULL
    )`,
   'CREATE INDEX IF NOT EXISTS idx_battles_user ON battles(user_id)',
+  // --------------------------------------------------------------------------
+  // Imagen de fondo del MAPA. Antes una foto de escenario se subía suelta y se
+  // quedaba pegada a una lista de ejército (army_lists.deployment_image_key):
+  // sin nombre, invisible para los demás, e imposible de elegir por el rival —
+  // y una batalla exige que los dos desplieguen sobre el mismo sitio. Al vivir
+  // en el mapa, la imagen hereda todo lo que un mapa ya es: tiene nombre, sale
+  // en el listado común y cualquiera puede cargarla.
+  // --------------------------------------------------------------------------
+  'ALTER TABLE battle_maps ADD COLUMN image_key TEXT',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

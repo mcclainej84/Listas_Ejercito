@@ -61,7 +61,24 @@ export function estiloDeSueloDeMapa(
   suelo: FloorAsset | null,
   anchoCm: number,
   altoCm: number,
+  /**
+   * Foto del escenario del propio mapa. Si la hay, MANDA sobre el suelo y sobre
+   * la textura, y se estira a la mesa entera en vez de enlosarse: en un suelo la
+   * imagen es la textura del tablero y se repite; aquí la imagen ES el mapa —
+   * este bosque, este río, este puente— y repetirla lo destruiría. Tampoco se
+   * vela con pergamino: un suelo se aclara para no competir con las peanas,
+   * pero aclarar el mapa sería borrar lo que se ha ido a ver.
+   */
+  imagenFondoUrl?: string | null,
 ): CSSProperties {
+  if (imagenFondoUrl) {
+    return {
+      backgroundColor: PERGAMINO,
+      backgroundImage: `url("${imagenFondoUrl}")`,
+      backgroundSize: '100% 100%',
+      backgroundRepeat: 'no-repeat',
+    }
+  }
   if (!suelo?.imageUrl) return estiloDeSuelo(textura)
   const velo = Math.min(1, Math.max(0, 1 - suelo.opacity))
   const anchoLosa = (suelo.tileCm / anchoCm) * 100

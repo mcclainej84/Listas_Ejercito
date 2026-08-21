@@ -111,8 +111,9 @@ export function BattlePage() {
   const listaA = datos?.listaA ?? null
   const listaB = datos?.listaB ?? null
 
-  // El mapa y su suelo salen del bando A, el anfitrión. Los dos comparten mesa
-  // por obligación, así que mirar la de A es mirar la de los dos.
+  // El mapa y su suelo salen de la lista A. Los dos comparten mesa por
+  // obligación (si no, no se deja crear la batalla), así que mirar la de una es
+  // mirar la de las dos.
   const { data: mapaCargado } = useAsync(
     () => (listaA?.battleMapId ? MapRepository.getById(listaA.battleMapId) : Promise.resolve(null)),
     [listaA?.battleMapId],
@@ -143,7 +144,13 @@ export function BattlePage() {
   const mesa: Mesa = mapaCargado
     ? { anchoCm: mapaCargado.anchoCm, altoCm: mapaCargado.altoCm }
     : { anchoCm: listaA.tableWidthCm, altoCm: listaA.tableHeightCm }
-  const imagenFondoUrl = !mapaCargado && listaA.deploymentImageKey ? imageUrl(listaA.deploymentImageKey) : null
+  // Del mapa si lo hay (lo normal), y si no de la imagen suelta de la lista,
+  // que es como se guardaban las fotos antes de que fueran mapas.
+  const imagenFondoUrl = mapaCargado
+    ? mapaCargado.imageUrl
+    : listaA.deploymentImageKey
+      ? imageUrl(listaA.deploymentImageKey)
+      : null
 
   function tamanoDe(entry: ArmyListEntry, pos: DeploymentPosition | undefined): TamanoCm {
     const etiqueta = etiquetas?.find((t) => t.id === entry.unit.typeTag?.id)
@@ -173,9 +180,21 @@ export function BattlePage() {
     }
   }
 
-  const bandoA = prepararBando(listaA, datos?.planA ?? [], false)
-  const bandoB = prepararBando(listaB, datos?.planB ?? [], true)
-  const bandos = [bandoA, bandoB]
+  // QUIÉN SE GIRA LO DICE EL LADO, no el orden en que se eligieron los
+  // ejércitos. La mesa se pinta desde el sur, así que el del sur va tal cual y
+  // el del norte se da media vuelta. Girar siempre "el segundo" ponía arriba a
+  // quien había elegido el sur en cuanto alguien creara la batalla al revés.
+  //
+  // Que los dos lados sean distintos está garantizado en el alta (ver
+  // motivoDeLadoRepetido); si aun así llegara una batalla vieja con los dos
+  // iguales, el `else` la pinta como antes en vez de dejarlos superpuestos.
+  const aEsNorte = listaA.deploymentSide === 'norte' && listaB.deploymentSide !== 'norte'
+  const bandoA = prepararBando(listaA, datos?.planA ?? [], aEsNorte)
+  const bandoB = prepararBando(listaB, datos?.planB ?? [], !aEsNorte)
+  /** El de abajo primero: es el orden en que se leen la mesa y los estandartes. */
+  const bandoSur = aEsNorte ? bandoB : bandoA
+  const bandoNorte = aEsNorte ? bandoA : bandoB
+  const bandos = [bandoSur, bandoNorte]
 
   /**
    * Cuerpo de letra de las iniciales, calculado sobre las peanas DE LOS DOS
@@ -266,7 +285,7 @@ export function BattlePage() {
     }
   }
 
-  const nombreDelMapa = mapaCargado?.name ?? (imagenFondoUrl ? 'Mapa cargado como imagen' : 'Mesa sin mapa')
+  const nombreDelMapa = mapaCargado?.name ?? (imagenFondoUrl ? 'Imagen suelta de la lista' : 'Mesa sin mapa')
 
   return (
     <div className="-mx-6 -my-8 px-6 py-4 xl:-mx-[max(0px,calc((100vw-56rem)/2))]">
@@ -309,8 +328,8 @@ export function BattlePage() {
       {/* ---------- El cartel del enfrentamiento ---------- */}
       <CartelaDeEnfrentamiento
         titulo={batalla.name}
-        a={heraldicaDe(bandoA)}
-        b={heraldicaDe(bandoB)}
+        a={heraldicaDe(bandoSur)}
+        b={heraldicaDe(bandoNorte)}
         medidas={`${mesa.anchoCm} × ${mesa.altoCm} cm`}
         mapa={nombreDelMapa}
       />
@@ -322,7 +341,7 @@ export function BattlePage() {
             la mesa pasaba por detrás de los rótulos, que es lo que hacía que
             parecieran pegados encima en vez de formar parte de la lámina. */}
         <div className="w-full max-w-5xl overflow-hidden rounded-sm border-2 border-ink/80 outline outline-1 outline-offset-[3px] outline-rule-dark/40">
-          <EstandarteDeBando bando={heraldicaDe(bandoB)} posicion="arriba" />
+          <EstandarteDeBando bando={heraldicaDe(bandoNorte)} posicion="arriba" />
 
           <div
             style={{ aspectRatio: `${mesa.anchoCm} / ${mesa.altoCm}`, containerType: 'inline-size' }}
@@ -372,12 +391,12 @@ export function BattlePage() {
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1/2"
-              style={{ backgroundImage: `linear-gradient(to bottom, ${bandoB.color}17, transparent 85%)` }}
+              style={{ backgroundImage: `linear-gradient(to bottom, ${bandoNorte.color}17, transparent 85%)` }}
             />
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2"
-              style={{ backgroundImage: `linear-gradient(to top, ${bandoA.color}17, transparent 85%)` }}
+              style={{ backgroundImage: `linear-gradient(to top, ${bandoSur.color}17, transparent 85%)` }}
             />
 
             <div
@@ -467,7 +486,7 @@ export function BattlePage() {
             )}
           </div>
 
-          <EstandarteDeBando bando={heraldicaDe(bandoA)} posicion="abajo" />
+          <EstandarteDeBando bando={heraldicaDe(bandoSur)} posicion="abajo" />
         </div>
       </div>
 

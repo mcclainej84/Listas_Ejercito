@@ -85,6 +85,8 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useSession } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
+import { Modal } from '@/shared/ui/Modal'
+import { TextField } from '@/shared/ui/TextField'
 import { ArrowLeftIcon, CategoryShield, FileTextIcon, LockIcon, TrashIcon } from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
@@ -152,6 +154,19 @@ export function DeploymentPage() {
    */
   const [imagenKey, setImagenKey] = useState<string | null>(null)
   const [subiendoImagen, setSubiendoImagen] = useState(false)
+  /**
+   * Imagen ya subida a la que le falta el NOMBRE para convertirse en mapa. Se
+   * pregunta después de subirla y no antes porque hasta tenerla no se sabe su
+   * proporción —y por tanto qué mesa le corresponde—, y porque preguntar antes
+   * de que el archivo esté arriba es pedir un nombre para algo que todavía
+   * puede fallar.
+   */
+  const [imagenSinNombre, setImagenSinNombre] = useState<{
+    key: string
+    anchoCm: number
+    altoCm: number
+  } | null>(null)
+  const [nombreDelMapaNuevo, setNombreDelMapaNuevo] = useState('')
   const imagenRef = useRef<HTMLInputElement>(null)
   /**
    * Lado del tablero desde el que se despliega. Las peanas van SIEMPRE abajo;
@@ -160,7 +175,10 @@ export function DeploymentPage() {
   const [lado, setLado] = useState<LadoDeDespliegue>('sur')
 
   // Los mapas ocultos de otros no se ofrecen: para quien despliega no existen.
-  const { data: mapasDisponibles } = useAsync(() => MapRepository.listAll(user?.id ?? null), [user?.id])
+  const { data: mapasDisponibles, reload: recargarMapas } = useAsync(
+    () => MapRepository.listAll(user?.id ?? null),
+    [user?.id],
+  )
   const { data: mapaCargado } = useAsync(
     () => (mapaId != null ? MapRepository.getById(mapaId) : Promise.resolve(null)),
     [mapaId],
@@ -243,7 +261,11 @@ export function DeploymentPage() {
     ? { anchoCm: mapaCargado.anchoCm, altoCm: mapaCargado.altoCm }
     : (mesa ?? { anchoCm: list?.tableWidthCm ?? 180, altoCm: list?.tableHeightCm ?? 120 })
   const conMapa = mapaCargado != null
-  const imagenFondoUrl = !conMapa && imagenKey ? imageUrl(imagenKey) : null
+  // La foto del escenario puede venir de DOS sitios. Del mapa cargado, que es
+  // lo normal desde que una imagen se guarda como mapa; o de la propia lista,
+  // que es como se hacía antes y sigue funcionando para las listas que ya lo
+  // tenían. Manda el mapa: si hay mapa, la imagen suelta ni se mira.
+  const imagenFondoUrl = conMapa ? (mapaCargado?.imageUrl ?? null) : imagenKey ? imageUrl(imagenKey) : null
   /** El terreno se pinta del revés: es lo que se ve desde el norte de la mesa. */
   const girado = lado === 'norte'
 
@@ -502,11 +524,16 @@ export function DeploymentPage() {
    * Carga un mapa (o vuelve a mesa libre) y reencaja lo que se quede fuera: dos
    * mapas no tienen por qué medir lo mismo.
    */
-  function cambiarMapa(nuevoId: number | null) {
+  function cambiarMapa(nuevoId: number | null, medidas?: Mesa) {
     const destino = nuevoId != null ? mapasDisponibles?.find((m) => m.id === nuevoId) : null
-    const nuevaMesa: Mesa = destino
-      ? { anchoCm: destino.anchoCm, altoCm: destino.altoCm }
-      : { anchoCm: list?.tableWidthCm ?? 180, altoCm: list?.tableHeightCm ?? 120 }
+    // `medidas` es para el mapa RECIÉN creado, que todavía no está en
+    // `mapasDisponibles`: sin ellas se caería al tamaño de la mesa libre y las
+    // peanas se recolocarían contra un tablero que no es el suyo.
+    const nuevaMesa: Mesa =
+      medidas ??
+      (destino
+        ? { anchoCm: destino.anchoCm, altoCm: destino.altoCm }
+        : { anchoCm: list?.tableWidthCm ?? 180, altoCm: list?.tableHeightCm ?? 120 })
     setMapaId(nuevoId)
     setPosiciones((prev) => {
       const next = new Map(prev)
@@ -520,42 +547,46 @@ export function DeploymentPage() {
   }
 
   /**
-   * Sube una imagen de fondo y AJUSTA LA MESA a su proporción.
+   * Sube una imagen de escenario y la deja lista para convertirse en MAPA.
    *
-   * Lo segundo es la mitad del truco: la imagen se estira al tablero, así que si
-   * la mesa no tiene su misma proporción, el mapa sale deformado y las
-   * distancias mienten. Cambiando el fondo de la mesa para que cuadre con la
-   * imagen, se estira sin deformar y el ancho —que es lo que uno tiene decidido—
-   * no se toca. Después se puede reajustar con las barras de siempre.
+   * UNA IMAGEN CARGADA AQUÍ ES UN MAPA DEL GRUPO, no un adorno de esta lista.
+   * Antes se guardaba pegada a la lista de ejército: sin nombre, invisible para
+   * los demás y fuera del alcance del rival. Y como una batalla exige que los
+   * dos ejércitos desplieguen sobre el mismo sitio, eso hacía imposible por
+   * construcción jugar sobre una foto: el otro no tenía forma de elegirla.
+   * Convertida en mapa hereda lo que un mapa ya es —nombre, listado común,
+   * cualquiera la carga— y la batalla deja de ser imposible.
+   *
+   * LA MESA SE AJUSTA A SU PROPORCIÓN, y es la mitad del truco: la imagen se
+   * estira al tablero, así que con otra proporción el mapa sale deformado y las
+   * distancias mienten. Se calcula el alto que le corresponde al ancho actual;
+   * el ancho —que es lo que uno tiene decidido— no se toca.
    *
    * La imagen NO pasa por `prepararImagenDeEscenografia`: eso quita el fondo
    * liso y recorta al contenido, que es lo que hay que hacerle a una pieza de
    * escenografía recortada y justo lo contrario de lo que necesita la foto de un
    * escenario, donde el fondo ES el contenido.
    */
-  async function subirImagenDeFondo(file: File | undefined) {
+  async function subirImagenComoMapa(file: File | undefined) {
     if (!file) return
     setSubiendoImagen(true)
     setError(null)
     try {
       const comprimida = await compressImageFile(file, { maxSize: 2000, keepAlpha: false })
       const ext = comprimida.mime === 'image/png' ? 'png' : comprimida.mime === 'image/jpeg' ? 'jpg' : 'webp'
-      const key = `despliegue/${listId}/${await hashDeContenido(comprimida.bytes)}.${ext}`
+      // Bajo `mapas/` y no bajo `despliegue/<lista>/`: la imagen ya no es de
+      // esta lista, es del mapa que va a crearse y lo va a usar todo el grupo.
+      const key = `mapas/${await hashDeContenido(comprimida.bytes)}.${ext}`
       await uploadImageAtKey(key, comprimida.bytes, comprimida.mime)
       // Las medidas de la imagen se leen del blob que acabamos de comprimir, no
       // del archivo original: son las que de verdad se van a pintar.
       const medidas = await medirImagen(comprimida.bytes, comprimida.mime)
-      setMapaId(null)
-      setImagenKey(key)
-      if (medidas) {
-        const alto = acotar(
-          Math.round((mesaActual.anchoCm * medidas.alto) / medidas.ancho),
-          MESA_ALTO_MIN_CM,
-          MESA_ALTO_MAX_CM,
-        )
-        cambiarMesa(mesaActual.anchoCm, alto)
-      }
-      setDirty(true)
+      const altoCm = medidas
+        ? acotar(Math.round((mesaActual.anchoCm * medidas.alto) / medidas.ancho), MESA_ALTO_MIN_CM, MESA_ALTO_MAX_CM)
+        : mesaActual.altoCm
+      setImagenSinNombre({ key, anchoCm: mesaActual.anchoCm, altoCm })
+      // Nombre propuesto: el del archivo sin extensión. Es el que uno pondría.
+      setNombreDelMapaNuevo(file.name.replace(/\.[^.]+$/, '').slice(0, 60))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -563,6 +594,31 @@ export function DeploymentPage() {
     }
   }
 
+  /** Con el nombre puesto, la imagen pasa a ser un mapa y se carga en la lista. */
+  async function crearMapaDeLaImagen() {
+    if (!imagenSinNombre || !user || nombreDelMapaNuevo.trim() === '') return
+    setSubiendoImagen(true)
+    setError(null)
+    try {
+      const nuevoId = await MapRepository.crearDesdeImagen(
+        nombreDelMapaNuevo,
+        imagenSinNombre.key,
+        imagenSinNombre.anchoCm,
+        imagenSinNombre.altoCm,
+        user.id,
+      )
+      setImagenKey(null)
+      cambiarMapa(nuevoId, { anchoCm: imagenSinNombre.anchoCm, altoCm: imagenSinNombre.altoCm })
+      setImagenSinNombre(null)
+      recargarMapas()
+    } catch (err) {
+      setError(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setSubiendoImagen(false)
+    }
+  }
+
+  /** Quita la imagen SUELTA de las listas antiguas. Los mapas se quitan con "Mesa libre". */
   function quitarImagenDeFondo() {
     setImagenKey(null)
     setDirty(true)
@@ -1225,11 +1281,12 @@ export function DeploymentPage() {
                 if (v === 'libre') {
                   cambiarMapa(null)
                   quitarImagenDeFondo()
+                } else if (v === 'imagen-nueva') {
+                  // Abre el archivo directamente: elegir "cargar una imagen" y
+                  // que no pase nada sería un callejón.
+                  imagenRef.current?.click()
                 } else if (v === 'imagen') {
                   cambiarMapa(null)
-                  // Sin imagen todavía, el propio desplegable abre el archivo:
-                  // elegir "Imagen propia" y no ver nada sería un callejón.
-                  if (!imagenKey) imagenRef.current?.click()
                 } else {
                   setImagenKey(null)
                   cambiarMapa(Number(v))
@@ -1239,7 +1296,10 @@ export function DeploymentPage() {
               className="mb-3 w-full rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-xs text-ink outline-none focus:border-bronze disabled:opacity-50"
             >
               <option value="libre">Mesa libre (sin mapa)</option>
-              <option value="imagen">Imagen propia…</option>
+              <option value="imagen-nueva">Cargar una imagen como mapa…</option>
+              {/* La imagen SUELTA solo se ofrece si esta lista ya tenía una: es
+                  el modo antiguo, que se sigue respetando pero no se estrena. */}
+              {imagenKey && <option value="imagen">Imagen suelta de esta lista</option>}
               {(mapasDisponibles ?? []).map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name} — {m.anchoCm} × {m.altoCm} cm
@@ -1253,7 +1313,7 @@ export function DeploymentPage() {
               accept="image/*"
               className="hidden"
               onChange={(e) => {
-                subirImagenDeFondo(e.target.files?.[0])
+                subirImagenComoMapa(e.target.files?.[0])
                 // Se limpia para que volver a elegir EL MISMO archivo dispare el
                 // change otra vez (si no, el navegador lo considera sin cambios).
                 e.target.value = ''
@@ -1276,7 +1336,7 @@ export function DeploymentPage() {
                     onClick={() => imagenRef.current?.click()}
                     className="flex-1 rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-[10px] font-medium text-ink hover:bg-parchment-dark disabled:opacity-50"
                   >
-                    {subiendoImagen ? 'Subiendo…' : 'Cambiar'}
+                    {subiendoImagen ? 'Subiendo…' : 'Convertir en mapa…'}
                   </button>
                   <button
                     type="button"
@@ -1288,8 +1348,9 @@ export function DeploymentPage() {
                   </button>
                 </div>
                 <p className="text-[10px] leading-snug text-ink-soft/80">
-                  La imagen se estira a la mesa entera. Al subirla se ajusta el fondo de la mesa a su proporción para
-                  que no salga deformada; el ancho no se toca.
+                  Imagen suelta, del modo antiguo: <b className="text-ink">solo la ves tú</b>, así que nadie puede
+                  enfrentarse a ti sobre ella. Cárgala otra vez con «Cargar una imagen como mapa…» y pasará a ser un
+                  mapa del grupo, con nombre y elegible por cualquiera.
                 </p>
               </div>
             )}
@@ -1465,6 +1526,56 @@ export function DeploymentPage() {
           </section>
         </aside>
       </div>
+
+      {/* ---------------------------------------------------------------------
+          El nombre del mapa nuevo. Se pide DESPUÉS de subir la imagen: hasta
+          tenerla no se sabe su proporción —ni, por tanto, qué mesa le toca—, y
+          pedir un nombre para algo que todavía puede fallar al subir es pedirlo
+          dos veces. El nombre es obligatorio porque es lo único por lo que el
+          rival va a poder encontrar este mapa en su lista.
+          ------------------------------------------------------------------ */}
+      {imagenSinNombre && (
+        <Modal
+          title="Nombre del mapa"
+          onClose={() => setImagenSinNombre(null)}
+          widthClassName="max-w-sm"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setImagenSinNombre(null)} disabled={subiendoImagen}>
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                onClick={crearMapaDeLaImagen}
+                disabled={subiendoImagen || nombreDelMapaNuevo.trim() === ''}
+              >
+                {subiendoImagen ? 'Creando…' : 'Crear mapa'}
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-sm border border-rule-dark/40 bg-parchment-dark/30">
+              <img src={imageUrl(imagenSinNombre.key)} alt="" className="block w-full" />
+            </div>
+            <TextField
+              label="Cómo se llama este escenario"
+              value={nombreDelMapaNuevo}
+              onChange={(e) => setNombreDelMapaNuevo(e.target.value)}
+              autoFocus
+            />
+            <p className="text-xs leading-relaxed text-ink-soft">
+              Se creará un mapa de{' '}
+              <b className="text-ink">
+                {imagenSinNombre.anchoCm} × {imagenSinNombre.altoCm} cm
+              </b>{' '}
+              —la proporción de la imagen, para que no salga deformada— y quedará en el listado de Mapas,{' '}
+              <b className="text-ink">a la vista de todos</b>. Tiene que ser así: para jugar una batalla los dos
+              ejércitos han de desplegar sobre el mismo mapa, y nadie puede elegir uno que no ve.
+            </p>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

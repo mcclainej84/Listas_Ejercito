@@ -13,6 +13,42 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.136 — 21/08/2026 10:49
+
+- **Los dos ejércitos de una batalla tienen que desplegar en lados DISTINTOS.**
+  Si los dos han elegido el mismo borde no se están enfrentando: están
+  amontonados en el mismo sitio. Se dice y no se deja crear, igual que con las
+  mesas distintas. El lado de cada ejército sale ahora en su línea del
+  desplegable, que es donde hace falta para elegir bien.
+  - Y en la batalla, **quién se gira lo dice el lado, no el orden**: la mesa se
+    pinta desde el sur, así que el del sur va tal cual y el del norte se da
+    media vuelta. Girar siempre "el segundo" ponía arriba a quien había elegido
+    el sur en cuanto alguien creara la batalla al revés. Los rótulos del
+    formulario dejan de decir "de abajo" y "de arriba" —eso ya no lo decide el
+    orden— y pasan a ser "primer" y "segundo ejército".
+- **Una imagen cargada en el Despliegue ahora ES UN MAPA del grupo.** Se le pide
+  un nombre al subirla y queda en el listado de Mapas, a la vista de todos.
+  - No es un capricho de organización: **era una imposibilidad**. La foto se
+    guardaba pegada a la lista de ejército —sin nombre, invisible para los
+    demás, fuera del alcance del rival—, y como una batalla exige que los dos
+    desplieguen sobre el mismo sitio, jugar sobre una imagen no podía funcionar
+    nunca: el otro no tenía forma de elegirla. Convertida en mapa hereda lo que
+    un mapa ya es: nombre, listado común y que cualquiera la cargue.
+  - La mesa del mapa se calcula con la proporción de la imagen, para que se
+    estire sin deformarse; el ancho no se toca.
+  - Columna nueva: `battle_maps.image_key`. La imagen manda sobre el suelo y la
+    textura y se estira al tablero entero (un suelo se enlosa y se aclara,
+    porque es la textura de la mesa; aquí la imagen ES el mapa). Se pinta igual
+    en el editor, en el listado, en el Despliegue, en la batalla y en los PDF.
+  - **En el editor de mapas se avisa** de que con imagen el suelo elegido queda
+    debajo y no se ve: pulsar un control y que no pase nada visible es el peor
+    de los silencios.
+  - Las listas que ya tenían una imagen suelta la conservan y se sigue pintando,
+    pero el desplegable la rotula como lo que es —solo la ves tú— y ofrece
+    convertirla en mapa.
+
+---
+
 ## 0.135 — 21/08/2026 10:38
 
 - **Corregido: el alta de una batalla avisaba de que a los ejércitos "les falta

@@ -28,7 +28,7 @@
 import { useEffect, useState } from 'react'
 import { ArmyListRepository, type ArmyListSummary } from '@/data/repositories/armyListRepository'
 import { BattleRepository, type BattleSummary } from '@/data/repositories/battleRepository'
-import { motivoDeEscenarioDistinto } from '@/domain/battle'
+import { motivoDeEscenarioDistinto, motivoDeLadoRepetido, nombreDelLado } from '@/domain/battle'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
@@ -91,6 +91,7 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
 
   const mismoEjercito = aId != null && aId === bId
   const motivoEscenario = a && b && !mismoEjercito ? motivoDeEscenarioDistinto(a, b) : null
+  const motivoLado = a && b && !mismoEjercito ? motivoDeLadoRepetido(a.deploymentSide, b.deploymentSide) : null
 
   /**
    * "Sin dato todavía" NO es "sin despliegue". Mientras el recuento no ha
@@ -104,7 +105,13 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
   const faltanDespliegues = [a, b].filter(sinDespliegue) as ArmyListSummary[]
 
   const puedeGuardar =
-    name.trim().length > 0 && a != null && b != null && !mismoEjercito && motivoEscenario == null && !guardando
+    name.trim().length > 0 &&
+    a != null &&
+    b != null &&
+    !mismoEjercito &&
+    motivoEscenario == null &&
+    motivoLado == null &&
+    !guardando
 
   async function guardar() {
     if (!puedeGuardar || !a || !b) return
@@ -163,35 +170,35 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
           <div className="space-y-3">
             <TextField label="Nombre de la batalla" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
 
-            <Select
-              label="Ejército de abajo"
-              value={aId ?? ''}
-              onChange={(e) => setAId(Number(e.target.value) || null)}
-            >
+            <Select label="Primer ejército" value={aId ?? ''} onChange={(e) => setAId(Number(e.target.value) || null)}>
               <option value="">Elige un ejército…</option>
               {lista.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.name} — {l.factionName}
+                  {l.name} — {l.factionName} · {nombreDelLado(l.deploymentSide)}
                   {l.shared && l.ownerName ? ` (de ${l.ownerName})` : ''}
                 </option>
               ))}
             </Select>
 
-            <Select
-              label="Ejército de arriba"
-              value={bId ?? ''}
-              onChange={(e) => setBId(Number(e.target.value) || null)}
-            >
+            <Select label="Segundo ejército" value={bId ?? ''} onChange={(e) => setBId(Number(e.target.value) || null)}>
               <option value="">Elige un ejército…</option>
               {lista.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.name} — {l.factionName}
+                  {l.name} — {l.factionName} · {nombreDelLado(l.deploymentSide)}
                   {l.shared && l.ownerName ? ` (de ${l.ownerName})` : ''}
                 </option>
               ))}
             </Select>
 
             {mismoEjercito && <p className="text-sm text-danger">Un ejército no puede pelear contra sí mismo.</p>}
+
+            {motivoLado && (
+              <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
+                <b className="text-danger">No se pueden enfrentar:</b> {motivoLado}. Dos ejércitos en el mismo borde no
+                se están enfrentando, están amontonados en el mismo sitio. Cambia el lado de uno de los dos en su
+                pantalla de Despliegue.
+              </p>
+            )}
 
             {motivoEscenario && (
               <p className="rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">

@@ -31,7 +31,7 @@ export function MapThumbnail({ mapaId, anchoCm, altoCm }: { mapaId: number; anch
       className="relative block w-full overflow-hidden"
       style={{
         aspectRatio: `${anchoCm} / ${altoCm}`,
-        ...estiloDeSueloDeMapa(mapa?.textura ?? 'ninguna', suelo ?? null, anchoCm, altoCm),
+        ...estiloDeSueloDeMapa(mapa?.textura ?? 'ninguna', suelo ?? null, anchoCm, altoCm, mapa?.imageUrl ?? null),
       }}
     >
       <span

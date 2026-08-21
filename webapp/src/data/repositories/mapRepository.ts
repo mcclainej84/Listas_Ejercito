@@ -93,6 +93,10 @@ export const MapRepository = {
           updatedAt: row.updated_at as string,
           textura: mapTextura(row.texture),
           floorId: (row.floor_id as number) ?? null,
+          // `image_key` es de una migración reciente: con la D1 sin actualizar
+          // llega `undefined` y el mapa se pinta como siempre, sin foto.
+          imageKey: (row.image_key as string) ?? null,
+          imageUrl: row.image_key ? imageUrl(row.image_key as string) : null,
           hidden: Boolean(row.hidden),
           piezas: row.piezas as number,
         }),
@@ -109,6 +113,31 @@ export const MapRepository = {
     return exec(
       'INSERT INTO battle_maps (name, width_cm, height_cm, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       [input.name.trim(), input.anchoCm, input.altoCm, userId, now, now],
+    )
+  },
+
+  /**
+   * Crea un mapa que ES una foto de escenario: nombre, medidas y la imagen.
+   *
+   * Existe para que cargar una imagen desde el Despliegue produzca un MAPA y no
+   * un adorno privado. Antes la foto se pegaba a la lista de ejército: sin
+   * nombre, invisible para los demás y fuera del alcance del rival — y como una
+   * batalla exige que los dos desplieguen sobre el mismo sitio, con eso la
+   * batalla era imposible por construcción. Convertida en mapa, hereda lo que
+   * un mapa ya tiene: nombre, listado común y que cualquiera la cargue.
+   */
+  async crearDesdeImagen(
+    nombre: string,
+    imageKey: string,
+    anchoCm: number,
+    altoCm: number,
+    userId: number,
+  ): Promise<number> {
+    const now = new Date().toISOString()
+    return exec(
+      `INSERT INTO battle_maps (name, width_cm, height_cm, user_id, image_key, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [nombre.trim(), anchoCm, altoCm, userId, imageKey, now, now],
     )
   },
 
@@ -148,6 +177,8 @@ export const MapRepository = {
       updatedAt: row.updated_at as string,
       textura: mapTextura(row.texture),
       floorId: (row.floor_id as number) ?? null,
+      imageKey: (row.image_key as string) ?? null,
+      imageUrl: row.image_key ? imageUrl(row.image_key as string) : null,
       hidden: Boolean(row.hidden),
     }))
     if (!cabecera) return null

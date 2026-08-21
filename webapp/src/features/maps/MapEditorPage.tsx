@@ -440,7 +440,13 @@ export function MapEditorPage() {
                   ref={mesaRef}
                   style={{
                     aspectRatio: `${mesaActual.anchoCm} / ${mesaActual.altoCm}`,
-                    ...estiloDeSueloDeMapa(textura, sueloElegido, mesaActual.anchoCm, mesaActual.altoCm),
+                    ...estiloDeSueloDeMapa(
+                      textura,
+                      sueloElegido,
+                      mesaActual.anchoCm,
+                      mesaActual.altoCm,
+                      mapa?.imageUrl ?? null,
+                    ),
                   }}
                   onPointerDown={() => setSeleccionada(null)}
                   className="relative w-full touch-none overflow-hidden border-2 border-ink/80 shadow-[inset_0_0_60px_rgba(90,76,54,0.22)] outline outline-1 outline-offset-[3px] outline-rule-dark/40"
@@ -642,6 +648,15 @@ export function MapEditorPage() {
             >
               Suelo
             </Rotulo>
+            {/* Un mapa que ES una foto no tiene suelo que elegir: la imagen lo
+                tapa entero. Decirlo aquí evita el peor de los silencios —pulsar
+                un control y que no pase nada visible— y explica por qué. */}
+            {mapa?.imageUrl && (
+              <p className="mb-2 rounded-sm border border-rule-dark/30 bg-parchment-dark/40 px-2 py-1.5 text-[10px] leading-snug text-ink-soft">
+                Este mapa es una <b className="text-ink">imagen de escenario</b>, y la imagen se estira al tablero
+                entero: el suelo que elijas aquí queda debajo y no se ve. La escenografía sí se pinta encima.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               {[
                 { clave: 'ninguna', etiqueta: 'Liso', suelo: null as FloorAsset | null, textura: 'ninguna' as const },

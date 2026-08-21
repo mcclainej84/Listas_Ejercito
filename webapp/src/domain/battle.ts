@@ -9,6 +9,7 @@
 // siendo tres reglas distintas.
 // ============================================================================
 import type { DeploymentPosition, Mesa } from '@/domain/deployment'
+import type { LadoDeDespliegue } from '@/domain/types'
 
 /** Lo que hace falta de una lista para saber SOBRE QUÉ se despliega. */
 export interface EscenarioDeLista {
@@ -16,6 +17,28 @@ export interface EscenarioDeLista {
   deploymentImageKey: string | null
   tableWidthCm: number
   tableHeightCm: number
+}
+
+/** "Sur" / "Norte", para decirlo en pantalla. */
+export function nombreDelLado(lado: LadoDeDespliegue): string {
+  return lado === 'norte' ? 'Norte' : 'Sur'
+}
+
+/**
+ * ¿Los dos ejércitos despliegan en lados distintos de la mesa?
+ *
+ * Devuelve null si sí, y si no, el motivo para enseñarlo tal cual.
+ *
+ * Es una comprobación aparte de la del escenario, y no un detalle: dos
+ * ejércitos que han elegido el mismo lado NO se están enfrentando, están los
+ * dos amontonados en el mismo borde. La batalla se pintaría —girando uno de
+ * ellos— pero enseñaría una mentira: unas posiciones que nadie ha colocado.
+ * Cada jugador elige su lado en su propia pantalla de Despliegue, así que
+ * arreglarlo es cambiar uno de los dos allí.
+ */
+export function motivoDeLadoRepetido(a: LadoDeDespliegue, b: LadoDeDespliegue): string | null {
+  if (a !== b) return null
+  return `los dos despliegan por el ${nombreDelLado(a)}`
 }
 
 /**
@@ -51,11 +74,16 @@ export function motivoDeEscenarioDistinto(a: EscenarioDeLista, b: EscenarioDeLis
  * Coloca una peana del bando de ARRIBA sobre la mesa de la batalla.
  *
  * Cada ejército se despliega abajo en su propia pantalla, porque es lo cómodo
- * para quien juega (ver ArmyList.deploymentSide). Para enfrentarlos, el bando B
- * se gira 180° respecto al centro de la mesa: lo que estaba abajo queda arriba,
- * y lo que estaba a la izquierda, a la derecha. No es un espejo —un espejo
- * cambiaría el orden de las unidades de un flanco— sino media vuelta, que es lo
- * que de verdad pasa cuando te sientas al otro lado.
+ * para quien juega (ver ArmyList.deploymentSide). Para enfrentarlos, el que
+ * despliega por el NORTE se gira 180° respecto al centro de la mesa: lo que
+ * estaba abajo queda arriba, y lo que estaba a la izquierda, a la derecha. No
+ * es un espejo —un espejo cambiaría el orden de las unidades de un flanco— sino
+ * media vuelta, que es lo que de verdad pasa cuando te sientas al otro lado.
+ *
+ * QUIÉN SE GIRA LO DICE EL LADO, no el orden en que se eligieron los ejércitos:
+ * la mesa se pinta siempre desde el sur, así que el del sur va tal cual y el
+ * del norte se da la vuelta. Girar "el segundo" habría puesto arriba a quien
+ * eligió el sur en cuanto alguien creara la batalla al revés.
  */
 export function enfrentarPosicion(pos: DeploymentPosition, mesa: Mesa): DeploymentPosition {
   return { ...pos, xCm: mesa.anchoCm - pos.xCm, yCm: mesa.altoCm - pos.yCm }
