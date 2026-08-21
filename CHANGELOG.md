@@ -13,6 +13,48 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.133 — 21/08/2026 10:28
+
+- **La batalla deja de ser una lista con un mapa encima y pasa a ser un
+  cartel.** Es la única pantalla del programa donde no se trabaja: se mira. Y
+  una pantalla que solo se mira puede permitirse lo que en una de trabajo
+  estorbaría.
+  - **Cartela de enfrentamiento.** Las dos facciones cara a cara con su
+    emblema, su lista, sus unidades y cuántas hay sobre la mesa; en medio, las
+    espadas cruzadas y dónde se juega (medidas y mapa). El ancho va contenido a
+    propósito: con la pantalla muy ancha los dos bandos se iban a los extremos
+    y el enfrentamiento dejaba de leerse como tal.
+  - **Balanza de puntos.** Una barra partida por el coste de cada ejército, con
+    el fiel clavado en la mitad exacta. "1500 contra 1480" en dos cifras
+    sueltas hay que restarlo mentalmente; aquí la ventaja se ve sola, porque lo
+    que se compara no son los números sino cuánto se desplaza el color respecto
+    al fiel.
+  - **Estandartes de borde.** Quién despliega arriba y quién abajo, con su
+    color a todo lo alto por el canto, y el aviso de "Sin despliegue" ahí mismo
+    si un bando llegó sin desplegar: es la explicación de por qué media mesa
+    está vacía y hay que darla donde se mira.
+  - **Un solo marco** para estandarte + mesa + estandarte. Antes cada pieza
+    llevaba el suyo y el filete exterior de la mesa pasaba por detrás de los
+    rótulos, que es lo que los hacía parecer pegados encima.
+  - **Cada mitad de la mesa teñida de su dueño**, al 9%: dice de quién es cada
+    lado sin competir con el terreno ni con las peanas. Y un rombo en el centro
+    exacto, sobre la línea media.
+- **El puente lista↔mesa.** Pasar el ratón por una unidad la enciende en el
+  tablero, y al revés. Es la única interacción de la pantalla y hace el trabajo
+  que en el papel hace señalar con el dedo: con cuarenta peanas y dos listas de
+  veinte, leer "C3" y buscarlo a ojo era exactamente lo que sobraba.
+- **Los órdenes de batalla, agrupados por categoría** con su escudo y su
+  subtotal. La lista guarda su propio orden y el constructor lo respeta, pero
+  al mirar un ejército enemigo lo que se pregunta no es "¿qué puso primero?"
+  sino "¿cuántos personajes trae?, ¿cuánto ha metido en Singulares?". Las
+  unidades sin desplegar llevan la marca hueca y el nombre en cursiva: cuentan
+  puntos, pero no están sobre el tablero.
+- **Entrada escalonada** (`wh-surgir`, `wh-peana`, `wh-balanza`): el acta se
+  levanta y las peanas van cayendo sobre la mesa. Con `prefers-reduced-motion`
+  no se mueve nada — el contenido es el mismo.
+
+---
+
 ## 0.132 — 21/08/2026 09:42
 
 - **Las batallas son de todos.** El listado ya no filtra por usuario: la ve, la

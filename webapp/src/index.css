@@ -329,3 +329,44 @@ h1, h2, h3, h4, .font-display {
   font-weight: bold;
   color: #2e7d32;
 }
+
+/* ----------------------------------------------------------------------------
+   ENTRADAS ANIMADAS — usadas por la pantalla de Batalla (BattlePage).
+   Una batalla se abre para MIRARLA, no para trabajar en ella: es la única
+   pantalla del programa donde una entrada escalonada aporta algo (el acta se
+   "levanta" y las peanas van cayendo sobre la mesa) en vez de estorbar. En el
+   resto de secciones se sigue sin animar nada.
+   Ojo con `wh-peana`: la peana ya lleva translate(-50%,-50%) para centrarse
+   sobre su coordenada, así que la animación tiene que repetirlo o el fotograma
+   inicial la descoloca media peana.
+   ------------------------------------------------------------------------- */
+@keyframes wh-surgir {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes wh-peana {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes wh-balanza {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@utility wh-surgir {
+  animation: wh-surgir 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@utility wh-peana {
+  animation: wh-peana 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@utility wh-balanza {
+  animation: wh-balanza 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: var(--wh-origen, left);
+}
+
+/* Quien pide menos movimiento no ve ninguno: el contenido es el mismo. */
+@media (prefers-reduced-motion: reduce) {
+  .wh-surgir, .wh-peana, .wh-balanza {
+    animation: none;
+  }
+}

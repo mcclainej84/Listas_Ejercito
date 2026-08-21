@@ -8,6 +8,12 @@
 // eso sus dos listas tienen que estar completadas, y por eso mientras la
 // batalla exista no se pueden reabrir (ver ArmyListRepository.setReady).
 //
+// Y porque no se edita, la pantalla se puede permitir ser un CARTEL: una
+// cabecera con las dos facciones enfrentadas y la balanza de puntos, la mesa
+// enmarcada como una lámina, y debajo los dos órdenes de batalla. En una
+// pantalla de trabajo eso estorbaría; en una que solo se mira, es justo lo que
+// hace falta para saber a qué te enfrentas antes de empezar.
+//
 // CÓMO SE ENFRENTAN. Cada ejército se despliega ABAJO en su propia pantalla,
 // porque es lo cómodo para quien juega. Para ponerlos cara a cara, el bando B se
 // gira 180° respecto al centro de la mesa (ver domain/battle#enfrentarPosicion):
@@ -19,6 +25,11 @@
 // comparten mesa por obligación (si no, no se deja crear la batalla), así que
 // solo hay un terreno que pintar y hay que elegir desde dónde se mira; el
 // anfitrión es A.
+//
+// EL PUENTE LISTA↔MESA. Pasar el ratón por una unidad la enciende en el
+// tablero, y al revés. Es la única interacción de la pantalla y hace el trabajo
+// que en el papel hace señalar con el dedo: con cuarenta peanas y dos listas de
+// veinte, leer "C3" y buscarlo a ojo es exactamente lo que sobra.
 // ============================================================================
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -38,7 +49,13 @@ import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
 import { SceneryShape } from '@/features/maps/SceneryShape'
 import { renderTableCanvas } from '@/features/maps/renderTableCanvas'
 import { abrirPestanaPdf, cerrarPestanaPdf } from '@/features/army-lists/pdfWindow'
-import { EntryDetailCard } from '@/features/army-lists/EntryDetailCard'
+import {
+  CartelaDeEnfrentamiento,
+  Escuadras,
+  EstandarteDeBando,
+  type BandoHeraldico,
+} from '@/features/battles/BattleHeraldry'
+import { BattleOrderPanel } from '@/features/battles/BattleOrderPanel'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
@@ -55,6 +72,18 @@ interface Bando {
   refPorEntrada: Map<number, string>
   color: string
   puntos: number
+}
+
+/** Lo que la heráldica necesita de un bando, sacado del bando completo. */
+function heraldicaDe(bando: Bando): BandoHeraldico {
+  return {
+    nombreLista: bando.lista.name,
+    faccion: bando.lista.faction,
+    color: bando.color,
+    puntos: bando.puntos,
+    unidades: bando.lista.entries.length,
+    enMesa: bando.enMesa.length,
+  }
 }
 
 export function BattlePage() {
@@ -237,49 +266,67 @@ export function BattlePage() {
     }
   }
 
+  const nombreDelMapa = mapaCargado?.name ?? (imagenFondoUrl ? 'Mapa cargado como imagen' : 'Mesa sin mapa')
+
   return (
     <div className="-mx-6 -my-8 px-6 py-4 xl:-mx-[max(0px,calc((100vw-56rem)/2))]">
-      <header className="mb-4 border-b border-rule-dark/30 pb-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold tracking-[0.22em] text-ink-soft uppercase">Batalla</p>
-            <h1 className="truncate font-display text-2xl leading-tight text-ink">{batalla.name}</h1>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span
-              className="flex items-center gap-1.5 rounded-sm border border-rule-dark/40 px-2 py-1 text-xs font-medium text-ink-soft"
-              title="Una batalla es el acta de una partida: se mira y se exporta, no se edita"
-            >
-              <LockIcon className="h-3.5 w-3.5" />
-              Solo lectura
-            </span>
-            <Button variant="ghost" onClick={() => navigate('/batallas')}>
-              <ArrowLeftIcon className="h-4 w-4" />
-              Batallas
-            </Button>
-            <Button variant="secondary" disabled={exportando != null} onClick={exportarMapa}>
-              <FileTextIcon className="h-4 w-4" />
-              {exportando === 'mapa' ? 'Exportando…' : 'Mapa'}
-            </Button>
-            <Button variant="secondary" disabled={exportando != null} onClick={() => exportarLista(bandoA, 'a')}>
-              <FileTextIcon className="h-4 w-4" />
-              {exportando === 'a' ? 'Exportando…' : `Lista · ${listaA.faction.name}`}
-            </Button>
-            <Button variant="secondary" disabled={exportando != null} onClick={() => exportarLista(bandoB, 'b')}>
-              <FileTextIcon className="h-4 w-4" />
-              {exportando === 'b' ? 'Exportando…' : `Lista · ${listaB.faction.name}`}
-            </Button>
-          </div>
+      {/* ---------- Barra de mando: volver, el sello y los tres PDF ---------- */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button variant="ghost" onClick={() => navigate('/batallas')}>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Batallas
+        </Button>
+
+        <span
+          className="flex items-center gap-1.5 rounded-sm border border-maroon/35 bg-maroon/8 px-2 py-1 text-mini font-semibold tracking-wide text-maroon"
+          title="Una batalla es el acta de una partida: se mira y se exporta, no se edita"
+        >
+          <LockIcon className="h-3.5 w-3.5" />
+          Acta cerrada
+        </span>
+
+        <span aria-hidden className="hidden h-px flex-1 bg-rule-dark/25 sm:block" />
+
+        {/* Los tres PDF juntos y rotulados como un solo grupo: son la misma
+            acción sobre tres cosas distintas, no tres botones sueltos. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-micro font-semibold tracking-[0.2em] text-ink-soft/60 uppercase">Exportar</span>
+          <Button variant="secondary" disabled={exportando != null} onClick={exportarMapa}>
+            <FileTextIcon className="h-4 w-4" />
+            {exportando === 'mapa' ? 'Exportando…' : 'Mapa'}
+          </Button>
+          <Button variant="secondary" disabled={exportando != null} onClick={() => exportarLista(bandoA, 'a')}>
+            <FileTextIcon className="h-4 w-4" />
+            {exportando === 'a' ? 'Exportando…' : `Lista · ${listaA.faction.name}`}
+          </Button>
+          <Button variant="secondary" disabled={exportando != null} onClick={() => exportarLista(bandoB, 'b')}>
+            <FileTextIcon className="h-4 w-4" />
+            {exportando === 'b' ? 'Exportando…' : `Lista · ${listaB.faction.name}`}
+          </Button>
         </div>
-      </header>
+      </div>
+
+      {/* ---------- El cartel del enfrentamiento ---------- */}
+      <CartelaDeEnfrentamiento
+        titulo={batalla.name}
+        a={heraldicaDe(bandoA)}
+        b={heraldicaDe(bandoB)}
+        medidas={`${mesa.anchoCm} × ${mesa.altoCm} cm`}
+        mapa={nombreDelMapa}
+      />
 
       {/* ---------- La mesa ---------- */}
-      <div className="mb-5 flex justify-center">
-        <div className="w-full max-w-5xl">
-          <RotuloDeBando bando={bandoB} posicion="arriba" />
+      <div className="wh-surgir mb-2 flex justify-center" style={{ animationDelay: '90ms' }}>
+        {/* UN SOLO MARCO para los tres: estandarte de arriba, mesa y estandarte
+            de abajo. Antes cada pieza llevaba el suyo y el filete exterior de
+            la mesa pasaba por detrás de los rótulos, que es lo que hacía que
+            parecieran pegados encima en vez de formar parte de la lámina. */}
+        <div className="w-full max-w-5xl overflow-hidden rounded-sm border-2 border-ink/80 outline outline-1 outline-offset-[3px] outline-rule-dark/40">
+          <EstandarteDeBando bando={heraldicaDe(bandoB)} posicion="arriba" />
+
           <div
             style={{ aspectRatio: `${mesa.anchoCm} / ${mesa.altoCm}`, containerType: 'inline-size' }}
-            className="relative w-full overflow-hidden border-2 border-ink/80 shadow-[inset_0_0_60px_rgba(90,76,54,0.22)] outline outline-1 outline-offset-[3px] outline-rule-dark/40"
+            className="relative w-full overflow-hidden shadow-[inset_0_0_60px_rgba(90,76,54,0.22)]"
           >
             {/* El terreno, en su capa: suelo o imagen, y la escenografía del
                 mapa. Sin girar — se mira desde el sur, el lado del bando A. */}
@@ -319,6 +366,20 @@ export function BattlePage() {
               ))}
             </div>
 
+            {/* Cada mitad teñida del color de quien despliega en ella. Es muy
+                flojo a propósito (un 9%): tiene que decir de quién es cada lado
+                sin competir con el terreno ni con las peanas. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1/2"
+              style={{ backgroundImage: `linear-gradient(to bottom, ${bandoB.color}17, transparent 85%)` }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2"
+              style={{ backgroundImage: `linear-gradient(to top, ${bandoA.color}17, transparent 85%)` }}
+            />
+
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 z-0 opacity-35"
@@ -329,9 +390,11 @@ export function BattlePage() {
                 backgroundSize: `${(RETICULA_CM / mesa.anchoCm) * 100}% ${(RETICULA_CM / mesa.altoCm) * 100}%`,
               }}
             />
+
             {/* La línea central, la referencia que de verdad se usa. En una
                 batalla separa además un bando del otro, así que va más marcada
-                que en el despliegue de uno solo. */}
+                que en el despliegue de uno solo, y con su rombo en el centro
+                exacto de la mesa. */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2"
@@ -339,11 +402,26 @@ export function BattlePage() {
                 backgroundImage: 'repeating-linear-gradient(to right, rgba(122,36,32,.55) 0 8px, transparent 8px 16px)',
               }}
             />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-1/2 z-0 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-maroon/60 bg-parchment/70"
+            />
 
-            {bandos.map((bando) =>
-              bando.enMesa.map((entry) => {
+            {/* Viñeta: asienta la mesa y evita que los cantos queden a cuchillo. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-20"
+              style={{
+                backgroundImage: 'radial-gradient(ellipse at center, transparent 58%, rgba(43,32,19,.26) 100%)',
+              }}
+            />
+            <Escuadras className="z-20 text-parchment/60" />
+
+            {bandos.map((bando, indiceBando) =>
+              bando.enMesa.map((entry, indice) => {
                 const pos = bando.posiciones.get(entry.id)!
                 const tamano = tamanoDe(entry, pos)
+                const resaltada = encima === entry.id
                 return (
                   <div
                     key={`${bando.lista.id}-${entry.id}`}
@@ -354,12 +432,27 @@ export function BattlePage() {
                       top: `${(pos.yCm / mesa.altoCm) * 100}%`,
                       width: `${(tamano.anchoCm / mesa.anchoCm) * 100}%`,
                       height: `${(tamano.altoCm / mesa.altoCm) * 100}%`,
+                      // Van cayendo sobre la mesa por orden, con el tope puesto
+                      // a propósito: con cuarenta peanas, esperar a la última
+                      // sería esperar de más.
+                      animationDelay: `${Math.min(160 + indiceBando * 40 + indice * 22, 700)}ms`,
                     }}
-                    className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-default select-none"
+                    className={clsx(
+                      'wh-peana absolute -translate-x-1/2 -translate-y-1/2 cursor-default select-none',
+                      resaltada ? 'z-30' : 'z-10',
+                    )}
                   >
                     <div
-                      className="h-full w-full overflow-hidden border border-ink/70 shadow-[0_1px_3px_rgba(0,0,0,.3)]"
-                      style={estiloDePeana(entry.unit.faction.color)}
+                      className={clsx(
+                        'h-full w-full overflow-hidden border transition-[transform,box-shadow] duration-150',
+                        resaltada
+                          ? 'border-ink shadow-[0_0_0_2px_var(--color-maroon),0_3px_10px_rgba(0,0,0,.45)]'
+                          : 'border-ink/70 shadow-[0_1px_3px_rgba(0,0,0,.3)]',
+                      )}
+                      style={{
+                        ...estiloDePeana(entry.unit.faction.color),
+                        transform: resaltada ? 'scale(1.14)' : undefined,
+                      }}
                     >
                       <span
                         className="pointer-events-none flex h-full w-full items-center justify-center leading-none font-bold [text-shadow:0_1px_1px_rgba(0,0,0,.35)]"
@@ -373,106 +466,29 @@ export function BattlePage() {
               }),
             )}
           </div>
-          <RotuloDeBando bando={bandoA} posicion="abajo" />
+
+          <EstandarteDeBando bando={heraldicaDe(bandoA)} posicion="abajo" />
         </div>
       </div>
 
-      {/* ---------- Las dos listas ---------- */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <p className="mb-5 text-center text-micro text-ink-soft/70">
+        Pasa el ratón por una unidad —en la mesa o en su lista— y se encenderá en la otra.
+      </p>
+
+      {/* ---------- Los dos órdenes de batalla ---------- */}
+      <div className="wh-surgir grid gap-4 lg:grid-cols-2" style={{ animationDelay: '160ms' }}>
         {bandos.map((bando) => (
-          <ListaDelBando key={bando.lista.id} bando={bando} encima={encima} onEncima={setEncima} />
+          <BattleOrderPanel
+            key={bando.lista.id}
+            lista={bando.lista}
+            color={bando.color}
+            puntos={bando.puntos}
+            refPorEntrada={bando.refPorEntrada}
+            encima={encima}
+            onEncima={setEncima}
+          />
         ))}
       </div>
     </div>
-  )
-}
-
-/** Quién despliega en ese borde de la mesa, con su color por delante. */
-function RotuloDeBando({ bando, posicion }: { bando: Bando; posicion: 'arriba' | 'abajo' }) {
-  return (
-    <div className={clsx('flex items-center gap-2', posicion === 'arriba' ? 'mb-1.5' : 'mt-1.5')}>
-      <span
-        aria-hidden
-        className="h-3 w-3 shrink-0 rounded-[1px] border border-ink/50"
-        style={{ backgroundColor: bando.color }}
-      />
-      <span className="truncate text-xs font-semibold text-ink">{bando.lista.name}</span>
-      <span className="truncate text-xs text-ink-soft">{bando.lista.faction.name}</span>
-      <span className="text-mini tabular-nums text-ink-soft/70">{bando.puntos} pts</span>
-      <span aria-hidden className="h-px flex-1 bg-rule-dark/25" />
-      <span className="text-[10px] tracking-[0.16em] text-ink-soft/60 uppercase">
-        {posicion === 'arriba' ? 'Arriba' : 'Abajo'}
-      </span>
-    </div>
-  )
-}
-
-/**
- * La lista de un bando, entera y de solo lectura: lo mismo que se ve al montar
- * el ejército, sin nada que tocar. El detalle (perfil, equipo, reglas) sale al
- * pasar el ratón, igual que en el orden de batalla del Despliegue — meterlo en
- * la propia fila convertiría dos listas de veinte unidades en un muro.
- */
-function ListaDelBando({
-  bando,
-  encima,
-  onEncima,
-}: {
-  bando: Bando
-  encima: number | null
-  onEncima: (id: number | null) => void
-}) {
-  const entradas = [...bando.lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
-  return (
-    <section className="rounded-sm border border-rule-dark/40 bg-parchment/70 p-4">
-      <div className="mb-2.5 flex items-baseline gap-2">
-        <span
-          aria-hidden
-          className="h-3 w-3 shrink-0 self-center rounded-[1px] border border-ink/50"
-          style={{ backgroundColor: bando.color }}
-        />
-        <h2 className="min-w-0 truncate font-display text-lg font-semibold text-ink">{bando.lista.name}</h2>
-        <span aria-hidden className="h-px flex-1 self-center bg-rule-dark/25" />
-        <span className="shrink-0 font-display text-base text-maroon tabular-nums">{bando.puntos} pts</span>
-      </div>
-
-      <ul className="divide-y divide-rule-dark/15">
-        {entradas.map((entry) => {
-          const ref = bando.refPorEntrada.get(entry.id)
-          return (
-            <li
-              key={entry.id}
-              onPointerEnter={() => onEncima(entry.id)}
-              onPointerLeave={() => onEncima(null)}
-              className="relative flex items-center gap-2 py-1.5"
-            >
-              {/* Las iniciales, solo si la unidad está en la mesa: es lo que
-                  enlaza cada fila con su peana. Sin desplegar, un hueco del
-                  mismo ancho para que los nombres no bailen. */}
-              <span
-                className={clsx(
-                  'w-8 shrink-0 text-center text-mini font-bold',
-                  ref ? 'text-ink-soft' : 'text-ink-soft/25',
-                )}
-              >
-                {ref ?? '—'}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                {entry.alias ?? entry.unit.name}
-                {entry.quantity > 1 && <span className="text-ink-soft"> ×{entry.quantity}</span>}
-              </span>
-              <span className="shrink-0 text-xs text-ink-soft tabular-nums">
-                {computeEntryCost(entry.unit, entry)} pts
-              </span>
-              {encima === entry.id && (
-                <div className="absolute top-full right-0 z-40 pt-1">
-                  <EntryDetailCard entry={entry} />
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </section>
   )
 }
