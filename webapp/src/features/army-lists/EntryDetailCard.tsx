@@ -48,10 +48,10 @@ export function EntryDetailCard({ entry }: { entry: ArmyListEntry }) {
           la mesa, para atar de un vistazo la ficha con lo que hay puesto. */}
       <span className="flex items-center gap-2 border-b border-rule-dark/30 bg-parchment-dark/60 px-3 py-2">
         {unit.faction.emblemUrl && (
-          <img src={unit.faction.emblemUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover" />
+          <img src={unit.faction.emblemUrl} alt="" className="h-7 w-7 shrink-0 rounded-[2px] object-cover" />
         )}
         <span className="min-w-0">
-          <span className="block font-display text-base leading-tight text-maroon">{entry.alias ?? unit.name}</span>
+          <span className="block font-display text-lg leading-tight text-maroon">{entry.alias ?? unit.name}</span>
           <span className="block text-[10px] leading-tight text-ink-soft">
             {entry.alias ? `${unit.name} · ` : ''}
             {unit.faction.name}

@@ -13,6 +13,28 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.134 — 21/08/2026 10:35
+
+- **La ficha emergente de la batalla deja de verse translúcida**, que era un
+  descuido y no un efecto: se dibujaba sin fondo ni marco propios, así que a
+  través del texto se veían el pergamino y la fila de debajo. Ahora lleva su
+  caja —pergamino opaco, filete y sombra—, la misma que ya le ponía el Tooltip
+  del Despliegue.
+- **Y deja de salir apretada.** Tenía el ancho de lo que ocupara su contenido;
+  ahora es fijo y holgado, con el nombre de la unidad a mayor cuerpo: es lo
+  primero que se busca al abrirla y salía en el mismo tamaño que el resto.
+- **En las últimas filas la ficha se abre hacia arriba.** Abriéndose siempre
+  hacia abajo, las unidades del final de la lista —justo las que se miran
+  cuando ya la has recorrido entera— sacaban su ficha fuera de la pantalla.
+- **La marca de cada unidad, un punto más grande** (24 → 28 px). Es lo que
+  empareja la fila con su peana en la mesa, y a ese tamaño quedaba menuda al
+  lado del nombre.
+- **Fuera el pie "Pasa el ratón por una unidad…".** Una interfaz que necesita
+  explicarse con una nota al pie no está explicada; y esta se descubre sola al
+  primer movimiento del ratón.
+
+---
+
 ## 0.133 — 21/08/2026 10:28
 
 - **La batalla deja de ser una lista con un mapa encima y pasa a ser un

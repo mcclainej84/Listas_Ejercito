@@ -316,7 +316,7 @@ export function BattlePage() {
       />
 
       {/* ---------- La mesa ---------- */}
-      <div className="wh-surgir mb-2 flex justify-center" style={{ animationDelay: '90ms' }}>
+      <div className="wh-surgir mb-5 flex justify-center" style={{ animationDelay: '90ms' }}>
         {/* UN SOLO MARCO para los tres: estandarte de arriba, mesa y estandarte
             de abajo. Antes cada pieza llevaba el suyo y el filete exterior de
             la mesa pasaba por detrás de los rótulos, que es lo que hacía que
@@ -470,10 +470,6 @@ export function BattlePage() {
           <EstandarteDeBando bando={heraldicaDe(bandoA)} posicion="abajo" />
         </div>
       </div>
-
-      <p className="mb-5 text-center text-micro text-ink-soft/70">
-        Pasa el ratón por una unidad —en la mesa o en su lista— y se encenderá en la otra.
-      </p>
 
       {/* ---------- Los dos órdenes de batalla ---------- */}
       <div className="wh-surgir grid gap-4 lg:grid-cols-2" style={{ animationDelay: '160ms' }}>

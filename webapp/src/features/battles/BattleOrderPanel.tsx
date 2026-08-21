@@ -63,7 +63,7 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
   if (ref_ == null) {
     return (
       <span
-        className="grid h-6 w-6 shrink-0 place-items-center rounded-[2px] border border-dashed border-rule-dark/45 text-micro text-ink-soft/40"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-[2px] border border-dashed border-rule-dark/45 text-mini text-ink-soft/40"
         title="No está desplegada sobre la mesa"
       >
         —
@@ -73,7 +73,7 @@ function MarcaDeUnidad({ ref_, color, resaltada }: { ref_: string | null; color:
   return (
     <span
       className={clsx(
-        'grid h-6 w-6 shrink-0 place-items-center rounded-[2px] border text-mini leading-none font-bold transition-shadow',
+        'grid h-7 w-7 shrink-0 place-items-center rounded-[2px] border text-xs leading-none font-bold transition-shadow',
         resaltada ? 'border-ink shadow-[0_0_0_2px_var(--color-maroon)]' : 'border-ink/60',
       )}
       style={{ backgroundColor: color, color: textoSobre(color) }}
@@ -98,6 +98,14 @@ export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, 
   const entradas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
   const grupos = agruparPorCategoria(entradas)
   const enMesa = entradas.filter((e) => refPorEntrada.has(e.id)).length
+
+  // Posición de cada fila dentro del panel ya agrupado, para saber cuáles están
+  // al final: en esas, la ficha se despliega HACIA ARRIBA. Abriéndose siempre
+  // hacia abajo, las últimas unidades —justo las que hay que mirar cuando ya
+  // has recorrido la lista— sacaban la ficha fuera de la pantalla.
+  const orden = grupos.flatMap((g) => g.entradas)
+  const posicionDeFila = new Map(orden.map((e, i) => [e.id, i]))
+  const ULTIMAS = 4
 
   return (
     <section className="relative rounded-sm border border-rule-dark/40 bg-parchment/70">
@@ -170,8 +178,23 @@ export function BattleOrderPanel({ lista, color, puntos, refPorEntrada, encima, 
                     </span>
 
                     {resaltada && (
-                      <div className="absolute top-full right-0 z-40 pt-1">
-                        <EntryDetailCard entry={entry} />
+                      // LA FICHA LLEVA SU PROPIA CAJA, y esto no es adorno: sin
+                      // fondo ni marco se veía el pergamino y la fila de debajo
+                      // a través del texto, que es lo que la hacía parecer
+                      // translúcida. Ancho fijo y holgado —no "lo que ocupe"—
+                      // para que el nombre de la unidad no salga apretado en un
+                      // recuadro del tamaño justo.
+                      <div
+                        className={clsx(
+                          'pointer-events-none absolute right-0 z-50 w-[23rem] max-w-[calc(100vw-3rem)]',
+                          (posicionDeFila.get(entry.id) ?? 0) >= orden.length - ULTIMAS
+                            ? 'bottom-full pb-1.5'
+                            : 'top-full pt-1.5',
+                        )}
+                      >
+                        <div className="overflow-hidden rounded-sm border border-rule-dark/55 bg-parchment shadow-lg shadow-black/30">
+                          <EntryDetailCard entry={entry} />
+                        </div>
                       </div>
                     )}
                   </li>
