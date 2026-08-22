@@ -13,6 +13,32 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.144 — 22/08/2026 11:14
+
+- **La mesa cortada por la izquierda, resuelta de raíz: el ancho de la columna
+  lo decide ahora el ARMAZÓN, no la pantalla.**
+  - Qué pasaba. Casi todo el programa cabe en 56rem, pero la batalla necesita
+    más, así que se escapaba de esa columna con un margen negativo calculado a
+    partir de `100vw`. Y ahí no hay forma de acertar: `100vw` **incluye la
+    barra de desplazamiento**, y encima `main` tiene su propio `px-6`. El
+    bloque acababa unos píxeles más ancho que su hueco. Lo que sobra por la
+    derecha se alcanza scrolleando; lo que sobra por la izquierda **no**,
+    porque una página no scrollea a la izquierda. De ahí que se comiera siempre
+    ese lado.
+  - Por qué costó tres versiones. Cada arreglo era otra cuenta que volvía a
+    adivinar el ancho del navegador —restar el padding, restar un dedo para la
+    barra, márgenes fijos por punto de ruptura—. Se puede afinar mucho una
+    cuenta que no debería existir.
+  - Lo que se ha hecho. `AppShell` ensancha SU columna en la ruta de la batalla
+    (94rem en vez de 56rem) y la pantalla deja de hacer malabares. La columna ya
+    está centrada con `mx-auto` dentro de un `main` con su padding: el navegador
+    se encarga, el ancho es el que haya y nunca más, y no queda nada que
+    calcular ni nada que se pueda salir. Comprobado a 1024, 1280, 1366, 1440,
+    1536, 1680, 1920 y 2560 px, con barra de desplazamiento clásica de 15 px:
+    cero desbordamiento y la mesa entera dentro en los ocho.
+
+---
+
 ## 0.143 — 22/08/2026 11:02
 
 - **La caja de la batalla deja de medirse con `100vw`.** Era la trampa que
