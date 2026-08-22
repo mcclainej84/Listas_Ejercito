@@ -13,6 +13,37 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.148 — 22/08/2026 12:02
+
+- **ENCONTRADO. Todas las peanas de la batalla se dibujaban media peana a la
+  izquierda y media hacia arriba.** Era la animación de entrada, y explica de
+  una vez todo lo que llevábamos persiguiendo.
+  - La causa. En Tailwind v4 las utilidades de colocación ya **no** compilan a
+    `transform`: `-translate-x-1/2` compila a la propiedad **`translate`**. Son
+    dos propiedades distintas y el navegador **aplica las dos**, una detrás de
+    otra. La animación `wh-peana` repetía el centrado en sus fotogramas
+    (`transform: translate(-50%,-50%) scale(…)`), así que cada peana acababa
+    desplazada un 100 % en vez de un 50 %.
+  - El tamaño del error: media peana. Sobre la mesa de 180 cm con peanas de 12,
+    **6 cm en todas las unidades**. Medido en un navegador real: con la
+    animación vieja una peana colocada en el borde izquierdo exacto se dibujaba
+    en −6,00 cm y la del borde derecho en 174,00 en vez de 180,00; con la nueva,
+    0,00 y 180,00 clavados. Y coincide con los 6,5 cm medidos sobre la captura
+    del usuario.
+  - Por qué costó tanto. El Despliegue no anima nada, así que allí salía
+    perfecto y toda la sospecha se fue a la batalla: al ancho de la caja, al
+    giro del bando de arriba, al mapa, a las proporciones. Los datos estaban
+    bien desde el principio —el ejército ocupaba exactamente de 0 a 180— y el
+    fallo estaba en una línea de CSS que no tenía nada que ver con ninguna de
+    esas cosas.
+  - Arreglo: la animación toca solo `scale`, que es también una propiedad
+    aparte y se compone con `translate` sin pisarla.
+  - Y queda escrita la regla en `index.css`, porque esto se repite solo: una
+    animación no puede tocar `transform` si el elemento usa utilidades de
+    colocación de Tailwind v4.
+
+---
+
 ## 0.147 — 22/08/2026 11:49
 
 - **El ejército de arriba salía desplazado de flanco. Ya no: cuando los dos
