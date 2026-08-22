@@ -13,6 +13,32 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.143 — 22/08/2026 11:02
+
+- **La caja de la batalla deja de medirse con `100vw`.** Era la trampa que
+  costó tres intentos: la pantalla se sale de la columna de 56rem con un margen
+  negativo, y ese margen se calculaba a partir de `100vw`… que **no es el ancho
+  utilizable**. Incluye la barra de desplazamiento, y encima `main` tiene su
+  propio `px-6`. El bloque acababa unos píxeles más ancho que su hueco, y el
+  sobrante de la IZQUIERDA no se puede alcanzar —una página no scrollea a la
+  izquierda—, así que la mesa aparecía comida por ese lado. Restar el padding y
+  un dedo para la barra tapaba el caso corriente, pero seguía siendo una cuenta
+  que **adivina el ancho del navegador**, y eso sale mal tarde o temprano.
+  - Ahora son márgenes **fijos** por punto de ruptura: 1152 px desde `xl` y
+    1344 desde `2xl`, con 80 px de holgura sobre el hueco disponible en el peor
+    caso. Comprobado a 1280, 1366, 1440, 1536, 1680, 1920 y 2560: cero
+    desbordamiento y el borde izquierdo siempre dentro. Se pierde algo de ancho
+    en un monitor enorme; a cambio no se sale nunca.
+- **Y la batalla avisa si los dos ejércitos han dejado de compartir mesa.** El
+  alta ya no deja crearla si no coinciden, pero eso se comprobó el día que se
+  creó: después, cualquiera puede cambiarle el mapa a su lista o redimensionar
+  su mesa, y la batalla seguía pintándose tan tranquila sobre la mesa de la
+  lista A con el otro bando colocado para una mesa que ya no es esa. Aquí no se
+  puede arreglar —una batalla no edita nada—, pero sí decirlo, en vez de dejar
+  que se lea como un mapa mal encuadrado, que es exactamente a lo que se parece.
+
+---
+
 ## 0.142 — 21/08/2026 14:21
 
 - **El aviso de "falta desplegar el Worker" estaba acusando de lo que no era.**

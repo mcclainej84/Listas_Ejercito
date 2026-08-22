@@ -42,7 +42,7 @@ import { UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
 import { imageUrl } from '@/data/network/images'
 import { computeEntryCost } from '@/domain/armyValidation'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
-import { enfrentarPosicion } from '@/domain/battle'
+import { enfrentarPosicion, motivoDeEscenarioDistinto } from '@/domain/battle'
 import {
   RETICULA_CM,
   limitarAMesa,
@@ -320,25 +320,48 @@ export function BattlePage() {
 
   const nombreDelMapa = mapaCargado?.name ?? (imagenFondoUrl ? 'Imagen suelta de la lista' : 'Mesa sin mapa')
 
+  /**
+   * ¿Siguen los dos ejércitos desplegando sobre el mismo sitio?
+   *
+   * El alta de la batalla ya no deja crearla si no coinciden, pero eso se
+   * comprobó EL DÍA QUE SE CREÓ: después, cualquiera puede cambiarle el mapa a
+   * su lista o redimensionar su mesa, y entonces la batalla se sigue pintando
+   * tan tranquila sobre la mesa de la lista A, con el otro ejército colocado
+   * para una mesa que ya no es esa. Aquí no se puede arreglar —una batalla no
+   * edita nada—, pero sí se puede DECIR, en vez de dejar que se lea como un
+   * mapa mal encuadrado, que es exactamente a lo que se parece.
+   */
+  const escenariosDistintos = motivoDeEscenarioDistinto(listaA, listaB)
+
   return (
     // ========================================================================
-    // POR QUÉ ESTA CAJA ES ASÍ. La batalla necesita más ancho que el resto del
-    // programa (AppShell centra todo en 56rem), así que se sale de su columna
-    // con un margen negativo. Pero el que había se calculaba como
-    // `(100vw - 56rem)/2` a secas, y eso deja el bloque MÁS ANCHO QUE EL HUECO
-    // REAL por dos motivos que se suman: `main` tiene su propio `px-6`
-    // (1,5rem a cada lado), y `100vw` incluye la barra de desplazamiento. El
-    // sobrante no se puede alcanzar hacia la izquierda —una página no scrollea
-    // a la izquierda—, así que la mesa aparecía cortada por ese lado. De ahí
-    // que ahora se resten los dos: el padding de `main` y un dedo para la
-    // barra.
+    // POR QUÉ ESTA CAJA ES ASÍ, Y POR QUÉ YA NO SE MIDE CON `100vw`.
     //
-    // Y ADEMÁS SE LE PONE TECHO. Escaparse de la columna no quiere decir
-    // ocupar todo lo que haya: en una pantalla muy ancha la mesa se estiraba
-    // hasta un tamaño en el que hay que mover la cabeza para recorrerla, que
-    // es lo contrario de lo que sirve una vista de conjunto.
+    // La batalla necesita más ancho que el resto del programa (AppShell centra
+    // todo en 56rem), así que se sale de su columna con un margen negativo. La
+    // tentación es calcularlo: `(100vw - 56rem)/2`. Y ahí está la trampa, que
+    // costó tres intentos: `100vw` NO es el ancho utilizable. Incluye la barra
+    // de desplazamiento, y encima `main` tiene su propio `px-6`. El bloque
+    // acababa unos píxeles más ancho que su hueco, y el sobrante de la
+    // IZQUIERDA no se puede alcanzar —una página no scrollea a la izquierda—,
+    // así que la mesa aparecía comida por ese lado. Restar el padding y un dedo
+    // para la barra tapaba el caso corriente, pero seguía siendo una cuenta que
+    // adivina el ancho del navegador; y adivinar el ancho del navegador sale mal
+    // tarde o temprano (zoom, barras de otro grosor, el móvil).
+    //
+    // Así que se deja de adivinar. Márgenes FIJOS por punto de ruptura,
+    // elegidos para que el resultado quepa siempre con holgura:
+    //   · desde xl (1280 px): 896 + 2×128 = 1152, y el hueco es ≥ 1232.
+    //   · desde 2xl (1536 px): 896 + 2×224 = 1344, y el hueco es ≥ 1488.
+    // Se pierde algo de ancho en un monitor enorme; a cambio no se sale nunca,
+    // que es lo que de verdad importaba.
+    //
+    // El techo de 94rem sigue por otra razón: escaparse de la columna no quiere
+    // decir ocupar todo lo que haya. Una mesa estirada a lo bestia hay que
+    // recorrerla moviendo la cabeza, que es lo contrario de una vista de
+    // conjunto.
     // ========================================================================
-    <div className="-mx-6 -my-8 px-6 py-4 xl:-mx-[max(0px,calc((100vw-56rem)/2-2.5rem))]">
+    <div className="-mx-6 -my-8 px-6 py-4 xl:-mx-32 2xl:-mx-56">
       <div className="mx-auto w-full max-w-[94rem]">
         {/* ---------- Barra de mando: volver, el sello y los tres PDF ---------- */}
         <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -375,6 +398,15 @@ export function BattlePage() {
             </Button>
           </div>
         </div>
+
+        {escenariosDistintos && (
+          <p className="mb-3 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
+            <b className="text-danger">Los dos ejércitos ya no despliegan sobre la misma mesa:</b> {escenariosDistintos}
+            . La batalla se dibuja sobre la de <b className="text-ink">{listaA.name}</b>, así que las posiciones del
+            otro bando pueden no cuadrar. Se creó cuando sí coincidían; alguien le ha cambiado el mapa o las medidas a
+            una de las dos listas desde entonces.
+          </p>
+        )}
 
         {/* ---------- El cartel del enfrentamiento ---------- */}
         <CartelaDeEnfrentamiento
