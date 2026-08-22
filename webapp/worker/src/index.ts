@@ -924,6 +924,25 @@ const MIGRATIONS: string[] = [
   // --------------------------------------------------------------------------
   'ALTER TABLE army_lists ADD COLUMN emblem_faction_id INTEGER REFERENCES factions(id)',
   'ALTER TABLE army_lists ADD COLUMN emblem_key TEXT',
+  // --------------------------------------------------------------------------
+  // BORRAR UNA BATALLA EXIGE LAS DOS FIRMAS. Una batalla la juegan dos y la ve
+  // todo el grupo; que cualquiera pudiera borrarla en cualquier momento
+  // significaba que el rival te quitaba el acta de la partida —el plan, el
+  // mapa, las dos listas— sin avisar y sin poder deshacerlo. Ahora cada dueño
+  // entra y la da por finalizada por su parte; con las dos puestas, y solo
+  // entonces, aparece el borrado.
+  // --------------------------------------------------------------------------
+  'ALTER TABLE battles ADD COLUMN finished_a INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE battles ADD COLUMN finished_b INTEGER NOT NULL DEFAULT 0',
+  // --------------------------------------------------------------------------
+  // UNIDAD OCULTA. Está en la lista y cuenta puntos, pero en Batallas no se le
+  // enseña al rival: ni peana sobre la mesa ni línea en el orden de batalla. Es
+  // lo que en la partida se declara escondido —exploradores, emboscadas—, y sin
+  // esto no había forma de preparar una batalla sin destapar el ejército entero.
+  // El total de puntos NO cambia: por eso los puntos POR UNIDAD desaparecen de
+  // esa pantalla, porque si no bastaba con restar para saber qué se esconde.
+  // --------------------------------------------------------------------------
+  'ALTER TABLE army_list_entries ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
 ]
 
 async function onMigrate(request: Request, env: Env): Promise<Response> {

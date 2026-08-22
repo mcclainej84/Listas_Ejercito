@@ -767,6 +767,17 @@ CREATE TABLE battles (
     -- se pinta. El B se coloca girado 180° sobre la misma mesa.
     army_list_a_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
     army_list_b_id  INTEGER NOT NULL REFERENCES army_lists(id) ON DELETE CASCADE,
+    -- FINALIZADA POR CADA BANDO. Una batalla no la puede borrar cualquiera en
+    -- cualquier momento: la juegan dos, y el que la borra se la quita al otro.
+    -- Así que hacen falta las dos firmas —la del dueño del ejército A y la del
+    -- dueño del B—, cada uno desde dentro de la batalla, y solo con las dos
+    -- puestas se permite borrarla. Es un cerrojo de dos llaves, no un permiso.
+    --
+    -- Van por LISTA y no por usuario suelto porque el que tiene algo que decir
+    -- es justamente el dueño del ejército que está sobre la mesa; si una misma
+    -- persona lleva los dos, firma las dos y ya está.
+    finished_a      INTEGER NOT NULL DEFAULT 0,
+    finished_b      INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -942,7 +953,21 @@ CREATE TABLE army_list_entries (
     -- Coste escrito a mano que PISA al calculado. NULL = usar el cálculo.
     -- No se usa 0 como "sin retocar" porque 0 es un coste válido: hay
     -- opciones que no cuestan puntos.
-    cost_override      INTEGER
+    cost_override      INTEGER,
+    -- UNIDAD OCULTA: existe en la lista, cuenta puntos, se despliega y se
+    -- exporta como cualquier otra, pero NO se le enseña al rival. En la
+    -- sección de Batallas no sale ni sobre la mesa ni en el orden de batalla.
+    --
+    -- Es para lo que en la partida se declara escondido: exploradores,
+    -- emboscadas, reservas. Va en la ENTRADA y no en el despliegue porque el
+    -- orden de batalla enseña también las que no están sobre la mesa, y una
+    -- unidad oculta sin desplegar tiene que seguir sin verse.
+    --
+    -- Los puntos del ejército SIGUEN SIENDO EL TOTAL, con ocultas incluidas: el
+    -- rival tiene derecho a saber a cuántos puntos juega. Que eso no delate
+    -- nada es justo la razón de que en Batallas no se enseñen los puntos de
+    -- cada unidad — restando se sabría exactamente qué falta.
+    hidden             INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_army_list_entries_list ON army_list_entries(army_list_id);

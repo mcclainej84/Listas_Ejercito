@@ -502,6 +502,17 @@ export interface ArmyListEntry {
   sortOrder: number
   equipmentIds: number[]
   upgradeIds: number[]
+  /**
+   * UNIDAD OCULTA: no se le enseña al rival en la sección de Batallas —ni peana
+   * sobre la mesa, ni línea en el orden de batalla—. En su propia lista y en su
+   * despliegue se ve y se maneja como cualquier otra: esto no la esconde de su
+   * dueño, la esconde del contrario.
+   *
+   * Los puntos del ejército la siguen contando. Es a propósito, y es la razón de
+   * que en Batallas no se enseñen los puntos de cada unidad: con el total y las
+   * partes a la vista, restar bastaría para saber qué se está escondiendo.
+   */
+  hidden: boolean
 }
 
 /** Una senda conocida por una entrada de lista, con el nivel al que la lanza. */
@@ -533,4 +544,13 @@ export interface ArmyListEntryInput {
   magicPaths: EntryMagicPath[]
   equipmentIds: number[]
   upgradeIds: number[]
+  /**
+   * Oculta al rival en Batallas (ver ArmyListEntry.hidden).
+   *
+   * Viaja en el input porque guardar el ejército desde el constructor BORRA Y
+   * REINSERTA todas las entradas (ver replaceAllEntries): sin esto, tocar
+   * cualquier cosa de la lista destapaba en silencio todo lo que estuviera
+   * escondido.
+   */
+  hidden: boolean
 }

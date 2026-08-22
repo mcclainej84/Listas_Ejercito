@@ -92,6 +92,8 @@ const CHECKS: SchemaCheck[] = [
   { label: 'Emblema de otra facción en el ejército', probe: 'SELECT emblem_faction_id FROM army_lists LIMIT 1' },
   { label: 'Batallas', probe: 'SELECT id FROM battles LIMIT 1' },
   { label: 'Batallas', probe: 'SELECT army_list_a_id FROM battles LIMIT 1' },
+  { label: 'Finalizar una batalla por los dos bandos', probe: 'SELECT finished_a FROM battles LIMIT 1' },
+  { label: 'Unidades ocultas', probe: 'SELECT hidden FROM army_list_entries LIMIT 1' },
 ]
 
 /**

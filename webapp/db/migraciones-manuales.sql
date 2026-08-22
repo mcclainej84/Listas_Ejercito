@@ -35,3 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_battles_user ON battles(user_id);
 ALTER TABLE battle_maps ADD COLUMN image_key TEXT;
 ALTER TABLE army_lists ADD COLUMN emblem_faction_id INTEGER REFERENCES factions(id);
 ALTER TABLE army_lists ADD COLUMN emblem_key TEXT;
+
+-- Finalizar una batalla: una firma por bando. Sin las dos, no se puede borrar.
+ALTER TABLE battles ADD COLUMN finished_a INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE battles ADD COLUMN finished_b INTEGER NOT NULL DEFAULT 0;
+-- Unidad oculta: no se le enseña al rival en la sección de Batallas.
+ALTER TABLE army_list_entries ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;

@@ -30,6 +30,23 @@
 // tablero, y al revés. Es la única interacción de la pantalla y hace el trabajo
 // que en el papel hace señalar con el dedo: con cuarenta peanas y dos listas de
 // veinte, leer "C3" y buscarlo a ojo es exactamente lo que sobra.
+//
+// LO QUE ESTA PANTALLA NO ENSEÑA, y no enseñarlo es la función:
+//
+//   · LAS UNIDADES OCULTAS. Las que su dueño marcó como tales en el despliegue
+//     no salen aquí: ni peana sobre la mesa, ni línea en el orden de batalla
+//     (ver ArmyListEntry.hidden). Es lo que en la partida se declara escondido.
+//
+//   · LOS PUNTOS DE CADA UNIDAD. Solo el total de cada ejército. Y va con lo
+//     anterior: con el total a la vista y todas las partes enumeradas, restar
+//     bastaba para saber cuántos puntos se están escondiendo y, con la lista
+//     delante, casi siempre qué. Un escondite que se deshace con una resta no
+//     es un escondite. El total sí se enseña entero —ocultas incluidas— porque
+//     a cuántos puntos se juega es lo que los dos han acordado de antemano.
+//
+// LA FIRMA DE LOS DOS. Una batalla no la borra cualquiera cuando le apetece:
+// cada dueño la da por finalizada desde aquí, y solo con las dos firmas aparece
+// el borrado en el listado. Ver BattleRepository.remove.
 // ============================================================================
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -57,23 +74,40 @@ import {
   type BandoHeraldico,
 } from '@/features/battles/BattleHeraldry'
 import { BattleOrderPanel } from '@/features/battles/BattleOrderPanel'
+import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 import { useAsync } from '@/shared/hooks/useAsync'
+import { useSession } from '@/shared/session/useSession'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
-import { ArrowLeftIcon, FileTextIcon, LockIcon } from '@/shared/ui/icons'
+import { ArrowLeftIcon, CheckIcon, FileTextIcon, LockIcon } from '@/shared/ui/icons'
 import type { ArmyListDetail, ArmyListEntry } from '@/domain/types'
 
 /** Todo lo que hace falta de un bando para pintarlo y para exportarlo. */
 interface Bando {
+  /**
+   * La lista SIN SUS UNIDADES OCULTAS. Es una copia con `entries` filtrado, y
+   * el filtro se hace una sola vez aquí a propósito: de este objeto cuelgan la
+   * mesa, el orden de batalla y los dos PDF, así que filtrar en el origen es lo
+   * único que garantiza que no se escape por ninguna de las cuatro salidas.
+   */
   lista: ArmyListDetail
   posiciones: Map<number, DeploymentPosition>
-  /** Entradas con peana en la mesa, en el orden de la lista. */
+  /** Entradas con peana en la mesa, en el orden de la lista. Sin ocultas. */
   enMesa: ArmyListEntry[]
   /** Iniciales de cada entrada desplegada, numeradas si se repiten. */
   refPorEntrada: Map<number, string>
   color: string
+  /** Puntos del ejército ENTERO, contando las ocultas. Ver la cabecera. */
   puntos: number
+  /**
+   * Puntos de lo que sí se enseña. Solo lo usa el PDF de la lista, que sí
+   * detalla unidad por unidad: allí el total tiene que cuadrar con la suma de
+   * lo impreso, o el papel se contradice a sí mismo.
+   */
+  puntosVisibles: number
+  /** Cuántas se han quedado fuera. Se dice el número, nunca cuáles. */
+  ocultas: number
 }
 
 /**
@@ -95,15 +129,104 @@ function heraldicaDe(bando: Bando, emblemUrl: string | null): BandoHeraldico {
   }
 }
 
+/**
+ * La firma de un bando: en qué estado está y, si el ejército es tuyo, el botón
+ * para ponerla o retirarla.
+ *
+ * Se enseñan SIEMPRE las dos, firmadas o no, y también cuando ninguna es tuya.
+ * El estado de la partida le importa a todo el grupo —es lo que explica por qué
+ * la batalla no se puede borrar todavía— y una fila que solo aparece cuando te
+ * toca a ti obliga a adivinar qué pasa cuando no aparece.
+ */
+function FirmaDeBando({
+  nombre,
+  finalizada,
+  esMio,
+  ocupado,
+  onFirmar,
+}: {
+  nombre: string
+  finalizada: boolean
+  esMio: boolean
+  ocupado: boolean
+  onFirmar: (finalizada: boolean) => void
+}) {
+  return (
+    <span
+      className={clsx(
+        'flex items-center gap-2 rounded-sm border px-2 py-1',
+        finalizada ? 'border-success/50 bg-success/10' : 'border-rule-dark/35 bg-parchment/60',
+      )}
+    >
+      <span
+        aria-hidden
+        className={clsx(
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] border',
+          finalizada ? 'border-success bg-success text-parchment' : 'border-ink-soft/45',
+        )}
+      >
+        {finalizada && <CheckIcon className="h-3 w-3" />}
+      </span>
+      <span className="max-w-[14rem] truncate text-xs text-ink">{nombre}</span>
+      {esMio ? (
+        <button
+          type="button"
+          disabled={ocupado}
+          onClick={() => onFirmar(!finalizada)}
+          className={clsx(
+            'shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold tracking-wide transition-colors',
+            'disabled:opacity-50',
+            finalizada
+              ? 'text-ink-soft hover:bg-rule-dark/15 hover:text-ink'
+              : 'bg-maroon/10 text-maroon hover:bg-maroon/20',
+          )}
+        >
+          {finalizada ? 'Retirar' : 'Darla por terminada'}
+        </button>
+      ) : (
+        <span className="shrink-0 text-micro text-ink-soft/60">{finalizada ? 'finalizada' : 'pendiente'}</span>
+      )}
+    </span>
+  )
+}
+
 export function BattlePage() {
   const navigate = useNavigate()
   const battleId = Number(useParams().id)
   const [exportando, setExportando] = useState<string | null>(null)
   const [encima, setEncima] = useState<number | null>(null)
 
+  const { user } = useSession()
   const { factions } = useVisibleFactions()
-  const { data: batalla, loading } = useAsync(() => BattleRepository.getById(battleId), [battleId])
+  const {
+    data: batalla,
+    loading,
+    reload: recargarBatalla,
+  } = useAsync(() => BattleRepository.getById(battleId), [battleId])
   const { data: etiquetas } = useAsync(() => UnitTypeTagRepository.listAll())
+  /** Lado cuya firma se está guardando ahora mismo, para desactivar su botón. */
+  const [firmando, setFirmando] = useState<'a' | 'b' | null>(null)
+  const [errorDeFirma, setErrorDeFirma] = useState<string | null>(null)
+
+  /**
+   * Da la batalla por finalizada por uno de los dos bandos, o retira la firma.
+   *
+   * Se recarga la batalla en vez de apañar el estado a mano: la otra firma la
+   * pone otra persona en otro ordenador, así que lo que había en pantalla puede
+   * estar viejo, y lo que hay que enseñar es lo que hay en la base.
+   */
+  async function firmar(lado: 'a' | 'b', finalizada: boolean) {
+    setFirmando(lado)
+    setErrorDeFirma(null)
+    try {
+      await BattleRepository.setFinalizada(battleId, lado, finalizada)
+      await recargarBatalla()
+    } catch (err) {
+      setErrorDeFirma(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setFirmando(null)
+    }
+  }
 
   // Las dos listas y sus dos despliegues, todo a la vez: son cuatro consultas
   // independientes y encadenarlas solo sumaría esperas.
@@ -194,17 +317,23 @@ export function BattlePage() {
     const mover = (p: DeploymentPosition) =>
       como === 'media-vuelta' ? enfrentarPosicion(p, mesa) : como === 'cruzar' ? cruzarPosicion(p, mesa) : p
     const posiciones = new Map(plan.map((p) => [p.entryId, mover(p)] as [number, DeploymentPosition]))
-    const entradas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
-    const enMesa = entradas.filter((e) => posiciones.has(e.id))
+    const todas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
+    // EL FILTRO, y de aquí no pasa ninguna. Todo lo que se pinta y se exporta
+    // sale de `visibles`; `todas` solo se usa para sumar los puntos del
+    // ejército, que sí son los de verdad.
+    const visibles = todas.filter((e) => !e.hidden)
+    const enMesa = visibles.filter((e) => posiciones.has(e.id))
     const costes = new Map(enMesa.map((e) => [e.id, computeEntryCost(e.unit, e)]))
     const referencias = referenciasDeDespliegue(enMesa, costes)
     return {
-      lista,
+      lista: { ...lista, entries: visibles },
       posiciones,
       enMesa,
       refPorEntrada: new Map(referencias.map((r) => [r.entryId, r.ref])),
       color: lista.faction.color ?? COLOR_FACCION_POR_DEFECTO,
-      puntos: entradas.reduce((s, e) => s + computeEntryCost(e.unit, e), 0),
+      puntos: todas.reduce((s, e) => s + computeEntryCost(e.unit, e), 0),
+      puntosVisibles: visibles.reduce((s, e) => s + computeEntryCost(e.unit, e), 0),
+      ocultas: todas.length - visibles.length,
     }
   }
 
@@ -274,7 +403,11 @@ export function BattlePage() {
       // Carga perezosa: el generador de PDF arrastra jsPDF, que pesa más que
       // el resto de la pantalla junta y no hace falta hasta que se pulsa.
       const { exportArmyListToPdf } = await import('@/features/army-lists/exportArmyListPdf')
-      await exportArmyListToPdf(bando.lista, bando.puntos, ventana)
+      // `puntosVisibles` y no `puntos`: este PDF imprime unidad por unidad con
+      // su coste, así que el total tiene que ser el de lo impreso. Con el total
+      // completo, la hoja se delataría sola — la resta cantaría cuántos puntos
+      // faltan. Para el ejército entero, su dueño lo exporta desde Ejércitos.
+      await exportArmyListToPdf(bando.lista, bando.puntosVisibles, ventana)
     } catch (err) {
       cerrarPestanaPdf(ventana)
       console.error(err)
@@ -421,6 +554,34 @@ export function BattlePage() {
           las dos listas desde entonces.
         </p>
       )}
+
+      {/* ---------- Fin de la partida: una firma por bando ---------- */}
+      {/* Va ARRIBA del cartel y no al final de la pantalla: es lo que decide si
+          la batalla se puede borrar, y al final —debajo de dos listas de veinte
+          unidades— no lo habría encontrado nadie. */}
+      <section className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-sm border border-rule-dark/30 bg-parchment/40 px-3 py-2">
+        <span className="text-micro font-semibold tracking-[0.2em] text-ink-soft/60 uppercase">Fin de la partida</span>
+        <FirmaDeBando
+          nombre={listaA.name}
+          finalizada={batalla.finalizadaA}
+          esMio={user != null && listaA.userId === user.id}
+          ocupado={firmando != null}
+          onFirmar={(v) => void firmar('a', v)}
+        />
+        <FirmaDeBando
+          nombre={listaB.name}
+          finalizada={batalla.finalizadaB}
+          esMio={user != null && listaB.userId === user.id}
+          ocupado={firmando != null}
+          onFirmar={(v) => void firmar('b', v)}
+        />
+        <span className="min-w-[14rem] flex-1 text-mini leading-snug text-ink-soft/80">
+          {batalla.finalizadaA && batalla.finalizadaB
+            ? 'Los dos la han dado por terminada: ya se puede borrar desde el listado de Batallas.'
+            : 'Hasta que los dos jugadores la den por terminada, esta batalla no se puede borrar.'}
+        </span>
+        {errorDeFirma && <span className="w-full text-xs text-danger">{errorDeFirma}</span>}
+      </section>
 
       {/* ---------- El cartel del enfrentamiento ---------- */}
       <CartelaDeEnfrentamiento
@@ -622,6 +783,7 @@ export function BattlePage() {
             encima={encima}
             onEncima={setEncima}
             ladoDeLaFicha="izquierda"
+            ocultasPropias={user != null && bandoSur.lista.userId === user.id ? bandoSur.ocultas : 0}
           />
         </div>
         <div className="xl:order-3">
@@ -634,6 +796,7 @@ export function BattlePage() {
             encima={encima}
             onEncima={setEncima}
             ladoDeLaFicha="derecha"
+            ocultasPropias={user != null && bandoNorte.lista.userId === user.id ? bandoNorte.ocultas : 0}
           />
         </div>
       </div>

@@ -34,6 +34,16 @@ export interface BattleSummary {
   nombreB: string
   faccionA: string
   faccionB: string
+  /**
+   * Dueños de los dos ejércitos. Son los que pueden dar la batalla por
+   * finalizada por su parte: el que tiene algo que decir sobre el acta de una
+   * partida es el que puso el ejército, no el que le dio al botón de crearla.
+   */
+  duenoA: number | null
+  duenoB: number | null
+  /** Cada bando ha dado la batalla por terminada. Con las dos, ya se puede borrar. */
+  finalizadaA: boolean
+  finalizadaB: boolean
 }
 
 function mapBattle(row: Record<string, unknown>): BattleSummary {
@@ -49,6 +59,13 @@ function mapBattle(row: Record<string, unknown>): BattleSummary {
     nombreB: (row.nombre_b as string) ?? '—',
     faccionA: (row.faccion_a as string) ?? '—',
     faccionB: (row.faccion_b as string) ?? '—',
+    duenoA: (row.dueno_a as number) ?? null,
+    duenoB: (row.dueno_b as number) ?? null,
+    // Sin las columnas todavía (Worker sin migrar) = sin firmar. Es lo prudente:
+    // una batalla que se cree finalizada porque falta una migración es una
+    // batalla que cualquiera puede borrar sin que nadie lo haya aprobado.
+    finalizadaA: Boolean(row.finished_a),
+    finalizadaB: Boolean(row.finished_b),
   }
 }
 
@@ -58,7 +75,9 @@ const SELECT_CON_BANDOS = `
          (SELECT name FROM army_lists WHERE id = b.army_list_a_id) AS nombre_a,
          (SELECT name FROM army_lists WHERE id = b.army_list_b_id) AS nombre_b,
          (SELECT f.name FROM army_lists al JOIN factions f ON f.id = al.faction_id WHERE al.id = b.army_list_a_id) AS faccion_a,
-         (SELECT f.name FROM army_lists al JOIN factions f ON f.id = al.faction_id WHERE al.id = b.army_list_b_id) AS faccion_b
+         (SELECT f.name FROM army_lists al JOIN factions f ON f.id = al.faction_id WHERE al.id = b.army_list_b_id) AS faccion_b,
+         (SELECT user_id FROM army_lists WHERE id = b.army_list_a_id) AS dueno_a,
+         (SELECT user_id FROM army_lists WHERE id = b.army_list_b_id) AS dueno_b
     FROM battles b`
 
 export interface BattleInput {
@@ -107,7 +126,42 @@ export const BattleRepository = {
     ])
   },
 
+  /**
+   * Da la batalla por FINALIZADA por uno de los dos bandos, o retira esa firma.
+   *
+   * `lado` es 'a' o 'b', el ejército, no el usuario: quien firma es el dueño de
+   * esa lista. Si una misma persona lleva los dos ejércitos, firma los dos.
+   *
+   * Se puede DESMARCAR. Una firma que no se puede retirar convierte un descuido
+   * —o un "ya está" dicho antes de tiempo— en irreversible, y lo que hay al
+   * otro lado es el borrado de la batalla.
+   *
+   * No toca `updated_at`: firmar no es editar la batalla, y el listado va por
+   * esa fecha.
+   */
+  async setFinalizada(id: number, lado: 'a' | 'b', finalizada: boolean): Promise<void> {
+    const columna = lado === 'a' ? 'finished_a' : 'finished_b'
+    await exec(`UPDATE battles SET ${columna} = ? WHERE id = ?`, [finalizada ? 1 : 0, id])
+  },
+
+  /**
+   * Borra la batalla, PERO SOLO SI los dos bandos la han dado por finalizada.
+   *
+   * La comprobación va aquí y no en el botón. El botón ya no aparece hasta que
+   * las dos firmas están puestas, pero el botón es una cortesía: lo que impide
+   * que una batalla desaparezca a media partida tiene que estar en el único
+   * sitio por el que se pasa para borrarla. Se relee el estado de la base en vez
+   * de fiarse del que traiga la pantalla, que puede llevar abierta desde antes
+   * de que el otro retirara su firma.
+   */
   async remove(id: number): Promise<void> {
+    const batalla = await BattleRepository.getById(id)
+    if (batalla && !(batalla.finalizadaA && batalla.finalizadaB)) {
+      throw new Error(
+        'Esta batalla todavía no está finalizada. Los dos jugadores tienen que darla por terminada desde dentro de ' +
+          'la batalla antes de poder borrarla.',
+      )
+    }
     await exec('DELETE FROM battles WHERE id = ?', [id])
   },
 

@@ -4,9 +4,16 @@
 //
 // POR QUÉ AGRUPADA Y NO EN UNA TIRA SEGUIDA. La lista guarda su propio orden y
 // el constructor lo respeta, pero al mirar un ejército enemigo lo que se
-// pregunta no es "¿qué puso primero?" sino "¿cuántos personajes trae?, ¿cuánto
-// ha metido en Singulares?". Los subtotales por categoría contestan eso sin
-// que nadie tenga que sumar.
+// pregunta no es "¿qué puso primero?" sino "¿cuántos personajes trae?, ¿cuántas
+// cosas ha metido en Singulares?". El recuento por categoría contesta eso sin
+// que nadie tenga que ir contando.
+//
+// AQUÍ NO HAY PUNTOS POR UNIDAD. Solo el total del ejército, arriba. No es por
+// ahorrar espacio: en esta pantalla hay unidades OCULTAS que no se enseñan (ver
+// ArmyListEntry.hidden) y el total sí las cuenta, así que detallar el coste de
+// cada línea convertía el escondite en una resta. Quien quiera el desglose lo
+// tiene en su propia lista, en la sección de Ejércitos, que es donde además
+// puede hacer algo con él.
 //
 // LA INICIAL ES EL PUENTE CON LA MESA. Cada fila desplegada lleva su marca en
 // el color de su facción, idéntica a la peana que le corresponde arriba; pasar
@@ -15,12 +22,12 @@
 // sobre el tablero.
 // ============================================================================
 import { clsx } from 'clsx'
-import { categoryInsertRank, computeEntryCost } from '@/domain/armyValidation'
+import { categoryInsertRank } from '@/domain/armyValidation'
 import { estiloDePeana } from '@/domain/factionColor'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { EntryDetailCard } from '@/features/army-lists/EntryDetailCard'
 import { FactionEmblem } from '@/shared/ui/FactionEmblem'
-import { CategoryShield, NameTagIcon, type ShieldMetal } from '@/shared/ui/icons'
+import { CategoryShield, EyeOffIcon, NameTagIcon, type ShieldMetal } from '@/shared/ui/icons'
 import type { ArmyListDetail, ArmyListEntry } from '@/domain/types'
 
 interface GrupoDeCategoria {
@@ -28,7 +35,6 @@ interface GrupoDeCategoria {
   titulo: string
   metal: ShieldMetal | null
   entradas: ArmyListEntry[]
-  puntos: number
 }
 
 /**
@@ -48,12 +54,10 @@ function agruparPorCategoria(entradas: ArmyListEntry[]): GrupoDeCategoria[] {
         titulo: categoria?.name ?? 'Sin categoría',
         metal: categoryShieldMetal(categoria?.code),
         entradas: [],
-        puntos: 0,
       }
       grupos.set(clave, grupo)
     }
     grupo.entradas.push(entrada)
-    grupo.puntos += computeEntryCost(entrada.unit, entrada)
   }
   return [...grupos.values()].sort((x, y) => categoryInsertRank(x.clave) - categoryInsertRank(y.clave))
 }
@@ -118,6 +122,16 @@ export interface BattleOrderPanelProps {
    * derecho hacia la izquierda. Al revés, se saldría de la pantalla.
    */
   ladoDeLaFicha?: 'izquierda' | 'derecha'
+  /**
+   * Cuántas unidades de ESTE ejército están ocultas — y solo se pasa distinto de
+   * cero cuando el ejército es de quien está mirando.
+   *
+   * Es un recordatorio para su dueño: sin él, la única forma de comprobar que lo
+   * que escondiste sigue escondido era acordarte de cuántas unidades tenías. Al
+   * rival no se le dice ni el número: saber que le faltan tres por ver es la
+   * mitad de lo que la unidad oculta le está negando.
+   */
+  ocultasPropias?: number
 }
 
 export function BattleOrderPanel({
@@ -129,6 +143,7 @@ export function BattleOrderPanel({
   encima,
   onEncima,
   ladoDeLaFicha = 'derecha',
+  ocultasPropias = 0,
 }: BattleOrderPanelProps) {
   const entradas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
   const grupos = agruparPorCategoria(entradas)
@@ -179,7 +194,6 @@ export function BattleOrderPanel({
               <span className="text-micro font-semibold tracking-[0.18em] text-ink-soft uppercase">{grupo.titulo}</span>
               <span className="text-micro text-ink-soft/55 tabular-nums">{grupo.entradas.length}</span>
               <span aria-hidden className="h-px flex-1 bg-rule-dark/20" />
-              <span className="text-micro text-ink-soft/70 tabular-nums">{grupo.puntos} pts</span>
             </div>
 
             <ul className="mt-1">
@@ -215,10 +229,6 @@ export function BattleOrderPanel({
                       {entry.quantity > 1 && <span className="text-ink-soft"> ×{entry.quantity}</span>}
                     </span>
 
-                    <span className="shrink-0 text-mini text-ink-soft tabular-nums">
-                      {computeEntryCost(entry.unit, entry)}
-                    </span>
-
                     {resaltada && (
                       // LA FICHA LLEVA SU PROPIA CAJA, y esto no es adorno: sin
                       // fondo ni marco se veía el pergamino y la fila de debajo
@@ -246,6 +256,18 @@ export function BattleOrderPanel({
             </ul>
           </div>
         ))}
+
+        {ocultasPropias > 0 && (
+          <p
+            className="mt-3 flex items-center gap-1.5 border-t border-dashed border-rule-dark/30 pt-2 text-micro text-ink-soft/70"
+            title="Solo tú ves este aviso: es tu ejército."
+          >
+            <EyeOffIcon className="h-3.5 w-3.5 shrink-0" />
+            {ocultasPropias === 1
+              ? 'Tienes 1 unidad oculta: aquí no sale, y el rival no la ve.'
+              : `Tienes ${ocultasPropias} unidades ocultas: aquí no salen, y el rival no las ve.`}
+          </p>
+        )}
       </div>
     </section>
   )

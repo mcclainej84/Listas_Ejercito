@@ -1,16 +1,17 @@
 // ============================================================================
 // Alta y edición de una batalla: un nombre y dos ejércitos.
 //
-// QUÉ EJÉRCITOS SE OFRECEN. Solo los COMPLETADOS, y solo los tuyos o los que
-// alguien te haya compartido. Lo primero porque una batalla no guarda copia de
-// nada —enseña las listas tal y como están— y eso solo se sostiene si no pueden
-// cambiar; lo segundo porque un ejército que no puedes ni ver no lo puedes
-// enfrentar.
+// QUÉ EJÉRCITOS SE OFRECEN. Todos los COMPLETADOS del grupo, sean de quien
+// sean. Completados, porque una batalla no guarda copia de nada —enseña las
+// listas tal y como están— y eso solo se sostiene si ya no pueden cambiar.
 //
-// Con una excepción: al EDITAR una batalla se añaden a la lista sus dos
-// ejércitos actuales aunque no sean tuyos. Las batallas las administra
-// cualquiera, y sin esto abrir la de otro enseñaba dos desplegables vacíos y no
-// dejaba ni cambiarle el nombre.
+// Y DE CUALQUIERA, SIN TENER QUE COMPARTIR NADA. Antes solo salían los tuyos y
+// los que alguien te hubiera compartido, y eso hacía que montar la partida del
+// sábado necesitara dos personas y tres pasos: que el rival se acordara de
+// compartirte su ejército, que tú te enteraras, y solo entonces crear la
+// batalla. El ejército del rival te lo vas a encontrar delante en la mesa de
+// todas formas; lo que aquí se ve para elegirlo es su nombre, su facción, su
+// lado y de quién es.
 //
 // DOS COMPROBACIONES, Y SON DISTINTAS ENTRE SÍ:
 //
@@ -48,19 +49,19 @@ interface BattleFormModalProps {
 
 export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFormModalProps) {
   const { data: elegibles, loading } = useAsync(async () => {
-    // Los tuyos (y los compartidos contigo) completados, MÁS los dos que la
-    // batalla ya tenga puestos aunque no sean tuyos: las batallas las edita
-    // cualquiera, y si no, editar la de otro mostraba dos desplegables en
-    // blanco. Los de la batalla están completados por fuerza —una lista metida
-    // en una batalla no se puede reabrir— así que no hay que filtrarlos.
-    const [mios, deLaBatalla] = await Promise.all([
-      ArmyListRepository.listAll(userId),
+    // Todos los completados del grupo, MÁS los dos que la batalla ya tenga
+    // puestos. Lo segundo sigue haciendo falta aunque lo primero ya no filtre:
+    // si a una lista le quitaran el "completada" por lo que sea, la batalla que
+    // la usa tiene que poder seguir abriéndose y editándose en vez de enseñar un
+    // desplegable en blanco.
+    const [completadas, deLaBatalla] = await Promise.all([
+      ArmyListRepository.listCompletadas(userId),
       batalla
         ? ArmyListRepository.resumenesPorIds([batalla.armyListAId, batalla.armyListBId], userId)
         : Promise.resolve([]),
     ])
     const porId = new Map<number, ArmyListSummary>()
-    for (const l of mios) if (l.ready) porId.set(l.id, l)
+    for (const l of completadas) porId.set(l.id, l)
     for (const l of deLaBatalla) porId.set(l.id, l)
     return [...porId.values()]
   }, [userId, batalla?.id])
@@ -163,8 +164,9 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
           <Spinner />
         ) : lista.length < 2 ? (
           <p className="text-sm leading-relaxed text-ink-soft">
-            Hacen falta al menos dos ejércitos <b className="text-ink">completados</b> para montar una batalla. Marca
-            como completados los que vayan a jugar, en el listado de Ejércitos, y vuelve.
+            Hacen falta al menos dos ejércitos <b className="text-ink">completados</b> para montar una batalla, y
+            todavía no hay dos en todo el grupo. Marca como completados los que vayan a jugar, en el listado de
+            Ejércitos, y vuelve.
           </p>
         ) : (
           <div className="space-y-3">
@@ -225,8 +227,9 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
             )}
 
             <p className="text-mini leading-relaxed text-ink-soft/80">
-              Solo salen los ejércitos completados, tuyos o compartidos contigo. Mientras estén en una batalla no se
-              podrán reabrir: lo que la batalla enseña no puede cambiar a espaldas de quien la montó.
+              Salen todos los ejércitos <b className="text-ink">completados</b> del grupo, sean de quien sean: no hace
+              falta que nadie te comparta nada. Mientras estén en una batalla no se podrán reabrir, porque lo que la
+              batalla enseña no puede cambiar a espaldas de los dos jugadores.
             </p>
 
             {error && <p className="text-sm text-danger">{error}</p>}

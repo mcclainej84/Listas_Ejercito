@@ -88,7 +88,15 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { Modal } from '@/shared/ui/Modal'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { TextField } from '@/shared/ui/TextField'
-import { ArrowLeftIcon, CategoryShield, FileTextIcon, LockIcon, TrashIcon } from '@/shared/ui/icons'
+import {
+  ArrowLeftIcon,
+  CategoryShield,
+  EyeIcon,
+  EyeOffIcon,
+  FileTextIcon,
+  LockIcon,
+  TrashIcon,
+} from '@/shared/ui/icons'
 import { categoryShieldMetal } from '@/features/army-lists/categoryShield'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
 import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
@@ -170,6 +178,12 @@ export function DeploymentPage() {
   const [nombreDelMapaNuevo, setNombreDelMapaNuevo] = useState('')
   /** Unidades que cruzan la línea central, a la espera de que se confirme el guardado. */
   const [cruzanLaMitad, setCruzanLaMitad] = useState<string[] | null>(null)
+  /**
+   * Ids de las entradas marcadas como OCULTAS (ver ArmyListEntry.hidden). En
+   * estado local además de en la lista porque se guardan una a una y en el acto:
+   * el ojo tiene que cambiar al pulsarlo, no al recargar la pantalla.
+   */
+  const [ocultas, setOcultas] = useState<Set<number>>(new Set())
   const imagenRef = useRef<HTMLInputElement>(null)
   /**
    * Lado del tablero desde el que se despliega. Las peanas van SIEMPRE abajo;
@@ -203,6 +217,7 @@ export function DeploymentPage() {
     setImagenKey(list.deploymentImageKey)
     setLado(list.deploymentSide)
     setCerrada(list.ready)
+    setOcultas(new Set(list.entries.filter((e) => e.hidden).map((e) => e.id)))
   }, [list])
 
   const mesaRef = useRef<HTMLDivElement>(null)
@@ -257,6 +272,42 @@ export function DeploymentPage() {
       setError(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
     }
   }
+  /**
+   * Marca o desmarca una unidad como OCULTA para la sección de Batallas.
+   *
+   * Se guarda AL INSTANTE y no con el "Guardar despliegue". No es una posición
+   * sobre la mesa: es qué se le enseña al rival, y colgarla del guardado del
+   * plan significaba que salir de aquí sin guardar destapaba lo que creías
+   * escondido — el peor error posible para este ajuste, porque no se nota.
+   *
+   * Y funciona con la lista COMPLETADA, que es el único estado en el que esto
+   * sirve de algo: para entrar en una batalla la lista tiene que estar cerrada.
+   * Ocultar no cambia el ejército —ni una unidad, ni un punto—, así que el
+   * cerrojo de "completada" no tiene nada que proteger aquí.
+   */
+  async function alternarOculta(entry: ArmyListEntry) {
+    const ocultar = !ocultas.has(entry.id)
+    // Se pinta antes de guardar y se deshace si falla: el ojo es un interruptor
+    // y un interruptor que tarda medio segundo en moverse se pulsa dos veces.
+    setOcultas((prev) => {
+      const next = new Set(prev)
+      if (ocultar) next.add(entry.id)
+      else next.delete(entry.id)
+      return next
+    })
+    try {
+      await ArmyListRepository.setEntryHidden(entry.id, ocultar)
+    } catch (err) {
+      setOcultas((prev) => {
+        const next = new Set(prev)
+        if (ocultar) next.delete(entry.id)
+        else next.add(entry.id)
+        return next
+      })
+      setError(mensajeDeMigracionPendiente(err) ?? (err instanceof Error ? err.message : String(err)))
+    }
+  }
+
   const puedeVerlo = !esDeOtro || acceso?.conDespliegue === true
 
   // Con mapa cargado, sus medidas MANDAN: el tablero es el suyo y no se toca.
@@ -871,7 +922,16 @@ export function DeploymentPage() {
         <aside className="w-full shrink-0 lg:w-64">
           <Rotulo
             extra={
-              <span className="text-[10px] text-ink-soft/70 tabular-nums">
+              <span className="flex items-center gap-1.5 text-[10px] text-ink-soft/70 tabular-nums">
+                {ocultas.size > 0 && (
+                  <span
+                    className="flex items-center gap-0.5 text-bronze"
+                    title={`${ocultas.size} ${ocultas.size === 1 ? 'unidad oculta' : 'unidades ocultas'}: no se le enseñan al rival en Batallas.`}
+                  >
+                    <EyeOffIcon className="h-3 w-3" />
+                    {ocultas.size}
+                  </span>
+                )}
                 {enMesa.length}/{entradas.length}
               </span>
             }
@@ -886,10 +946,15 @@ export function DeploymentPage() {
               {entradas.map((entry) => {
                 const desplegada = posiciones.has(entry.id)
                 const elegida = seleccion.has(entry.id)
+                const oculta = ocultas.has(entry.id)
                 const metal = categoryShieldMetal(entry.unit.category?.code)
                 return (
                   <li
                     key={entry.id}
+                    // `group` para que el ojo solo asome al pasar por la fila:
+                    // en una lista de veinte, veinte ojos encendidos son una
+                    // columna de ruido sobre una función que se usa dos veces.
+                    className="group flex items-center gap-0.5"
                     ref={(el) => {
                       if (el) filasRef.current.set(entry.id, el)
                       else filasRef.current.delete(entry.id)
@@ -900,7 +965,7 @@ export function DeploymentPage() {
                       maxWidth="20rem"
                       posicion="derecha"
                       tono="claro"
-                      className="block w-full"
+                      className="block min-w-0 flex-1"
                     >
                       <button
                         type="button"
@@ -929,6 +994,10 @@ export function DeploymentPage() {
                           className={clsx(
                             'min-w-0 flex-1 truncate text-xs',
                             desplegada ? 'font-medium text-ink' : 'text-ink-soft',
+                            // Oculta: se sigue leyendo igual de bien —es tuya y
+                            // la manejas como cualquier otra— pero se distingue
+                            // de un vistazo al repasar la lista.
+                            oculta && 'italic decoration-ink-soft/40 decoration-dotted underline underline-offset-2',
                           )}
                         >
                           {nombreDeLaEntrada(entry)}
@@ -939,6 +1008,34 @@ export function DeploymentPage() {
                         <span className="shrink-0 text-[11px] text-ink-soft/70 tabular-nums">{entry.quantity}</span>
                       </button>
                     </Tooltip>
+
+                    {/* EL OJO. Fuera del botón de la fila —no dentro— porque un
+                        botón dentro de otro no es HTML válido y, peor, porque
+                        pulsarlo desplegaría la unidad de paso.
+
+                        Sigue disponible con la lista COMPLETADA: es justo
+                        entonces cuando sirve, porque una lista solo entra en
+                        una batalla si está cerrada. */}
+                    {!esDeOtro && (
+                      <button
+                        type="button"
+                        onClick={() => void alternarOculta(entry)}
+                        aria-pressed={oculta}
+                        className={clsx(
+                          'shrink-0 rounded-sm p-1 transition-opacity',
+                          oculta
+                            ? 'text-bronze opacity-100'
+                            : 'text-ink-soft/50 opacity-0 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100',
+                        )}
+                        title={
+                          oculta
+                            ? 'Oculta: no se le enseña al rival en Batallas. Pulsa para volver a mostrarla.'
+                            : 'Ocultarla en Batallas: no saldrá ni en la mesa ni en el orden de batalla del rival. Sus puntos siguen contando en el total.'
+                        }
+                      >
+                        {oculta ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
                   </li>
                 )
               })}

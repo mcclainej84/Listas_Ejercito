@@ -664,6 +664,8 @@ export function ArmyListBuilderPage() {
       magicPaths: isWizardTag(selectedUnit.typeTag?.code) ? draft.magicPaths : [],
       equipmentIds: [...draft.equipmentIds],
       upgradeIds: [...draft.upgradeIds],
+      // Se arrastra la marca que ya tuviera; una unidad nueva nace visible.
+      hidden: currentEntries.find((e) => e.id === draft.editingEntryId)?.hidden ?? false,
     }
 
     const issues = validateEntryInput(
@@ -698,6 +700,10 @@ export function ArmyListBuilderPage() {
       sortOrder: 0,
       equipmentIds: input.equipmentIds,
       upgradeIds: input.upgradeIds,
+      // Se conserva al editar: "oculta" se decide en el Despliegue y no tiene
+      // nada que ver con lo que se está tocando aquí (equipo, cantidad, mando).
+      // Reeditar una unidad no puede destaparla sin decir nada.
+      hidden: currentEntries.find((e) => e.id === draft.editingEntryId)?.hidden ?? false,
     }
 
     if (draft.editingEntryId) {
@@ -810,6 +816,7 @@ export function ArmyListBuilderPage() {
         magicPaths: e.magicPaths,
         equipmentIds: e.equipmentIds,
         upgradeIds: e.upgradeIds,
+        hidden: e.hidden,
       }))
       await ArmyListRepository.replaceAllEntries(list.id, inputs)
       setDirty(false)

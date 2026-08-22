@@ -130,6 +130,10 @@ async function resolveEntry(row: Record<string, unknown>): Promise<ArmyListEntry
     sortOrder: row.sort_order as number,
     equipmentIds,
     upgradeIds,
+    // Sin columna todavía (D1 sin migrar) = visible. Nunca al revés: una lista
+    // que aparece medio vacía porque falta una migración es indistinguible de
+    // una lista a la que le han borrado unidades.
+    hidden: Boolean(row.hidden),
   }
 }
 
@@ -249,6 +253,48 @@ export const ArmyListRepository = {
        JOIN factions f ON f.id = al.faction_id
        WHERE al.id IN (${huecos})`,
       ids,
+      (row) => {
+        const mia = (row.dueno as number | null) === userId
+        return {
+          ...mapArmyList(row),
+          factionName: row.faction_name as string,
+          entryCount: row.entry_count as number,
+          shared: !mia,
+          ownerName: mia ? null : ((row.owner_name as string) ?? null),
+        }
+      },
+    )
+  },
+
+  /**
+   * TODAS las listas COMPLETADAS, sean de quien sean. Es lo que se ofrece al
+   * montar una batalla.
+   *
+   * Y sí, se salta la regla de que los ejércitos son privados — a propósito y
+   * solo aquí. Una batalla se juega contra alguien, y exigir que el rival te
+   * compartiera antes su ejército convertía "montar la partida del sábado" en
+   * un trámite de dos pasos con dos personas delante del ordenador. Lo que se
+   * enseña además es poco y es justo lo que hace falta para elegir: nombre,
+   * facción, lado y dueño. El ejército entero solo se destapa cuando alguien lo
+   * mete en una batalla, que es el momento en el que los dos quieren verlo.
+   *
+   * COMPLETADAS y no todas: una batalla no guarda copia de nada, así que solo
+   * puede enseñar listas que ya no pueden cambiar (ver ArmyList.ready).
+   *
+   * `shared` aquí significa "no es tuya", que es lo que necesita el desplegable
+   * para escribir "(de Fulano)" al lado.
+   */
+  async listCompletadas(userId: number): Promise<ArmyListSummary[]> {
+    return query(
+      `SELECT al.*, f.name AS faction_name,
+              (SELECT COUNT(*) FROM army_list_entries e WHERE e.army_list_id = al.id) AS entry_count,
+              (SELECT u.username FROM users u WHERE u.id = al.user_id) AS owner_name,
+              al.user_id AS dueno
+       FROM army_lists al
+       JOIN factions f ON f.id = al.faction_id
+       WHERE al.ready = 1
+       ORDER BY CASE WHEN al.user_id = ? THEN 0 ELSE 1 END, al.created_at DESC, al.id DESC`,
+      [userId],
       (row) => {
         const mia = (row.dueno as number | null) === userId
         return {
@@ -517,6 +563,24 @@ export const ArmyListRepository = {
     ])
   },
 
+  /**
+   * Marca o desmarca una unidad como OCULTA (ver ArmyListEntry.hidden).
+   *
+   * Se guarda EN EL ACTO, sin pasar por el "Guardar despliegue". No es una
+   * posición sobre la mesa: es una decisión sobre qué se le enseña al rival, y
+   * mezclarla con el guardado del plan significaba que cerrar la pantalla sin
+   * guardar destapaba unidades que creías escondidas.
+   *
+   * Y se permite con la lista COMPLETADA, que es donde de verdad hace falta:
+   * para entrar en una batalla la lista tiene que estar cerrada, así que si
+   * cerrarla bloqueara esto, ocultar una unidad sería imposible justo en el
+   * único sitio donde ocultarla significa algo. No cambia la composición del
+   * ejército —ni una unidad, ni un punto—, solo quién la ve.
+   */
+  async setEntryHidden(entryId: number, hidden: boolean): Promise<void> {
+    await exec('UPDATE army_list_entries SET hidden = ? WHERE id = ?', [hidden ? 1 : 0, entryId])
+  },
+
   async remove(id: number): Promise<void> {
     await exec('DELETE FROM army_lists WHERE id = ?', [id])
   },
@@ -570,6 +634,7 @@ export const ArmyListRepository = {
           magicPaths: e.magicPaths,
           equipmentIds: e.equipmentIds,
           upgradeIds: e.upgradeIds,
+          hidden: e.hidden,
         })),
       )
     } catch (err) {
@@ -768,8 +833,8 @@ export const ArmyListRepository = {
         sql: `INSERT INTO army_list_entries
                 (id, army_list_id, unit_id, quantity, mount_profile_id, chariot_profile_id,
                  has_standard_bearer, has_musician, has_champion, champion_name, alias, cost_override,
-                 sort_order)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 sort_order, hidden)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         params: [
           entryId,
           armyListId,
@@ -784,6 +849,7 @@ export const ArmyListRepository = {
           entry.alias,
           entry.costOverride,
           index,
+          entry.hidden ? 1 : 0,
         ],
       })
       for (const equipmentId of entry.equipmentIds) {

@@ -9,6 +9,13 @@
 // de solo lectura y le interesa a los dos bandos, así que la ve y la administra
 // cualquiera del grupo. Por eso el aviso de borrado dice que se la quita a
 // todos: quien borra puede no ser quien la creó.
+//
+// Y JUSTO POR ESO EL BORRADO ESTÁ BAJO DOS LLAVES. Si cualquiera puede borrar y
+// la batalla es de dos, cualquiera puede quitarle al otro el acta de la partida
+// —el plan, el mapa, las dos listas— sin avisar. Aquí el botón no aparece hasta
+// que los dos dueños la han dado por finalizada desde dentro (ver BattlePage);
+// hasta entonces, en su sitio hay un candado que dice por quién falta. La
+// comprobación de verdad está en BattleRepository.remove.
 // ============================================================================
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -20,9 +27,46 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { PencilIcon, PlusIcon, SwordIcon, TrashIcon } from '@/shared/ui/icons'
+import { CheckIcon, LockIcon, PencilIcon, PlusIcon, SwordIcon, TrashIcon } from '@/shared/ui/icons'
 import { BattleFormModal } from '@/features/battles/BattleFormModal'
 import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
+
+/** Los nombres de los ejércitos cuyo dueño todavía no ha firmado. */
+function quienFalta(b: BattleSummary): string {
+  const faltan = [!b.finalizadaA ? b.nombreA : null, !b.finalizadaB ? b.nombreB : null].filter(
+    (n): n is string => n != null,
+  )
+  return faltan.length === 2 ? `los dueños de ${faltan[0]} y ${faltan[1]}` : `el dueño de ${faltan[0]}`
+}
+
+/**
+ * En qué punto está la batalla: sin firmas no se dice nada —es el caso normal y
+ * un rótulo por batalla sería ruido—, con una se dice que falta la otra, y con
+ * las dos se sella.
+ */
+function SelloDeFinalizada({ batalla }: { batalla: BattleSummary }) {
+  const firmas = (batalla.finalizadaA ? 1 : 0) + (batalla.finalizadaB ? 1 : 0)
+  if (firmas === 0) return null
+  if (firmas === 1) {
+    return (
+      <span
+        className="shrink-0 rounded-sm border border-bronze/45 bg-bronze/10 px-1.5 py-0.5 text-micro whitespace-nowrap text-bronze"
+        title={`Falta que ${quienFalta(batalla)} la dé por finalizada.`}
+      >
+        1 de 2 finalizada
+      </span>
+    )
+  }
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1 rounded-sm border border-success/50 bg-success/10 px-1.5 py-0.5 text-micro whitespace-nowrap text-success"
+      title="Los dos jugadores la han dado por terminada: ya se puede borrar."
+    >
+      <CheckIcon className="h-3 w-3" />
+      Finalizada
+    </span>
+  )
+}
 
 export function BattlesListPage() {
   const navigate = useNavigate()
@@ -90,6 +134,11 @@ export function BattlesListPage() {
                   <span className="text-ink">{b.nombreB}</span> <span className="text-ink-soft/60">({b.faccionB})</span>
                 </p>
               </button>
+
+              {/* El sello de finalizada va SIEMPRE visible, no al pasar el ratón:
+                  es el estado de la batalla, no una acción sobre ella. */}
+              <SelloDeFinalizada batalla={b} />
+
               <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                 <button
                   className="rounded-sm p-1.5 text-ink-soft hover:bg-bronze/15 hover:text-bronze"
@@ -99,14 +148,26 @@ export function BattlesListPage() {
                 >
                   <PencilIcon className="h-4 w-4" />
                 </button>
-                <button
-                  className="rounded-sm p-1.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
-                  onClick={() => setBorrando(b)}
-                  aria-label={`Borrar ${b.name}`}
-                  title="Borrar esta batalla"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                {b.finalizadaA && b.finalizadaB ? (
+                  <button
+                    className="rounded-sm p-1.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                    onClick={() => setBorrando(b)}
+                    aria-label={`Borrar ${b.name}`}
+                    title="Borrar esta batalla"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                ) : (
+                  // Candado y no papelera desactivada: una papelera en gris se
+                  // lee como "no tienes permiso", y no es eso — es que la
+                  // partida sigue viva. El title dice por quién falta.
+                  <span
+                    className="cursor-not-allowed rounded-sm p-1.5 text-ink-soft/35"
+                    title={`No se puede borrar todavía: falta que ${quienFalta(b)} den la batalla por finalizada, desde dentro de ella.`}
+                  >
+                    <LockIcon className="h-4 w-4" />
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -133,9 +194,9 @@ export function BattlesListPage() {
         <ConfirmDialog
           title="Borrar batalla"
           message={
-            `¿Seguro que quieres borrar "${borrando.name}"? Las batallas son de todos, así que desaparece ` +
-            'también para los demás jugadores, la creara quien la creara. Se borra solo la batalla: los dos ' +
-            'ejércitos y sus despliegues se quedan como están, y vuelven a poder reabrirse.'
+            `Los dos jugadores han dado "${borrando.name}" por finalizada, así que ya se puede borrar. Desaparece ` +
+            'para todo el grupo y no se puede recuperar. Se borra solo la batalla: los dos ejércitos y sus ' +
+            'despliegues se quedan como están, y vuelven a poder reabrirse.'
           }
           confirmLabel="Borrar"
           onCancel={() => setBorrando(null)}

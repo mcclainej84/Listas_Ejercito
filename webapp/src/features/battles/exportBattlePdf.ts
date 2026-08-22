@@ -12,6 +12,10 @@
 // EL COLOR ES LO ÚNICO QUE SEPARA A LOS DOS BANDOS sobre el papel: una peana
 // lleva tres letras y nada más. Por eso el cuadro de color sale en la cabecera,
 // en cada tabla y en la propia celda de la referencia.
+//
+// LOS PUNTOS VAN SOLO EN EL TOTAL, igual que en la pantalla de la batalla. Ver
+// allí el porqué: hay unidades ocultas que no salen en ninguna de las dos, y el
+// desglose por unidad las delataba restando.
 // ============================================================================
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -137,8 +141,13 @@ export function exportBattleToPdf(datos: DatosDeLaBatalla, ventana: Window | nul
     autoTable(doc, {
       startY: MARGEN + 12,
       margin: { left: MARGEN, right: MARGEN },
-      head: [['Ref.', 'Nº', 'Unidad', 'Equipo y opciones', 'Pts']],
-      body: bando.referencias.map((r) => [r.ref, String(r.cantidad), r.nombre, r.detalle || '--', String(r.puntos)]),
+      // SIN COLUMNA DE PUNTOS. La hoja solo lleva el total del ejército, arriba.
+      // En una batalla puede haber unidades ocultas que no salen ni en la mesa ni
+      // en esta tabla (ver ArmyListEntry.hidden), y un desglose línea a línea al
+      // lado del total las delataba con una resta. El ancho que deja libre se lo
+      // queda "Equipo y opciones", que es lo que siempre iba justo.
+      head: [['Ref.', 'Nº', 'Unidad', 'Equipo y opciones']],
+      body: bando.referencias.map((r) => [r.ref, String(r.cantidad), r.nombre, r.detalle || '--']),
       theme: 'grid',
       styles: { font: 'times', fontSize: 9, cellPadding: 1.6, textColor: [43, 32, 19], lineColor: [138, 113, 63] },
       headStyles: { fillColor: [122, 36, 32], textColor: [246, 239, 220], fontStyle: 'bold', halign: 'center' },
@@ -146,8 +155,7 @@ export function exportBattleToPdf(datos: DatosDeLaBatalla, ventana: Window | nul
         0: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
         1: { cellWidth: 12, halign: 'center' },
         2: { cellWidth: 80 },
-        3: { cellWidth: 145 },
-        4: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 163 },
       },
       // `columnStyles` pisa a `headStyles`, así que la cabecera se recentra a
       // mano (el mismo tropiezo de siempre con jspdf-autotable).

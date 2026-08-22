@@ -13,6 +13,40 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.150 — 22/08/2026 17:59
+
+- **Una batalla se monta con cualquier ejército completado del grupo**, sin que
+  nadie tenga que compartirte nada antes. Montar la partida del sábado exigía
+  dos personas y tres pasos: que el rival se acordara de compartirte su
+  ejército, que tú te enteraras, y solo entonces crear la batalla. Se ofrecen
+  todos los completados, con el nombre de su dueño al lado.
+
+- **Una batalla ya no la borra cualquiera cuando quiere: hacen falta las dos
+  firmas.** Cada dueño entra en ella y la da por terminada por su parte; hasta
+  que están las dos, en el listado hay un candado en vez de la papelera, y dice
+  por quién falta. La firma se puede retirar — un "ya está" dicho antes de
+  tiempo no debería ser irreversible. Antes cualquiera podía quitarle al otro el
+  acta de la partida —el plan, el mapa, las dos listas— sin avisar.
+
+- **Unidades ocultas.** En el Despliegue, el ojo de cada fila esconde esa unidad
+  de la sección de Batallas: no sale ni sobre la mesa ni en el orden de batalla
+  del rival. Es lo que en la partida se declara escondido (exploradores,
+  emboscadas). Se guarda al pulsarlo, no con el "Guardar despliegue": salir sin
+  guardar no puede destapar lo que creías escondido. Solo su dueño ve un
+  recordatorio de cuántas tiene ocultas; al rival no se le dice ni el número.
+
+- **En Batallas desaparecen los puntos de cada unidad**: queda solo el total de
+  cada ejército, arriba, y también en el PDF. Va con lo anterior — el total
+  sigue contando las ocultas, porque a cuántos puntos se juega es lo que los dos
+  han acordado, y con el desglose delante bastaba una resta para saber cuánto se
+  está escondiendo.
+
+- Requiere `cd webapp/worker && npx wrangler deploy` y después **"Aplicar
+  ahora"** en el aviso de migraciones: hay tres columnas nuevas
+  (`battles.finished_a`, `battles.finished_b`, `army_list_entries.hidden`).
+
+---
+
 ## 0.149 — 22/08/2026 12:25
 
 - **Diseñador de emblemas**, en lugar del generador aleatorio. Se elige la
