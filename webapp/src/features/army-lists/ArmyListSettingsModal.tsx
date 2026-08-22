@@ -2,13 +2,17 @@ import { useRef, useState } from 'react'
 import { ArmyListRepository } from '@/data/repositories/armyListRepository'
 import { hashDeContenido, uploadImageAtKey } from '@/data/network/images'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
+import { semillaAlAzar, svgDeEmblema, urlDeEmblemaGenerado } from '@/domain/emblemaGenerado'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
-import { compressImageFile } from '@/shared/image'
+import { compressImageFile, rasterizarSvg } from '@/shared/image'
 import { Modal } from '@/shared/ui/Modal'
 import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { TextField } from '@/shared/ui/TextField'
 import type { ArmyListDetail } from '@/domain/types'
+
+/** Los emblemas generados llevan este prefijo en su clave. Ver `esGenerado`. */
+const PREFIJO_GENERADO = 'emblemas/gen-'
 
 interface ArmyListSettingsModalProps {
   list: ArmyListDetail
@@ -47,8 +51,33 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
   const [emblemKey, setEmblemKey] = useState<string | null>(list.emblemKey)
   const [subiendoEmblema, setSubiendoEmblema] = useState(false)
   const archivoRef = useRef<HTMLInputElement>(null)
-  const urlDelEmblema = urlDelEmblemaDeLista({ factionId: list.factionId, emblemFactionId, emblemKey }, factions ?? [])
-  const origen: 'faccion' | 'otra' | 'imagen' = emblemKey ? 'imagen' : emblemFactionId != null ? 'otra' : 'faccion'
+  /**
+   * Emblema generado a la espera de guardarse. Se previsualiza como SVG —es
+   * instantáneo, así que se puede pulsar "otro" todas las veces que haga
+   * falta— y solo al guardar se convierte en imagen y se sube. Generar y subir
+   * a cada pulsación sería una petición por capricho.
+   */
+  const [semilla, setSemilla] = useState<number | null>(null)
+  // Los generados se guardan bajo `emblemas/gen-…` para poder reconocerlos al
+  // volver a abrir esto: si no, un emblema generado reaparecería como "imagen
+  // propia" y no habría forma de pedir otro sin subir un archivo.
+  const esGenerado = (emblemKey ?? '').startsWith(PREFIJO_GENERADO)
+  const origen: 'faccion' | 'otra' | 'imagen' | 'generado' =
+    semilla != null || esGenerado ? 'generado' : emblemKey ? 'imagen' : emblemFactionId != null ? 'otra' : 'faccion'
+  const colorDeLaFaccion = (factions ?? []).find((f) => f.id === list.factionId)?.color ?? null
+  const urlDelEmblema =
+    semilla != null
+      ? urlDeEmblemaGenerado(semilla, colorDeLaFaccion)
+      : urlDelEmblemaDeLista({ factionId: list.factionId, emblemFactionId, emblemKey }, factions ?? [])
+
+  /** Rasteriza el SVG generado y lo sube. Devuelve su clave en R2. */
+  async function subirEmblemaGenerado(sem: number): Promise<string> {
+    const imagen = await rasterizarSvg(svgDeEmblema(sem, colorDeLaFaccion), 480)
+    const ext = imagen.mime === 'image/webp' ? 'webp' : imagen.mime === 'image/png' ? 'png' : 'jpg'
+    const clave = `${PREFIJO_GENERADO}${await hashDeContenido(imagen.bytes)}.${ext}`
+    await uploadImageAtKey(clave, imagen.bytes, imagen.mime)
+    return clave
+  }
 
   async function subirEmblema(file: File | undefined) {
     if (!file) return
@@ -64,6 +93,7 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
       await uploadImageAtKey(key, comprimida.bytes, comprimida.mime)
       setEmblemKey(key)
       setEmblemFactionId(null)
+      setSemilla(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -89,7 +119,9 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
       // pantalla enseñándole todavía los valores viejos. Yendo la primera, o se
       // guarda todo o no se guarda nada.
       await ArmyListRepository.setShowSpecialCharacters(list.id, mostrarRenombre)
-      await ArmyListRepository.setEmblem(list.id, emblemFactionId, emblemKey)
+      // El generado se sube AQUÍ, al guardar, no al generarlo.
+      const claveFinal = semilla != null ? await subirEmblemaGenerado(semilla) : emblemKey
+      await ArmyListRepository.setEmblem(list.id, emblemFactionId, claveFinal)
       await ArmyListRepository.rename(list.id, nextName)
       await ArmyListRepository.setPointsLimit(list.id, nextPointsLimit)
       onSaved({
@@ -97,7 +129,7 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
         pointsLimit: nextPointsLimit,
         showSpecialCharacters: mostrarRenombre,
         emblemFactionId,
-        emblemKey,
+        emblemKey: claveFinal,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -182,18 +214,38 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
                   if (v === 'faccion') {
                     setEmblemKey(null)
                     setEmblemFactionId(null)
+                    setSemilla(null)
                   } else if (v === 'otra') {
                     setEmblemKey(null)
                     setEmblemFactionId(list.faction.id)
+                    setSemilla(null)
+                  } else if (v === 'generado') {
+                    setEmblemFactionId(null)
+                    setSemilla(semillaAlAzar())
                   } else {
                     archivoRef.current?.click()
                   }
                 }}
               >
                 <option value="faccion">El de su facción ({list.faction.name})</option>
+                <option value="generado">Generar uno con los colores de la facción…</option>
                 <option value="otra">El de otra facción…</option>
                 <option value="imagen">Una imagen propia…</option>
               </Select>
+
+              {origen === 'generado' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={subiendoEmblema}
+                    onClick={() => setSemilla(semillaAlAzar())}
+                    className="rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-xs font-medium text-ink hover:bg-parchment-dark disabled:opacity-50"
+                  >
+                    Generar otro
+                  </button>
+                  {semilla != null && <span className="text-micro text-ink-soft/70">Se guardará este</span>}
+                </div>
+              )}
 
               {origen === 'otra' && (
                 <Select

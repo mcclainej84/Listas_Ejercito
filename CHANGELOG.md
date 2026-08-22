@@ -13,6 +13,39 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.145 — 22/08/2026 11:26
+
+- **Emblemas generados**: cuarta opción del emblema de un ejército, junto a "el
+  de su facción", "el de otra" y "una imagen propia". Se pulsa un botón y sale
+  un escudo con los colores de la facción; "Generar otro" da uno distinto hasta
+  dar con el que gusta.
+  - **Por qué hacía falta.** Las opciones que había eran "el de otra facción"
+    —que no es tuyo— o "sube una imagen" —que exige tenerla—. Casi nadie tiene
+    a mano el escudo de su hueste, así que en la práctica el emblema propio se
+    quedaba sin usar.
+  - **Se construye como un escudo de verdad**, y por eso no parece un icono
+    generado: un CAMPO con su partición (faja, palo, banda, cuartelado, chevrón,
+    jefe), el ESCUDO encima, y un MUEBLE dentro (cruz, sotuer, creciente,
+    estrella, torre, flor de lis, roeles, espadas, rombo, calavera). Tres
+    decisiones tomadas por una semilla, no veinte parámetros al azar: con pocas
+    piezas bien elegidas sale heráldica, con muchas sale ruido.
+  - **Todo sale del color de la facción**, y el mueble va en pergamino o en
+    tinta según lo claro que quede el campo. Sin eso, una facción casi blanca
+    daba una figura crema sobre gris: correcta e ilegible.
+  - Es SVG, así que la vista previa es instantánea y se puede pulsar "otro" sin
+    coste. Solo **al guardar** se convierte en imagen de 480 px y se sube, para
+    que a partir de ahí sea un emblema normal y corriente como cualquier otro
+    (`shared/image#rasterizarSvg`). Los generados llevan la clave
+    `emblemas/gen-…`, que es como se reconocen al reabrir el diálogo: si no,
+    volverían como "imagen propia" y no habría forma de pedir otro sin subir un
+    archivo.
+  - Comprobados 90 emblemas de nueve colores distintos renderizados en un
+    navegador de verdad: ninguno roto. Los primeros sí lo estaban, por un
+    `stroke-width` repetido dentro del mismo grupo — un atributo duplicado no es
+    SVG válido y el navegador descarta la imagen entera.
+
+---
+
 ## 0.144 — 22/08/2026 11:14
 
 - **La mesa cortada por la izquierda, resuelta de raíz: el ancho de la columna

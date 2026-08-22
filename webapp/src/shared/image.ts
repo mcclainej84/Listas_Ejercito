@@ -230,6 +230,41 @@ export async function compressImageFile(file: File, options: CompressOptions = {
   }
 }
 
+/**
+ * Convierte un SVG en imagen de mapa de bits, cuadrada y del lado que se pida.
+ *
+ * Existe para los emblemas generados (ver domain/emblemaGenerado): el SVG sirve
+ * para previsualizar al instante, pero lo que se guarda tiene que ser una
+ * imagen normal y corriente, igual que la que sube un usuario. Así el emblema
+ * generado no es un tipo aparte que haya que saber pintar en cinco pantallas:
+ * a partir del guardado, es un emblema como cualquier otro.
+ */
+export async function rasterizarSvg(svg: string, lado: number): Promise<ResizedImage> {
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }))
+  try {
+    const img = new Image()
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('No se pudo dibujar el emblema.'))
+      img.src = url
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = lado
+    canvas.height = lado
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('No se pudo procesar la imagen (canvas no disponible).')
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(img, 0, 0, lado, lado)
+    // Sin alfa: el emblema cubre el cuadrado entero, así que JPEG/WebP valen y
+    // pesan la mitad que un PNG.
+    const mime = supportsWebp() ? 'image/webp' : 'image/jpeg'
+    return { bytes: await canvasToBytes(canvas, mime, 0.92), mime }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 /** Presupuesto de una pieza de escenografía o un suelo: se ve pequeño sobre la mesa. */
 export const MAX_SCENERY_BYTES = 160 * 1024
 
