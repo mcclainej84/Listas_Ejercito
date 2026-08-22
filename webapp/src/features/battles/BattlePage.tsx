@@ -42,7 +42,7 @@ import { UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
 import { imageUrl } from '@/data/network/images'
 import { computeEntryCost } from '@/domain/armyValidation'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
-import { enfrentarPosicion, motivoDeEscenarioDistinto, motivoDeLadoRepetido } from '@/domain/battle'
+import { cruzarPosicion, enfrentarPosicion, motivoDeEscenarioDistinto, motivoDeLadoRepetido } from '@/domain/battle'
 import { RETICULA_CM, tamanoDeEntrada, type DeploymentPosition, type Mesa, type TamanoCm } from '@/domain/deployment'
 import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
@@ -177,11 +177,23 @@ export function BattlePage() {
     })
   }
 
-  /** Prepara un bando. `girar` es lo único que distingue al de arriba del de abajo. */
-  function prepararBando(lista: ArmyListDetail, plan: DeploymentPosition[], girar: boolean): Bando {
-    const posiciones = new Map(
-      plan.map((p) => [p.entryId, girar ? enfrentarPosicion(p, mesa) : p] as [number, DeploymentPosition]),
-    )
+  /**
+   * Cómo se lleva un despliegue a la mesa de la batalla.
+   *
+   *   · `tal-cual`  el bando de abajo, el anfitrión: se pinta como está.
+   *   · `media-vuelta` el de arriba, cuando declaró el lado NORTE. Desplegó
+   *     viendo la mesa desde su borde (la pantalla se la giró), así que para
+   *     traerlo a la vista común hay que deshacer ese giro: media vuelta.
+   *   · `cruzar`  el de arriba cuando los dos declararon el MISMO lado. Ahí
+   *     media vuelta está mal —le cambiaría la izquierda por la derecha— y
+   *     basta con pasarlo al otro lado de la línea central.
+   */
+  type ComoSeColoca = 'tal-cual' | 'media-vuelta' | 'cruzar'
+
+  function prepararBando(lista: ArmyListDetail, plan: DeploymentPosition[], como: ComoSeColoca): Bando {
+    const mover = (p: DeploymentPosition) =>
+      como === 'media-vuelta' ? enfrentarPosicion(p, mesa) : como === 'cruzar' ? cruzarPosicion(p, mesa) : p
+    const posiciones = new Map(plan.map((p) => [p.entryId, mover(p)] as [number, DeploymentPosition]))
     const entradas = [...lista.entries].sort((a, b) => a.sortOrder - b.sortOrder)
     const enMesa = entradas.filter((e) => posiciones.has(e.id))
     const costes = new Map(enMesa.map((e) => [e.id, computeEntryCost(e.unit, e)]))
@@ -205,8 +217,14 @@ export function BattlePage() {
   // motivoDeLadoRepetido); si aun así llegara una batalla vieja con los dos
   // iguales, el `else` la pinta como antes en vez de dejarlos superpuestos.
   const aEsNorte = listaA.deploymentSide === 'norte' && listaB.deploymentSide !== 'norte'
-  const bandoA = prepararBando(listaA, datos?.planA ?? [], aEsNorte)
-  const bandoB = prepararBando(listaB, datos?.planB ?? [], !aEsNorte)
+  // Con los dos en el mismo lado —solo las batallas viejas— el de arriba CRUZA
+  // en vez de dar media vuelta: ninguno de los dos desplegó viendo la mesa
+  // girada, así que comparten izquierda y derecha, y girar a uno le movería el
+  // ejército de flanco. Ver domain/battle#cruzarPosicion.
+  const mismoLado = listaA.deploymentSide === listaB.deploymentSide
+  const arriba: ComoSeColoca = mismoLado ? 'cruzar' : 'media-vuelta'
+  const bandoA = prepararBando(listaA, datos?.planA ?? [], aEsNorte ? arriba : 'tal-cual')
+  const bandoB = prepararBando(listaB, datos?.planB ?? [], aEsNorte ? 'tal-cual' : arriba)
   /** El de abajo primero: es el orden en que se leen la mesa y los estandartes. */
   const bandoSur = aEsNorte ? bandoB : bandoA
   const bandoNorte = aEsNorte ? bandoA : bandoB
@@ -384,13 +402,14 @@ export function BattlePage() {
 
       {ladoRepetido && (
         <p className="mb-3 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
-          <b className="text-danger">Ojo: {ladoRepetido}.</b> Para enfrentarlos hay que dar la vuelta a uno de los dos,
-          y al girarlo sus unidades cambian de sitio respecto al terreno: no caen donde su jugador las puso. Por eso{' '}
-          <b className="text-ink">{bandoNorte.lista.name}</b> puede verse descolocado sobre el mapa.
+          <b className="text-danger">Ojo: {ladoRepetido}.</b> Ninguno de los dos desplegó viendo la mesa desde su borde,
+          así que <b className="text-ink">{bandoNorte.lista.name}</b> se ha pasado al otro lado{' '}
+          <b className="text-ink">sin girarlo</b>: cada unidad se queda en la columna donde la pusieron y solo cambia de
+          mitad. Es lo más fiel que se puede hacer con este despliegue.
           <br />
-          Se arregla en el Despliegue de uno de los dos: ponle <b className="text-ink">lado Norte</b>. Ahí verá la mesa
-          girada —como se ve desde su borde— y podrá colocar sus unidades contra el terreno tal y como lo va a tener
-          delante. Esta batalla es anterior a la comprobación que ahora impide crearlas con los dos en el mismo lado.
+          Lo correcto es que cada ejército declare su lado. Ponle <b className="text-ink">lado Norte</b> a uno de los
+          dos en su Despliegue: verá la mesa girada —como la va a tener delante— y a partir de ahí los dos se enfrentan
+          de verdad, con su terreno. Esta batalla es anterior a la comprobación que ahora lo impide.
         </p>
       )}
 

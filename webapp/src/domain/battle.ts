@@ -88,3 +88,24 @@ export function motivoDeEscenarioDistinto(a: EscenarioDeLista, b: EscenarioDeLis
 export function enfrentarPosicion(pos: DeploymentPosition, mesa: Mesa): DeploymentPosition {
   return { ...pos, xCm: mesa.anchoCm - pos.xCm, yCm: mesa.altoCm - pos.yCm }
 }
+
+/**
+ * Pasa una peana al otro lado SIN girarla: solo cruza la línea central.
+ *
+ * Es para las batallas en las que los dos ejércitos declararon el MISMO lado.
+ * Ahí media vuelta está mal, y se nota: girar cambia también la izquierda por
+ * la derecha, y ese jugador no desplegó mirando desde su borde —la pantalla no
+ * le dio la vuelta al mapa—, así que su izquierda es la misma que la del rival.
+ * Girarlo le mueve el ejército de flanco, que es como se ve: "el del norte está
+ * desplazado hacia la izquierda".
+ *
+ * Reflejando, cada unidad se queda en la columna en la que su jugador la puso y
+ * solo cambia de mitad, que es lo único que hace falta para enfrentarlos.
+ *
+ * NO sustituye a `enfrentarPosicion`: cuando cada uno declaró su lado, media
+ * vuelta es lo correcto y es lo que se hace. Esto es para lo que quedó mal
+ * grabado antes de que el alta lo impidiera.
+ */
+export function cruzarPosicion(pos: DeploymentPosition, mesa: Mesa): DeploymentPosition {
+  return { ...pos, yCm: mesa.altoCm - pos.yCm }
+}

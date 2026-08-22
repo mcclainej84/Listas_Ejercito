@@ -13,6 +13,30 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.147 — 22/08/2026 11:49
+
+- **El ejército de arriba salía desplazado de flanco. Ya no: cuando los dos
+  declararon el mismo lado, CRUZA en vez de dar media vuelta.**
+  - Qué pasaba. Media vuelta cambia la mitad de la mesa *y también* la
+    izquierda por la derecha. Eso es lo correcto cuando ese jugador desplegó
+    viendo la mesa desde su borde —con lado Norte la pantalla se la gira—,
+    porque entonces su izquierda es la derecha del rival. Pero si los dos
+    desplegaron desde el sur, **comparten izquierda y derecha**, y girar a uno
+    le mueve el ejército entero de flanco. Con un despliegue cargado a un lado,
+    el desplazamiento medido es de **100 cm sobre una mesa de 180**: se ve a la
+    primera.
+  - Qué hace ahora. En ese caso solo cruza la línea central (`y → alto − y`):
+    cada unidad se queda **en la misma columna** en la que la pusieron y solo
+    cambia de mitad. Desplazamiento horizontal: **0 cm**. Es lo más fiel que se
+    puede hacer con un despliegue así.
+  - Cuando cada ejército declara su lado —lo normal, y lo único que el alta
+    permite desde 0.136— se sigue dando media vuelta, que ahí es lo correcto.
+  - El aviso de la batalla lo explica y sigue recomendando lo suyo: ponerle
+    **lado Norte** a uno de los dos en su Despliegue, que es lo que hace que los
+    dos ejércitos se enfrenten de verdad, con su terreno.
+
+---
+
 ## 0.146 — 22/08/2026 11:41
 
 - **Encontrado por qué las unidades no caen donde se pusieron: los dos
