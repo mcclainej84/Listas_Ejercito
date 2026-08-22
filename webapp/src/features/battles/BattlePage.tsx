@@ -42,15 +42,8 @@ import { UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
 import { imageUrl } from '@/data/network/images'
 import { computeEntryCost } from '@/domain/armyValidation'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
-import { enfrentarPosicion, motivoDeEscenarioDistinto } from '@/domain/battle'
-import {
-  RETICULA_CM,
-  limitarAMesa,
-  tamanoDeEntrada,
-  type DeploymentPosition,
-  type Mesa,
-  type TamanoCm,
-} from '@/domain/deployment'
+import { enfrentarPosicion, motivoDeEscenarioDistinto, motivoDeLadoRepetido } from '@/domain/battle'
+import { RETICULA_CM, tamanoDeEntrada, type DeploymentPosition, type Mesa, type TamanoCm } from '@/domain/deployment'
 import { cuerpoDeAliasCm, referenciasDeDespliegue } from '@/domain/deploymentRefs'
 import { COLOR_FACCION_POR_DEFECTO, estiloDePeana, textoSobre } from '@/domain/factionColor'
 import { estiloDeSueloDeMapa } from '@/features/maps/tableSurface'
@@ -241,11 +234,8 @@ export function BattlePage() {
   function peanasParaElLienzo() {
     return bandos.flatMap((b) =>
       b.enMesa.map((e) => {
-        const guardada = b.posiciones.get(e.id)!
-        const tamano = tamanoDe(e, guardada)
-        // La misma red que en la pantalla, para que el PDF no enseñe una mesa
-        // distinta de la que se está mirando.
-        const pos = limitarAMesa(guardada.xCm, guardada.yCm, tamano, mesa)
+        const pos = b.posiciones.get(e.id)!
+        const tamano = tamanoDe(e, pos)
         return {
           xCm: pos.xCm,
           yCm: pos.yCm,
@@ -333,6 +323,24 @@ export function BattlePage() {
    */
   const escenariosDistintos = motivoDeEscenarioDistinto(listaA, listaB)
 
+  /**
+   * ¿Los dos desplegaron desde el mismo borde?
+   *
+   * ESTE es el aviso importante, y explica el desconcierto que provoca. Para
+   * enfrentar dos ejércitos hay que girar a uno, y girarlo mueve sus unidades
+   * respecto al TERRENO. Eso solo es correcto si ese jugador desplegó viendo la
+   * mesa desde su lado —que es justo lo que hace la pantalla de Despliegue
+   * cuando su lado es el norte: le da la vuelta al mapa—. Si los dos
+   * desplegaron mirando desde el sur, uno de ellos colocó sus unidades contra
+   * un terreno que en la batalla ya no está donde él lo veía, y sus posiciones
+   * dejan de corresponderse con el mapa. Se ve exactamente como "las unidades
+   * no están donde las puse".
+   *
+   * El alta ya no permite crear una batalla así (ver motivoDeLadoRepetido),
+   * pero las de antes existen y hay que explicarlas.
+   */
+  const ladoRepetido = motivoDeLadoRepetido(listaA.deploymentSide, listaB.deploymentSide)
+
   return (
     // La caja ya no hace nada raro: el ancho lo pone AppShell, que ensancha su
     // columna en esta ruta (ver el comentario largo de allí). Esta pantalla se
@@ -373,6 +381,18 @@ export function BattlePage() {
           </Button>
         </div>
       </div>
+
+      {ladoRepetido && (
+        <p className="mb-3 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
+          <b className="text-danger">Ojo: {ladoRepetido}.</b> Para enfrentarlos hay que dar la vuelta a uno de los dos,
+          y al girarlo sus unidades cambian de sitio respecto al terreno: no caen donde su jugador las puso. Por eso{' '}
+          <b className="text-ink">{bandoNorte.lista.name}</b> puede verse descolocado sobre el mapa.
+          <br />
+          Se arregla en el Despliegue de uno de los dos: ponle <b className="text-ink">lado Norte</b>. Ahí verá la mesa
+          girada —como se ve desde su borde— y podrá colocar sus unidades contra el terreno tal y como lo va a tener
+          delante. Esta batalla es anterior a la comprobación que ahora impide crearlas con los dos en el mismo lado.
+        </p>
+      )}
 
       {escenariosDistintos && (
         <p className="mb-3 rounded-sm border border-danger/40 bg-danger/10 px-3 py-2 text-xs leading-relaxed text-ink">
@@ -512,17 +532,15 @@ export function BattlePage() {
 
             {bandos.map((bando, indiceBando) =>
               bando.enMesa.map((entry, indice) => {
-                const guardada = bando.posiciones.get(entry.id)!
-                const tamano = tamanoDe(entry, guardada)
-                // ÚLTIMA RED. La mesa es el mundo: nada se pinta fuera de
-                // ella. El despliegue ya sujeta cada peana dentro al
-                // colocarla, así que esto no debería hacer nada nunca; pero
-                // si algo llega descuadrado —una peana redimensionada, un
-                // mapa que cambió de medidas después de desplegar— es mejor
-                // enseñarla entera en el borde que medio comida por el marco,
-                // que es lo que parece un fallo de encuadre del mapa.
-                const dentro = limitarAMesa(guardada.xCm, guardada.yCm, tamano, mesa)
-                const pos = { ...guardada, ...dentro }
+                // SIN CORRECCIONES. Cada peana se pinta EXACTAMENTE donde la
+                // dejó su jugador. Hubo aquí una "red" que la metía dentro de
+                // la mesa si se salía, y estaba mal pensada: una batalla es el
+                // acta de un despliegue, y un acta que endereza lo que copia
+                // deja de ser un acta. Si algo no cuadra hay que DECIRLO —eso
+                // son los avisos de arriba—, no moverlo en silencio para que
+                // parezca que cuadra.
+                const pos = bando.posiciones.get(entry.id)!
+                const tamano = tamanoDe(entry, pos)
                 const resaltada = encima === entry.id
                 return (
                   <div

@@ -13,6 +13,33 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.146 — 22/08/2026 11:41
+
+- **Encontrado por qué las unidades no caen donde se pusieron: los dos
+  ejércitos desplegaron desde el MISMO borde.**
+  - El mecanismo. Para enfrentar dos ejércitos hay que girar a uno, y girarlo
+    mueve sus unidades respecto al TERRENO, que no gira: la mesa se pinta
+    siempre desde el sur. Eso es correcto solo si ese jugador desplegó viendo la
+    mesa desde SU lado —que es justo lo que hace la pantalla de Despliegue
+    cuando su lado es el norte: le da la vuelta al mapa—. Con los dos en "sur",
+    uno de ellos colocó sus unidades contra un terreno que en la batalla ya no
+    está donde él lo veía. Sobre el papel: una unidad puesta dentro de un bosque
+    en su despliegue acaba a 100 cm de ese bosque y en la otra mitad de la mesa.
+  - El giro en sí es correcto y no descoloca nada por su cuenta: conserva la
+    forma de la formación y su distancia al centro (comprobado). Lo que falla es
+    girar a quien no desplegó mirando desde su borde.
+  - La batalla ahora **lo dice**, nombra al bando afectado y explica el arreglo:
+    ponerle **lado Norte** en su Despliegue a uno de los dos. El alta ya lo
+    impide desde 0.136, pero las batallas anteriores existen.
+- **Y la batalla deja de "corregir" lo que pinta.** Había una red que metía
+  dentro de la mesa cualquier peana que se saliera. Estaba mal pensada: una
+  batalla es el acta de un despliegue, y un acta que endereza lo que copia deja
+  de ser un acta —además de tapar justo el síntoma que había que ver—. Si algo
+  no cuadra, se dice; no se mueve en silencio para que parezca que cuadra. El
+  PDF, igual.
+
+---
+
 ## 0.145 — 22/08/2026 11:26
 
 - **Emblemas generados**: cuarta opción del emblema de un ejército, junto a "el
