@@ -2,7 +2,16 @@ import { useRef, useState } from 'react'
 import { ArmyListRepository } from '@/data/repositories/armyListRepository'
 import { hashDeContenido, uploadImageAtKey } from '@/data/network/images'
 import { urlDelEmblemaDeLista } from '@/domain/armyEmblem'
-import { semillaAlAzar, svgDeEmblema, urlDeEmblemaGenerado } from '@/domain/emblemaGenerado'
+import {
+  PREFIJO_DISENO,
+  claveDeDiseno,
+  disenoDesdeClave,
+  disenoPorDefecto,
+  svgDeEmblema,
+  urlDeEmblema,
+  type DisenoDeEmblema,
+} from '@/domain/emblemaDeEjercito'
+import { EmblemaDesignerModal } from '@/features/army-lists/EmblemaDesignerModal'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { compressImageFile, rasterizarSvg } from '@/shared/image'
 import { Modal } from '@/shared/ui/Modal'
@@ -10,9 +19,6 @@ import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { TextField } from '@/shared/ui/TextField'
 import type { ArmyListDetail } from '@/domain/types'
-
-/** Los emblemas generados llevan este prefijo en su clave. Ver `esGenerado`. */
-const PREFIJO_GENERADO = 'emblemas/gen-'
 
 interface ArmyListSettingsModalProps {
   list: ArmyListDetail
@@ -52,29 +58,32 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
   const [subiendoEmblema, setSubiendoEmblema] = useState(false)
   const archivoRef = useRef<HTMLInputElement>(null)
   /**
-   * Emblema generado a la espera de guardarse. Se previsualiza como SVG —es
-   * instantáneo, así que se puede pulsar "otro" todas las veces que haga
-   * falta— y solo al guardar se convierte en imagen y se sube. Generar y subir
-   * a cada pulsación sería una petición por capricho.
+   * Diseño a la espera de guardarse. Se previsualiza como SVG —es instantáneo,
+   * así que el diseñador puede repintar en cada clic— y solo al aceptar se
+   * convierte en imagen y se sube. Subir a cada cambio sería una petición por
+   * capricho.
    */
-  const [semilla, setSemilla] = useState<number | null>(null)
-  // Los generados se guardan bajo `emblemas/gen-…` para poder reconocerlos al
-  // volver a abrir esto: si no, un emblema generado reaparecería como "imagen
-  // propia" y no habría forma de pedir otro sin subir un archivo.
-  const esGenerado = (emblemKey ?? '').startsWith(PREFIJO_GENERADO)
-  const origen: 'faccion' | 'otra' | 'imagen' | 'generado' =
-    semilla != null || esGenerado ? 'generado' : emblemKey ? 'imagen' : emblemFactionId != null ? 'otra' : 'faccion'
+  const [diseno, setDiseno] = useState<DisenoDeEmblema | null>(null)
+  const [disenando, setDisenando] = useState(false)
+  // Los diseñados se guardan bajo `emblemas/gen-…` y con su diseño dentro del
+  // nombre, para poder reconocerlos Y REABRIRLOS: si no, un emblema diseñado
+  // reaparecería como "imagen propia" y habría que rehacerlo desde cero para
+  // cambiarle un color.
+  const disenoGuardado = disenoDesdeClave(emblemKey)
+  const esDisenado = (emblemKey ?? '').startsWith(PREFIJO_DISENO)
+  const origen: 'faccion' | 'otra' | 'imagen' | 'disenado' =
+    diseno != null || esDisenado ? 'disenado' : emblemKey ? 'imagen' : emblemFactionId != null ? 'otra' : 'faccion'
   const colorDeLaFaccion = (factions ?? []).find((f) => f.id === list.factionId)?.color ?? null
   const urlDelEmblema =
-    semilla != null
-      ? urlDeEmblemaGenerado(semilla, colorDeLaFaccion)
+    diseno != null
+      ? urlDeEmblema(diseno)
       : urlDelEmblemaDeLista({ factionId: list.factionId, emblemFactionId, emblemKey }, factions ?? [])
 
-  /** Rasteriza el SVG generado y lo sube. Devuelve su clave en R2. */
-  async function subirEmblemaGenerado(sem: number): Promise<string> {
-    const imagen = await rasterizarSvg(svgDeEmblema(sem, colorDeLaFaccion), 480)
+  /** Rasteriza el emblema diseñado y lo sube. Devuelve su clave en R2. */
+  async function subirEmblemaDisenado(d: DisenoDeEmblema): Promise<string> {
+    const imagen = await rasterizarSvg(svgDeEmblema(d), 480)
     const ext = imagen.mime === 'image/webp' ? 'webp' : imagen.mime === 'image/png' ? 'png' : 'jpg'
-    const clave = `${PREFIJO_GENERADO}${await hashDeContenido(imagen.bytes)}.${ext}`
+    const clave = claveDeDiseno(d, await hashDeContenido(imagen.bytes), ext)
     await uploadImageAtKey(clave, imagen.bytes, imagen.mime)
     return clave
   }
@@ -93,7 +102,7 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
       await uploadImageAtKey(key, comprimida.bytes, comprimida.mime)
       setEmblemKey(key)
       setEmblemFactionId(null)
-      setSemilla(null)
+      setDiseno(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -119,8 +128,8 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
       // pantalla enseñándole todavía los valores viejos. Yendo la primera, o se
       // guarda todo o no se guarda nada.
       await ArmyListRepository.setShowSpecialCharacters(list.id, mostrarRenombre)
-      // El generado se sube AQUÍ, al guardar, no al generarlo.
-      const claveFinal = semilla != null ? await subirEmblemaGenerado(semilla) : emblemKey
+      // El diseñado se sube AQUÍ, al guardar la lista, no al diseñarlo.
+      const claveFinal = diseno != null ? await subirEmblemaDisenado(diseno) : emblemKey
       await ArmyListRepository.setEmblem(list.id, emblemFactionId, claveFinal)
       await ArmyListRepository.rename(list.id, nextName)
       await ArmyListRepository.setPointsLimit(list.id, nextPointsLimit)
@@ -214,36 +223,36 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
                   if (v === 'faccion') {
                     setEmblemKey(null)
                     setEmblemFactionId(null)
-                    setSemilla(null)
+                    setDiseno(null)
                   } else if (v === 'otra') {
                     setEmblemKey(null)
                     setEmblemFactionId(list.faction.id)
-                    setSemilla(null)
-                  } else if (v === 'generado') {
+                    setDiseno(null)
+                  } else if (v === 'disenado') {
                     setEmblemFactionId(null)
-                    setSemilla(semillaAlAzar())
+                    setDisenando(true)
                   } else {
                     archivoRef.current?.click()
                   }
                 }}
               >
                 <option value="faccion">El de su facción ({list.faction.name})</option>
-                <option value="generado">Generar uno con los colores de la facción…</option>
+                <option value="disenado">Diseñar uno…</option>
                 <option value="otra">El de otra facción…</option>
                 <option value="imagen">Una imagen propia…</option>
               </Select>
 
-              {origen === 'generado' && (
+              {origen === 'disenado' && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     disabled={subiendoEmblema}
-                    onClick={() => setSemilla(semillaAlAzar())}
+                    onClick={() => setDisenando(true)}
                     className="rounded-sm border border-rule-dark/40 bg-parchment px-2 py-1 text-xs font-medium text-ink hover:bg-parchment-dark disabled:opacity-50"
                   >
-                    Generar otro
+                    Cambiar el diseño…
                   </button>
-                  {semilla != null && <span className="text-micro text-ink-soft/70">Se guardará este</span>}
+                  {diseno != null && <span className="text-micro text-ink-soft/70">Se guardará este</span>}
                 </div>
               )}
 
@@ -292,6 +301,22 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
         </div>
 
         {error && <p className="text-sm text-danger">{error}</p>}
+
+        {/* El diseñador va sobre este diálogo. Al aceptar NO sube nada: deja el
+            diseño apuntado y se sube al guardar la lista, con todo lo demás. */}
+        {disenando && (
+          <EmblemaDesignerModal
+            inicial={diseno ?? disenoGuardado ?? disenoPorDefecto(colorDeLaFaccion)}
+            guardando={false}
+            onCancel={() => setDisenando(false)}
+            onAceptar={(d) => {
+              setDiseno(d)
+              setEmblemKey(null)
+              setEmblemFactionId(null)
+              setDisenando(false)
+            }}
+          />
+        )}
       </div>
     </Modal>
   )

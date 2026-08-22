@@ -13,6 +13,35 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.149 — 22/08/2026 12:25
+
+- **Diseñador de emblemas**, en lugar del generador aleatorio. Se elige la
+  FIGURA, cómo se parte el CAMPO y los dos colores, y el escudo se repinta en
+  cada clic. Sacar uno al azar una y otra vez hasta que sonara la flauta no era
+  elegir: era jugar a la lotería.
+  - **Todo se ve mientras se elige.** Las miniaturas del catálogo se pintan con
+    los colores puestos en ese momento, no con unos de muestra, y al lado del
+    escudo grande va el mismo a **40 px**, que es como sale en el listado de
+    Ejércitos: si ahí no se reconoce, no sirve por bonito que quede en grande.
+  - 19 figuras, 7 particiones de campo, 12 colores de campo (más un selector
+    libre, porque el color de tu facción no tiene por qué estar en la paleta) y
+    5 de figura.
+  - **El diseño viaja en el nombre del archivo**
+    (`emblemas/gen-cruz-paty~faja~2f5d8c~f6efdc~1~a1b2c3.webp`), así que al
+    reabrir el emblema de un ejército el diseñador arranca con lo que se
+    eligió y se puede retocar un color sin rehacerlo entero. Sin columna nueva:
+    la clave había que guardarla de todas formas.
+  - Sigue sin tocar la red mientras se diseña. Solo al guardar la lista se
+    convierte en imagen de 480 px y se sube.
+- **Las figuras no llevan color propio.** Ninguna declara `fill` ni `stroke`:
+  heredan el que se les inyecta. Es lo que permite cambiar los colores, y es
+  también el requisito principal para poder sustituirlas por otras mejores:
+  añadir una figura es pegar su SVG en el catálogo con su clave y su nombre, sin
+  tocar nada más. El encargo completo, con la caja segura, los grosores mínimos
+  y la prueba de los 40 px, queda escrito en `docs/ENCARGO_EMBLEMAS.md`.
+
+---
+
 ## 0.148 — 22/08/2026 12:02
 
 - **ENCONTRADO. Todas las peanas de la batalla se dibujaban media peana a la
