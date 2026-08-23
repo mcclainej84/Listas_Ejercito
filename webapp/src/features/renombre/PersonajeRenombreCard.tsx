@@ -378,7 +378,7 @@ export function PersonajeRenombreCard({ personaje, onCambio }: { personaje: Pers
           message={
             `¿Seguro que quieres borrar a "${personaje.name}"? Se borra la unidad entera —perfil, equipo, reglas, ` +
             'opciones y monturas— junto con su retrato, su trasfondo y toda la experiencia que tenga apuntada, y ' +
-            'desaparece de cualquier lista de ejército que lo llevara. ESTO ES IRREVERSIBLE: no hay papelera ni ' +
+            'desaparece de cualquier lista de ejército que lo llevara. Esto es irreversible: no hay papelera ni ' +
             'forma de recuperarlo, y los apuntes de experiencia no se pueden volver a montar.'
           }
           confirmLabel="Borrar definitivamente"

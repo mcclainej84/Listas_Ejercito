@@ -1,5 +1,13 @@
 // ============================================================================
-// Alta y edición de una batalla: un nombre y dos ejércitos.
+// Alta de una batalla: un nombre y dos ejércitos. SOLO alta — una batalla, una
+// vez creada, no se edita.
+//
+// POR QUÉ NO SE EDITA. Una batalla es el acta de una partida: quién trae qué y
+// dónde lo pone, acordado entre dos. Cambiarle un ejército después es cambiar
+// contra quién se juega sin que el otro se entere, y el nombre es lo único que
+// quedaría por tocar en una pantalla entera. Lo que sí se puede es finalizarla
+// entre los dos y borrarla; entonces se monta otra. Es lo mismo que ya pasaba
+// dentro de la batalla (ver BattlePage, "acta cerrada"), llevado a su listado.
 //
 // QUÉ EJÉRCITOS SE OFRECEN. Todos los COMPLETADOS del grupo, sean de quien
 // sean. Completados, porque una batalla no guarda copia de nada —enseña las
@@ -28,7 +36,7 @@
 // ============================================================================
 import { useEffect, useState } from 'react'
 import { ArmyListRepository, type ArmyListSummary } from '@/data/repositories/armyListRepository'
-import { BattleRepository, type BattleSummary } from '@/data/repositories/battleRepository'
+import { BattleRepository } from '@/data/repositories/battleRepository'
 import { motivoDeEscenarioDistinto, motivoDeLadoRepetido, nombreDelLado } from '@/domain/battle'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { Modal } from '@/shared/ui/Modal'
@@ -41,30 +49,12 @@ import { WarningIcon } from '@/shared/ui/icons'
 
 interface BattleFormModalProps {
   userId: number
-  /** Batalla que se edita; null para crear una nueva. */
-  batalla: BattleSummary | null
   onClose: () => void
   onSaved: () => void
 }
 
-export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFormModalProps) {
-  const { data: elegibles, loading } = useAsync(async () => {
-    // Todos los completados del grupo, MÁS los dos que la batalla ya tenga
-    // puestos. Lo segundo sigue haciendo falta aunque lo primero ya no filtre:
-    // si a una lista le quitaran el "completada" por lo que sea, la batalla que
-    // la usa tiene que poder seguir abriéndose y editándose en vez de enseñar un
-    // desplegable en blanco.
-    const [completadas, deLaBatalla] = await Promise.all([
-      ArmyListRepository.listCompletadas(userId),
-      batalla
-        ? ArmyListRepository.resumenesPorIds([batalla.armyListAId, batalla.armyListBId], userId)
-        : Promise.resolve([]),
-    ])
-    const porId = new Map<number, ArmyListSummary>()
-    for (const l of completadas) porId.set(l.id, l)
-    for (const l of deLaBatalla) porId.set(l.id, l)
-    return [...porId.values()]
-  }, [userId, batalla?.id])
+export function BattleFormModal({ userId, onClose, onSaved }: BattleFormModalProps) {
+  const { data: elegibles, loading } = useAsync(() => ArmyListRepository.listCompletadas(userId), [userId])
   // Cuántas peanas tiene desplegada cada candidata, para poder avisar. Se piden
   // todas de una vez (ver contarDespliegues).
   const { data: despliegues } = useAsync(
@@ -72,9 +62,9 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
     [elegibles],
   )
 
-  const [name, setName] = useState(batalla?.name ?? '')
-  const [aId, setAId] = useState<number | null>(batalla?.armyListAId ?? null)
-  const [bId, setBId] = useState<number | null>(batalla?.armyListBId ?? null)
+  const [name, setName] = useState('')
+  const [aId, setAId] = useState<number | null>(null)
+  const [bId, setBId] = useState<number | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmarSinDespliegue, setConfirmarSinDespliegue] = useState<string | null>(null)
@@ -85,7 +75,7 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
   const a = lista.find((l) => l.id === aId) ?? null
   const b = lista.find((l) => l.id === bId) ?? null
   useEffect(() => {
-    if (batalla || name.trim() !== '' || !a || !b) return
+    if (name.trim() !== '' || !a || !b) return
     setName(`${a.factionName} contra ${b.factionName}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [a?.id, b?.id])
@@ -119,9 +109,7 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
     setGuardando(true)
     setError(null)
     try {
-      const input = { name, armyListAId: a.id, armyListBId: b.id }
-      if (batalla) await BattleRepository.update(batalla.id, input)
-      else await BattleRepository.create(input, userId)
+      await BattleRepository.create({ name, armyListAId: a.id, armyListBId: b.id }, userId)
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -146,7 +134,7 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
   return (
     <>
       <Modal
-        title={batalla ? 'Editar batalla' : 'Nueva batalla'}
+        title="Nueva batalla"
         onClose={onClose}
         widthClassName="max-w-lg"
         footer={
@@ -155,7 +143,7 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
               Cancelar
             </Button>
             <Button variant="primary" onClick={intentarGuardar} disabled={!puedeGuardar}>
-              {guardando ? 'Guardando…' : batalla ? 'Guardar' : 'Crear batalla'}
+              {guardando ? 'Creando…' : 'Crear batalla'}
             </Button>
           </>
         }
@@ -229,7 +217,9 @@ export function BattleFormModal({ userId, batalla, onClose, onSaved }: BattleFor
             <p className="text-mini leading-relaxed text-ink-soft/80">
               Salen todos los ejércitos <b className="text-ink">completados</b> del grupo, sean de quien sean: no hace
               falta que nadie te comparta nada. Mientras estén en una batalla no se podrán reabrir, porque lo que la
-              batalla enseña no puede cambiar a espaldas de los dos jugadores.
+              batalla enseña no puede cambiar a espaldas de los dos jugadores. Por lo mismo,{' '}
+              <b className="text-ink">una batalla creada ya no se edita</b>: repasa el nombre y los dos ejércitos antes
+              de crearla.
             </p>
 
             {error && <p className="text-sm text-danger">{error}</p>}

@@ -116,15 +116,11 @@ export const BattleRepository = {
     )
   },
 
-  async update(id: number, input: BattleInput): Promise<void> {
-    await exec('UPDATE battles SET name = ?, army_list_a_id = ?, army_list_b_id = ?, updated_at = ? WHERE id = ?', [
-      input.name.trim(),
-      input.armyListAId,
-      input.armyListBId,
-      new Date().toISOString(),
-      id,
-    ])
-  },
+  // No hay `update`, y su ausencia es la función: una batalla creada NO SE
+  // EDITA. Es el acta de una partida acordada entre dos, y cambiarle un ejército
+  // después sería cambiar contra quién juega el otro sin que se entere. Para
+  // rehacerla está el camino que ya existe: finalizarla entre los dos, borrarla
+  // y montar otra.
 
   /**
    * Da la batalla por FINALIZADA por uno de los dos bandos, o retira esa firma.

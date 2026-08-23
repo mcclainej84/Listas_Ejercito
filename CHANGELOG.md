@@ -13,6 +13,23 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.152 — 23/08/2026 13:32
+
+- **Una batalla creada ya no se edita.** Fuera el lápiz del listado y el modo
+  "editar batalla" entero. Una batalla es el acta de una partida acordada entre
+  dos: cambiarle un ejército después es cambiar contra quién juega el otro sin
+  que se entere, y el nombre no vale una pantalla. Para rehacerla está el camino
+  que ya existe — finalizarla entre los dos, borrarla y montar otra. Dentro de
+  la batalla nunca se pudo tocar nada; ahora el listado dice lo mismo.
+  - El aviso del alta lo advierte antes de crear, que es cuando sirve.
+  - `BattleRepository.update` desaparece: la puerta se cierra donde se pasa, no
+    solo en el botón.
+- El aviso de borrar un Personaje de Renombre decía "ESTO ES IRREVERSIBLE" a
+  gritos. Va en minúsculas: el texto ya explica que no hay papelera, y las
+  mayúsculas no lo hacían más cierto.
+
+---
+
 ## 0.151 — 23/08/2026 13:12
 
 - **La casilla de "fin de la partida" ES el mando.** Se pulsa la casilla del

@@ -1,5 +1,11 @@
 // ============================================================================
-// "Batallas": el listado de batallas guardadas, con crear, editar y borrar.
+// "Batallas": el listado de batallas guardadas. Crear y borrar; EDITAR NO.
+//
+// Una batalla creada no se toca. Es el acta de una partida acordada entre dos:
+// cambiarle un ejército después es cambiar contra quién juega el otro sin que se
+// entere, y el nombre no vale una pantalla. Si hay que rehacerla, se finaliza
+// entre los dos, se borra y se monta otra — que es exactamente el camino que ya
+// existe. Ver también BattlePage: dentro tampoco se edita nada.
 //
 // Una batalla son dos ejércitos completados enfrentados sobre la misma mesa.
 // Aquí solo se administran; verla es entrar en ella (ver BattlePage), y dentro
@@ -27,7 +33,7 @@ import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog'
-import { CheckIcon, LockIcon, PencilIcon, PlusIcon, SwordIcon, TrashIcon } from '@/shared/ui/icons'
+import { CheckIcon, LockIcon, PlusIcon, SwordIcon, TrashIcon } from '@/shared/ui/icons'
 import { BattleFormModal } from '@/features/battles/BattleFormModal'
 import { mensajeDeMigracionPendiente } from '@/data/repositories/schemaHealth'
 
@@ -74,7 +80,6 @@ export function BattlesListPage() {
   const { data: batallas, loading, error, reload } = useAsync(() => BattleRepository.listAll(), [])
 
   const [creando, setCreando] = useState(false)
-  const [editando, setEditando] = useState<BattleSummary | null>(null)
   const [borrando, setBorrando] = useState<BattleSummary | null>(null)
 
   if (!user) return null
@@ -140,14 +145,6 @@ export function BattlesListPage() {
               <SelloDeFinalizada batalla={b} />
 
               <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  className="rounded-sm p-1.5 text-ink-soft hover:bg-bronze/15 hover:text-bronze"
-                  onClick={() => setEditando(b)}
-                  aria-label={`Editar ${b.name}`}
-                  title="Cambiarle el nombre o los ejércitos"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </button>
                 {b.finalizadaA && b.finalizadaB ? (
                   <button
                     className="rounded-sm p-1.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
@@ -174,17 +171,12 @@ export function BattlesListPage() {
         </div>
       )}
 
-      {(creando || editando) && (
+      {creando && (
         <BattleFormModal
           userId={user.id}
-          batalla={editando}
-          onClose={() => {
-            setCreando(false)
-            setEditando(null)
-          }}
+          onClose={() => setCreando(false)}
           onSaved={() => {
             setCreando(false)
-            setEditando(null)
             reload()
           }}
         />
