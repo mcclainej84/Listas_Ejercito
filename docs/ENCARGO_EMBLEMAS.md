@@ -1,5 +1,25 @@
 # Encargo: figuras heráldicas para los emblemas de ejército
 
+> **YA HAY 120 FIGURAS.** Llegaron como PNG en negro sobre transparente (el
+> "plan B" del apartado 7) y están trazadas a vectorial en
+> `webapp/public/assets/emblemas/figuras.json`. Este documento sigue valiendo
+> para pedir MÁS: es lo que hay que decirle a quien las dibuje.
+>
+> Para incorporarlas, no hay que tocar código:
+>
+> ```
+> apt install potrace && pip install pillow
+> python3 docs/trazar_figuras.py CARPETA_DE_LOS_PNG nuevas.json
+> ```
+>
+> y fundir `nuevas.json` con el que ya hay, repasando a mano el nombre visible
+> (`n`) y el grupo del catálogo (`g`) de cada una. El resto —encajarla en el
+> contorno, teñirla, la miniatura del catálogo— sale solo.
+>
+> Los PNG valen perfectamente y son más fáciles de encargar que un SVG limpio,
+> así que **el apartado 7 es ahora el camino recomendado**, no el plan B: 512 ×
+> 512, figura en negro puro, fondo transparente, y nada más.
+
 Documento para pasarle a una herramienta de generación (o a un ilustrador). Todo
 lo que hay aquí son requisitos para que lo que llegue entre en WHArmy **sin
 retocar nada**.

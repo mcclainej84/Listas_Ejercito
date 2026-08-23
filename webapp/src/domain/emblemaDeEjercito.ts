@@ -1,216 +1,137 @@
 // ============================================================================
-// EL EMBLEMA DE UN EJÉRCITO: catálogo heráldico y montaje del escudo.
+// EL EMBLEMA DE UN EJÉRCITO: montaje del escudo a partir de cinco decisiones.
 //
-// Es un DISEÑADOR, no un generador de ruido: se elige una FIGURA (el "mueble"
-// en heráldica), cómo se parte el CAMPO y los colores. Con esas cuatro
-// decisiones sale un escudo que parece un escudo.
+//   1. La FIGURA — el "mueble" heráldico. 120 siluetas, y no viven aquí: se
+//      piden a la red la primera vez (ver domain/emblemaFiguras y el porqué).
+//   2. El CONTORNO — la forma del emblema entero: cuadrado, círculo, dos
+//      escudos o una banda. No es un marco pintado encima: RECORTA el emblema,
+//      así que un escudo es un escudo de verdad, con las esquinas vacías.
+//   3. La PARTICIÓN del campo — jefe, faja, palo, banda, cuartelado…
+//   4. El color del CAMPO.
+//   5. El color de la FIGURA.
+//
+// LA FIGURA SE ENCAJA, NO SE ESTIRA. Cada contorno declara el hueco donde cabe
+// una figura sin tocar el borde (`caja`), y la figura se mete ahí conservando
+// su proporción: una lanza (190×1000) sale larga y estrecha, una faja
+// (1000×300) sale ancha y baja, y las dos caben. Estirarlas al hueco haría que
+// el mismo dragón fuera gordo en el círculo y flaco en la banda.
 //
 // POR QUÉ SILUETAS Y NO TRAZOS. Un emblema tiene que leerse a 40 px, que es el
 // tamaño al que sale en el listado de Ejércitos. A ese tamaño un trazo de dos
-// píxeles desaparece; una silueta rellena aguanta. El detalle —las cuencas de
-// la calavera, las ventanas de la torre, la pupila del ojo— se hace con el
-// HUECO (`fill-rule="evenodd"`), que es como se resuelve en heráldica de
-// verdad.
+// píxeles desaparece; una silueta rellena aguanta.
 //
-// LAS FIGURAS NO TRAEN COLOR. Ninguna lleva `fill` ni `stroke`: heredan el que
-// les inyecta `svgDeEmblema`. Es lo que permite que el usuario cambie los
-// colores, y es el requisito principal del encargo de figuras nuevas (ver
-// docs/ENCARGO_EMBLEMAS.md). Para añadir una, basta con pegar aquí el contenido
-// de su SVG —sin la etiqueta <svg> y sin ningún atributo de color— con su clave
-// y su nombre. No hay que tocar nada más.
-//
-// TODO ES SVG, TEXTO PLANO: sin dependencias, sin lienzo y sin red, así que el
-// diseñador repinta el escudo entero en cada clic sin coste. Solo al guardar se
-// convierte en imagen (shared/image#rasterizarSvg) y se sube.
+// TODO ES SVG, TEXTO PLANO: sin lienzo, así que el diseñador repinta el escudo
+// entero en cada clic sin coste. Solo al guardar se convierte en imagen
+// (shared/image#rasterizarSvg) y se sube.
 // ============================================================================
+import { figurasEnMemoria, type CatalogoDeFiguras } from '@/domain/emblemaFiguras'
 
-const CX = 240
-const CY = 252
+const PERGAMINO = '#f6efdc'
+const TINTA = '#2b2013'
 
-/** Estrella de `n` puntas, con radios alternos. */
-function estrella(n: number, rExt: number, rInt: number, giro = -Math.PI / 2): string {
-  const p: string[] = []
-  for (let i = 0; i < n * 2; i++) {
-    const r = i % 2 === 0 ? rExt : rInt
-    const a = giro + (i * Math.PI) / n
-    p.push(`${(CX + r * Math.cos(a)).toFixed(1)} ${(CY + r * Math.sin(a)).toFixed(1)}`)
-  }
-  return `M${p.join(' L')} Z`
-}
-
-/** Rueda dentada, diente a diente. */
-function engranaje(dientes: number, rExt: number, rInt: number): string {
-  let d = ''
-  const paso = Math.PI / dientes
-  const P = (r: number, a: number) => `${(CX + r * Math.cos(a)).toFixed(1)} ${(CY + r * Math.sin(a)).toFixed(1)}`
-  for (let i = 0; i < dientes; i++) {
-    const a0 = i * 2 * paso - Math.PI / 2
-    d += (i === 0 ? 'M' : 'L') + P(rInt, a0 - paso * 0.55)
-    d += ' L' + P(rExt, a0 - paso * 0.32)
-    d += ' L' + P(rExt, a0 + paso * 0.32)
-    d += ' L' + P(rInt, a0 + paso * 0.55)
-  }
-  return d + ' Z'
-}
-
-const CRUZ_PATY = (() => {
-  const c = 24
-  const e = 58
-  const l = 98
-  const q = 34
-  return (
-    `M${CX - c} ${CY - c} Q${CX - q} ${CY - 62} ${CX - e} ${CY - l} L${CX + e} ${CY - l} Q${CX + q} ${CY - 62} ${CX + c} ${CY - c}` +
-    ` Q${CX + 62} ${CY - q} ${CX + l} ${CY - e} L${CX + l} ${CY + e} Q${CX + 62} ${CY + q} ${CX + c} ${CY + c}` +
-    ` Q${CX + q} ${CY + 62} ${CX + e} ${CY + l} L${CX - e} ${CY + l} Q${CX - q} ${CY + 62} ${CX - c} ${CY + c}` +
-    ` Q${CX - 62} ${CY + q} ${CX - l} ${CY + e} L${CX - l} ${CY - e} Q${CX - 62} ${CY - q} ${CX - c} ${CY - c} Z`
-  )
-})()
-
-const ESPADA =
-  '<path d="M240 118 L252 146 L252 300 L228 300 L228 146 Z"/>' +
-  '<path d="M196 300h88v18h-88z"/><path d="M232 318h16v52h-16z"/><circle cx="240" cy="382" r="14"/>'
-
-export interface Mueble {
+// ---------------------------------------------------------------------------
+// CONTORNOS. El `path` es la silueta del emblema entero en el cuadro de 480, y
+// `caja` es el rectángulo [x0, y0, x1, y1] donde cabe la figura sin comerse el
+// borde. Cada caja está medida sobre su forma: la del escudo termina antes de
+// la punta, la del círculo se queda dentro del disco y la de la banda es ancha
+// y baja porque la banda lo es.
+//
+// Los trazos van metidos unos píxeles hacia dentro (el cuadrado empieza en 6 y
+// no en 0) para que el filete del borde se vea entero: dibujado justo en el
+// canto, el lienzo se come la mitad de su grosor.
+// ---------------------------------------------------------------------------
+export interface Contorno {
   nombre: string
-  /** Contenido del SVG, SIN etiqueta <svg> y SIN atributos de color. */
-  cuerpo: string
+  /** Silueta del emblema, en el cuadro de 480. */
+  path: string
+  /** [x0, y0, x1, y1] donde se encaja la figura. */
+  caja: [number, number, number, number]
 }
 
-/**
- * El catálogo. Provisional: son las figuras que salieron legibles a 40 px.
- * Para añadir una nueva, pegar su SVG aquí (ver la cabecera del archivo).
- */
-export const MUEBLES: Record<string, Mueble> = {
-  'cruz-paty': { nombre: 'Cruz paté', cuerpo: `<path d="${CRUZ_PATY}"/>` },
-  sotuer: {
-    nombre: 'Sotuer',
-    cuerpo:
-      '<path d="M162 140 L240 218 L318 140 L346 168 L268 246 L346 324 L318 352 L240 274 L162 352 L134 324 L212 246 L134 168Z"/>' +
-      '<path d="M126 132h56v56h-56Z M298 132h56v56h-56Z M126 304h56v56h-56Z M298 304h56v56h-56Z"/>',
+export const CONTORNOS: Record<string, Contorno> = {
+  cuadrado: { nombre: 'Cuadrado', path: 'M6 6H474V474H6Z', caja: [86, 86, 394, 394] },
+  circulo: { nombre: 'Círculo', path: 'M240 6A234 234 0 1 0 240.1 6Z', caja: [100, 100, 380, 380] },
+  escudo: {
+    nombre: 'Escudo',
+    path: 'M38 26H442V214C442 318 372 386 240 464 108 386 38 318 38 214Z',
+    caja: [98, 92, 382, 338],
   },
-  creciente: { nombre: 'Creciente', cuerpo: '<path d="M300 168a88 88 0 1 0 0 168 70 70 0 1 1 0-168Z"/>' },
-  estrella: { nombre: 'Estrella', cuerpo: `<path d="${estrella(8, 104, 42)}"/>` },
-  mullete: { nombre: 'Estrella de seis', cuerpo: `<path d="${estrella(6, 104, 52)}"/>` },
-  sol: {
-    nombre: 'Sol radiante',
-    cuerpo: `<path d="${estrella(12, 116, 58)}"/><circle cx="${CX}" cy="${CY}" r="60"/>`,
+  'escudo-punta': {
+    nombre: 'Escudo gótico',
+    path: 'M44 32Q240 84 436 32V206Q436 350 240 470 44 350 44 206Z',
+    caja: [108, 124, 372, 350],
   },
-  rueda: {
-    nombre: 'Engranaje',
-    cuerpo: `<path fill-rule="evenodd" d="${engranaje(11, 106, 78)} M${CX} ${CY - 46}a46 46 0 1 0 .1 0Z M${CX} ${CY - 22}a22 22 0 1 1-.1 0Z"/>`,
-  },
-  torre: {
-    nombre: 'Torre',
-    cuerpo:
-      '<path fill-rule="evenodd" d="M158 200h26v-26h26v26h30v-26h26v26h30v-26h26v26h26v168H158Z ' +
-      'M226 300h28v68h-28Z M186 232h30v30h-30Z M264 232h30v30h-30Z"/>',
-  },
-  espadas: {
-    nombre: 'Espadas cruzadas',
-    cuerpo: `<g transform="rotate(38 ${CX} ${CY})">${ESPADA}</g><g transform="rotate(-38 ${CX} ${CY})">${ESPADA}</g>`,
-  },
-  calavera: {
-    nombre: 'Calavera',
-    cuerpo:
-      '<path d="M150 300 L330 372 L322 392 L142 320Z M330 320 L150 392 L142 372 L322 300Z"/>' +
-      '<path fill-rule="evenodd" d="M240 140c50 0 84 36 84 82 0 28-14 48-28 60v26h-40v-20h-32v20h-40v-26c-14-12-28-32-28-60 0-46 34-82 84-82Z ' +
-      'M204 236a22 26 0 1 0 0-.1Z M276 236a22 26 0 1 1 0-.1Z M232 268h16l-8 22Z"/>',
-  },
-  martillo: {
-    nombre: 'Martillo',
-    cuerpo:
-      '<path d="M168 148h144v34l-20 18 20 18v34H168v-34l20-18-20-18Z"/><path d="M198 252h84v22h-84Z"/>' +
-      '<path d="M220 274h40v112h-40Z"/><path d="M204 382h72v26h-72Z"/>',
-  },
-  corona: {
-    nombre: 'Corona',
-    cuerpo:
-      '<path d="M148 200l34 46 34-70 24 70 24-70 34 70 34-46 14 128H134Z"/>' +
-      '<rect x="140" y="336" width="200" height="34" rx="8"/>' +
-      '<circle cx="182" cy="196" r="14"/><circle cx="298" cy="196" r="14"/><circle cx="240" cy="164" r="16"/>',
-  },
-  garra: {
-    nombre: 'Garra',
-    cuerpo:
-      '<path d="M186 118c22 66 20 140-16 208-16 30-40 40-52 22 34-46 46-142 40-230Z"/>' +
-      '<path d="M252 106c18 76 10 158-30 232-18 32-44 42-56 22 38-50 56-160 52-254Z"/>' +
-      '<path d="M318 128c14 70 2 144-34 208-16 30-40 40-52 22 34-46 52-142 50-230Z"/>',
-  },
-  arbol: {
-    nombre: 'Roble',
-    cuerpo:
-      '<path d="M240 128c34 0 58 20 66 46 26 2 44 22 44 46 0 16-8 30-22 38 8 8 12 18 12 28 0 26-24 44-56 44-14 0-26-4-36-10-10 6-22 10-36 10-32 0-56-18-56-44 0-10 4-20 12-28-14-8-22-22-22-38 0-24 18-44 44-46 8-26 32-46 66-46Z"/>' +
-      '<path d="M226 316h28v72h-28Z"/><path d="M198 386h84v18h-84Z"/>',
-  },
-  llama: {
-    nombre: 'Llama',
-    cuerpo:
-      '<path d="M240 122c8 46-18 62-40 92-18 24-26 46-26 68 0 48 32 82 66 82s66-34 66-82c0-30-16-54-32-72-6 16-16 24-26 24 12-40 4-80-8-112Z"/>',
-  },
-  rayo: { nombre: 'Rayo', cuerpo: '<path d="M276 122 168 268h58l-30 92 116-152h-60Z"/>' },
-  ojo: {
-    nombre: 'Ojo',
-    cuerpo:
-      '<path fill-rule="evenodd" d="M240 168c62 0 108 44 122 76-14 32-60 76-122 76s-108-44-122-76c14-32 60-76 122-76Z ' +
-      'M240 200a44 44 0 1 0 .1 0Z M240 224a20 20 0 1 1-.1 0Z"/>',
-  },
-  roeles: {
-    nombre: 'Tres roeles',
-    cuerpo: '<circle cx="240" cy="180" r="42"/><circle cx="176" cy="296" r="42"/><circle cx="304" cy="296" r="42"/>',
-  },
-  rombo: {
-    nombre: 'Rombo',
-    cuerpo: '<path fill-rule="evenodd" d="M240 134 344 252 240 370 136 252Z M240 186 188 252 240 318 292 252Z"/>',
-  },
-  ninguno: { nombre: 'Sin figura', cuerpo: '' },
+  banda: { nombre: 'Banda', path: 'M6 116H474V364H6Z', caja: [40, 140, 440, 340] },
 }
 
+/** Particiones del campo. Las piezas honorables de toda la vida. */
 export const PARTICIONES: Record<string, string> = {
   liso: 'Liso',
+  jefe: 'Jefe',
   faja: 'Faja',
   palo: 'Palo',
   banda: 'Banda',
-  cuartelado: 'Cuartelado',
   chevron: 'Chevrón',
-  jefe: 'Jefe',
+  cuartelado: 'Cuartelado',
+  cruz: 'Cruz',
+  bordura: 'Bordura',
+  burelado: 'Burelado',
 }
 
-const PERGAMINO = '#f6efdc'
-const TINTA = '#241a10'
-
-/** Colores de campo. Los esmaltes y metales de toda la vida, más los del programa. */
+/**
+ * Colores de campo: los esmaltes y metales heráldicos, con sus variantes
+ * apagadas. Todos son oscuros o medios a propósito — el campo es el fondo, y
+ * sobre un fondo claro la figura tiene que ir en tinta para verse, lo que deja
+ * fuera la mitad de la paleta de figura.
+ */
 export const PALETA_FONDO: { nombre: string; color: string }[] = [
   { nombre: 'Gules', color: '#8c2f2f' },
   { nombre: 'Granate', color: '#5e1a17' },
+  { nombre: 'Bermellón', color: '#b4462f' },
+  { nombre: 'Teja', color: '#8a4b2a' },
   { nombre: 'Azur', color: '#2f5d8c' },
   { nombre: 'Añil', color: '#243a63' },
+  { nombre: 'Celeste', color: '#4a7fa5' },
+  { nombre: 'Turquesa', color: '#2f7d76' },
   { nombre: 'Sinople', color: '#3f7a45' },
+  { nombre: 'Verde bosque', color: '#24512f' },
   { nombre: 'Oliva', color: '#6b7a3a' },
+  { nombre: 'Musgo', color: '#55613a' },
   { nombre: 'Púrpura', color: '#5a3a63' },
+  { nombre: 'Violeta', color: '#3f2f5e' },
+  { nombre: 'Ciruela', color: '#6b2f4a' },
+  { nombre: 'Rosa vieja', color: '#a05a6b' },
   { nombre: 'Oro', color: '#c9a227' },
+  { nombre: 'Ámbar', color: '#c07f28' },
   { nombre: 'Bronce', color: '#a06a2c' },
+  { nombre: 'Cuero', color: '#7a5230' },
   { nombre: 'Sable', color: '#2b2620' },
-  { nombre: 'Plata', color: '#b9bec4' },
+  { nombre: 'Pizarra', color: '#4a4f55' },
+  { nombre: 'Plata', color: '#9aa1a8' },
   { nombre: 'Pergamino', color: '#c9b78d' },
 ]
 
-/** Colores de figura. Pocos a propósito: en heráldica el mueble es metal o esmalte. */
+/** Colores de figura. Pocos: en heráldica el mueble es metal o esmalte. */
 export const PALETA_FIGURA: { nombre: string; color: string }[] = [
   { nombre: 'Pergamino', color: PERGAMINO },
   { nombre: 'Oro', color: '#e8c565' },
   { nombre: 'Plata', color: '#d8dde2' },
+  { nombre: 'Bronce', color: '#c08a3e' },
   { nombre: 'Tinta', color: TINTA },
   { nombre: 'Gules', color: '#a83a34' },
+  { nombre: 'Azur', color: '#5b8fc4' },
 ]
 
 export interface DisenoDeEmblema {
+  /** Clave de la figura en el catálogo (ver domain/emblemaFiguras). */
   mueble: string
   particion: string
   /** "#rrggbb" del campo. */
   fondo: string
   /** "#rrggbb" de la figura. */
   figura: string
-  conEscudo: boolean
+  /** Clave de CONTORNOS. */
+  contorno: string
 }
 
 const HEX = /^#[0-9a-f]{6}$/i
@@ -234,101 +155,146 @@ function mezcla(a: string, b: string, t: number): string {
 
 function particionSvg(clave: string, claro: string, oscuro: string): string {
   switch (clave) {
-    case 'faja':
-      return `<rect x="0" y="196" width="480" height="88" fill="${claro}" opacity=".5"/>`
-    case 'palo':
-      return `<rect x="196" y="0" width="88" height="480" fill="${claro}" opacity=".5"/>`
-    case 'banda':
-      // Con filete: sin él, una banda clara en diagonal se lee como el reflejo
-      // de un icono de aplicación y no como una pieza heráldica.
-      return (
-        `<path d="M-40 300 L300 -40 L400 60 L60 400 Z" fill="${claro}" opacity=".34"/>` +
-        `<path d="M-40 300 L300 -40 M400 60 L60 400" stroke="${PERGAMINO}" stroke-opacity=".22" stroke-width="5" fill="none"/>`
-      )
-    case 'cuartelado':
-      return (
-        `<path d="M0 0h240v240H0z" fill="${oscuro}" opacity=".55"/>` +
-        `<path d="M240 240h240v240H240z" fill="${oscuro}" opacity=".55"/>`
-      )
-    case 'chevron':
-      return `<path d="M240 150 L470 380 L470 480 L240 250 L10 480 L10 380 Z" fill="${claro}" opacity=".45"/>`
     case 'jefe':
-      return `<rect x="0" y="0" width="480" height="120" fill="${oscuro}" opacity=".6"/>`
+      return `<rect width="480" height="126" fill="${oscuro}" opacity=".6"/>`
+    case 'faja':
+      return `<rect y="190" width="480" height="100" fill="${claro}" opacity=".5"/>`
+    case 'palo':
+      return `<rect x="190" width="100" height="480" fill="${claro}" opacity=".5"/>`
+    case 'banda':
+      return `<path d="M-60 300 300 -60 400 40 40 400Z" fill="${claro}" opacity=".34"/>`
+    case 'chevron':
+      return `<path d="M240 140 490 390V490L240 240 -10 490V390Z" fill="${claro}" opacity=".45"/>`
+    case 'cuartelado':
+      return `<path d="M0 0h240v240H0z M240 240h240v240H240z" fill="${oscuro}" opacity=".55"/>`
+    case 'cruz':
+      return `<path d="M198 0h84v480h-84z M0 198h480v84H0z" fill="${claro}" opacity=".4"/>`
+    case 'bordura':
+      return `<path fill-rule="evenodd" d="M0 0h480v480H0z M46 46v388h388V46z" fill="${oscuro}" opacity=".6"/>`
+    case 'burelado':
+      return `<path d="M0 60h480v60H0z M0 180h480v60H0z M0 300h480v60H0z M0 420h480v60H0z" fill="${claro}" opacity=".3"/>`
     default:
       return ''
   }
 }
 
-const ESCUDO = 'M240 78 L404 136 V268 c0 88-76 122-164 148 -88-26-164-60-164-148 V136 Z'
+/**
+ * Coloca la figura dentro del hueco del contorno CONSERVANDO SU PROPORCIÓN, y
+ * devuelve el `transform` que hay que ponerle.
+ *
+ * El path viene dibujado en un cuadro de 1000 con la figura centrada, así que
+ * primero se lleva su esquina al origen (`-ox -oy`), luego se escala por el
+ * factor que la hace caber entera —el menor de los dos— y por último se
+ * centra en la caja.
+ */
+function encajarFigura(caja: [number, number, number, number], w: number, h: number): string {
+  const [x0, y0, x1, y1] = caja
+  const anchoCaja = x1 - x0
+  const altoCaja = y1 - y0
+  const k = Math.min(anchoCaja / Math.max(1, w), altoCaja / Math.max(1, h))
+  const tx = x0 + (anchoCaja - w * k) / 2
+  const ty = y0 + (altoCaja - h * k) / 2
+  const ox = (1000 - w) / 2
+  const oy = (1000 - h) / 2
+  return `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(${k.toFixed(4)}) translate(${-ox} ${-oy})`
+}
 
-/** El emblema entero, en SVG. Cuadrado de 480, como los emblemas de facción. */
-export function svgDeEmblema(d: DisenoDeEmblema): string {
+/**
+ * El emblema entero, en SVG. Cuadrado de 480, como los emblemas de facción.
+ *
+ * `figuras` puede ser null: entonces sale el campo con su partición y su
+ * contorno, sin figura. Es lo que se ve el medio segundo que tarda en llegar el
+ * catálogo, y es mejor que un hueco.
+ */
+export function svgDeEmblema(d: DisenoDeEmblema, figuras: CatalogoDeFiguras | null = figurasEnMemoria()): string {
+  const contorno = CONTORNOS[d.contorno] ?? CONTORNOS.escudo
   const base = HEX.test(d.fondo) ? d.fondo : '#6b6a63'
-  const figura = HEX.test(d.figura) ? d.figura : PERGAMINO
+  const figuraColor = HEX.test(d.figura) ? d.figura : PERGAMINO
   const oscuro = mezcla(base, TINTA, 0.5)
   const medio = mezcla(base, TINTA, 0.12)
   const claro = mezcla(base, PERGAMINO, 0.3)
-  const cuerpo = MUEBLES[d.mueble]?.cuerpo ?? ''
+  const fig = figuras?.[d.mueble] ?? null
   // Id único por diseño: dos emblemas en la misma página con el mismo id de
   // degradado se pisan el uno al otro.
   const id = Math.abs(
-    [...`${d.mueble}${d.particion}${base}${figura}${d.conEscudo}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7),
+    [...`${d.mueble}${d.particion}${base}${figuraColor}${d.contorno}`].reduce(
+      (a, c) => (a * 31 + c.charCodeAt(0)) | 0,
+      7,
+    ),
   ).toString(36)
+  const dibujo = fig
+    ? `<g fill="${figuraColor}" transform="${encajarFigura(contorno.caja, fig.w, fig.h)}"><path d="${fig.d}"/></g>`
+    : ''
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
 <defs>
+<clipPath id="c${id}"><path d="${contorno.path}"/></clipPath>
 <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${medio}"/><stop offset="1" stop-color="${oscuro}"/></linearGradient>
-<radialGradient id="v${id}" cx="50%" cy="42%" r="72%"><stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".42"/></radialGradient>
+<radialGradient id="v${id}" cx="50%" cy="40%" r="72%"><stop offset="52%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".42"/></radialGradient>
 </defs>
+<g clip-path="url(#c${id})">
 <rect width="480" height="480" fill="url(#f${id})"/>
 ${particionSvg(d.particion, claro, oscuro)}
-${d.conEscudo ? `<path d="${ESCUDO}" fill="${oscuro}" fill-opacity=".45" stroke="${figura}" stroke-opacity=".85" stroke-width="14" stroke-linejoin="round"/>` : ''}
-<g fill="${figura}">${cuerpo}</g>
-<rect x="14" y="14" width="452" height="452" fill="none" stroke="${figura}" stroke-opacity=".28" stroke-width="4"/>
-<rect x="26" y="26" width="428" height="428" fill="none" stroke="${figura}" stroke-opacity=".15" stroke-width="2"/>
+${dibujo}
 <rect width="480" height="480" fill="url(#v${id})"/>
+<g transform="translate(240 240) scale(.93) translate(-240 -240)"><path d="${contorno.path}" fill="none" stroke="${figuraColor}" stroke-opacity=".28" stroke-width="4"/></g>
+</g>
+<path d="${contorno.path}" fill="none" stroke="${figuraColor}" stroke-opacity=".9" stroke-width="12" stroke-linejoin="round"/>
 </svg>`
 }
 
 /** El SVG listo para un `src`, sin pasar por la red. */
-export function urlDeEmblema(d: DisenoDeEmblema): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgDeEmblema(d))}`
+export function urlDeEmblema(d: DisenoDeEmblema, figuras: CatalogoDeFiguras | null = figurasEnMemoria()): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgDeEmblema(d, figuras))}`
 }
 
-/** Una figura suelta sobre un cuadrado, para las miniaturas del catálogo. */
-export function urlDeMuestraDeMueble(clave: string, fondo: string, figura: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480"><rect width="480" height="480" fill="${fondo}"/><g fill="${figura}">${MUEBLES[clave]?.cuerpo ?? ''}</g></svg>`
+/**
+ * Una figura suelta sobre un cuadrado, para las miniaturas del catálogo.
+ *
+ * Se pinta con los colores QUE ESTÁN PUESTOS en ese momento, no con unos de
+ * muestra: el catálogo tiene 120 casillas y elegir sobre un gris que no es el
+ * tuyo es elegir a ciegas.
+ */
+export function urlDeMuestraDeMueble(
+  clave: string,
+  fondo: string,
+  figura: string,
+  figuras: CatalogoDeFiguras | null = figurasEnMemoria(),
+): string {
+  const fig = figuras?.[clave]
+  const cuerpo = fig
+    ? `<g fill="${figura}" transform="${encajarFigura([64, 64, 416, 416], fig.w, fig.h)}"><path d="${fig.d}"/></g>`
+    : ''
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480"><rect width="480" height="480" fill="${fondo}"/>${cuerpo}</svg>`
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
 export function disenoPorDefecto(colorFaccion: string | null | undefined): DisenoDeEmblema {
   return {
-    mueble: 'cruz-paty',
+    mueble: 'cruz_patee',
     particion: 'liso',
     fondo: colorFaccion && HEX.test(colorFaccion) ? colorFaccion : PALETA_FONDO[0].color,
     figura: PERGAMINO,
-    conEscudo: true,
+    contorno: 'escudo',
   }
 }
 
 // ---------------------------------------------------------------------------
 // EL DISEÑO VIAJA EN EL NOMBRE DEL ARCHIVO.
 //
-// `emblemas/gen-cruz-paty~faja~2f5d8c~f6efdc~1~a1b2c3.webp`. Así, al reabrir el
-// emblema de un ejército, el diseñador puede arrancar con lo que el usuario
-// eligió en vez de empezar de cero — y sin una columna nueva en la base para
-// guardar el diseño. La clave ya la teníamos que guardar de todas formas.
+// `emblemas/gen-dragon~faja~2f5d8c~f6efdc~escudo~a1b2c3.webp`. Así, al reabrir
+// el emblema de un ejército, el diseñador arranca con lo que el usuario eligió
+// en vez de empezar de cero — y sin una columna nueva en la base para guardar
+// el diseño. La clave ya la teníamos que guardar de todas formas.
+//
+// El hueco del contorno guardaba antes un 1/0 ("¿lleva escudo?"), de cuando
+// solo había dos formas. Los emblemas de entonces se siguen leyendo: 1 era el
+// escudo y 0 el cuadrado. Romperlos habría dejado emblemas imposibles de
+// reabrir por un cambio que no les afecta en nada.
 // ---------------------------------------------------------------------------
 export const PREFIJO_DISENO = 'emblemas/gen-'
 
 export function claveDeDiseno(d: DisenoDeEmblema, hash: string, extension: string): string {
-  const partes = [
-    d.mueble,
-    d.particion,
-    d.fondo.slice(1),
-    d.figura.slice(1),
-    d.conEscudo ? '1' : '0',
-    hash.slice(0, 10),
-  ]
+  const partes = [d.mueble, d.particion, d.fondo.slice(1), d.figura.slice(1), d.contorno, hash.slice(0, 10)]
   return `${PREFIJO_DISENO}${partes.join('~')}.${extension}`
 }
 
@@ -340,6 +306,10 @@ export function disenoDesdeClave(clave: string | null | undefined): DisenoDeEmbl
   if (p.length < 5) return null
   const fondo = `#${p[2]}`
   const figura = `#${p[3]}`
-  if (!MUEBLES[p[0]] || !PARTICIONES[p[1]] || !HEX.test(fondo) || !HEX.test(figura)) return null
-  return { mueble: p[0], particion: p[1], fondo, figura, conEscudo: p[4] === '1' }
+  // El contorno viejo era 1/0. Y la figura NO se valida contra el catálogo: no
+  // está cargado todavía cuando esto se llama, y una figura que no exista se
+  // pinta como "sin figura" en vez de tirar el diseño entero a la basura.
+  const contorno = p[4] === '1' ? 'escudo' : p[4] === '0' ? 'cuadrado' : p[4]
+  if (!PARTICIONES[p[1]] || !CONTORNOS[contorno] || !HEX.test(fondo) || !HEX.test(figura)) return null
+  return { mueble: p[0], particion: p[1], fondo, figura, contorno }
 }

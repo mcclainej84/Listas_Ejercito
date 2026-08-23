@@ -11,7 +11,9 @@ import {
   urlDeEmblema,
   type DisenoDeEmblema,
 } from '@/domain/emblemaDeEjercito'
+import { cargarFiguras } from '@/domain/emblemaFiguras'
 import { EmblemaDesignerModal } from '@/features/army-lists/EmblemaDesignerModal'
+import { useFigurasDeEmblema } from '@/shared/hooks/useFigurasDeEmblema'
 import { useVisibleFactions } from '@/shared/session/useVisibleFactions'
 import { compressImageFile, rasterizarSvg } from '@/shared/image'
 import { Modal } from '@/shared/ui/Modal'
@@ -65,6 +67,10 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
    */
   const [diseno, setDiseno] = useState<DisenoDeEmblema | null>(null)
   const [disenando, setDisenando] = useState(false)
+  // Las 120 figuras no viajan en el programa: se piden a la red (ver
+  // domain/emblemaFiguras). Mientras no estén, el emblema se pinta sin figura
+  // en vez de dejar un hueco — medio segundo, y solo la primera vez.
+  const figuras = useFigurasDeEmblema()
   // Los diseñados se guardan bajo `emblemas/gen-…` y con su diseño dentro del
   // nombre, para poder reconocerlos Y REABRIRLOS: si no, un emblema diseñado
   // reaparecería como "imagen propia" y habría que rehacerlo desde cero para
@@ -76,12 +82,15 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
   const colorDeLaFaccion = (factions ?? []).find((f) => f.id === list.factionId)?.color ?? null
   const urlDelEmblema =
     diseno != null
-      ? urlDeEmblema(diseno)
+      ? urlDeEmblema(diseno, figuras)
       : urlDelEmblemaDeLista({ factionId: list.factionId, emblemFactionId, emblemKey }, factions ?? [])
 
   /** Rasteriza el emblema diseñado y lo sube. Devuelve su clave en R2. */
   async function subirEmblemaDisenado(d: DisenoDeEmblema): Promise<string> {
-    const imagen = await rasterizarSvg(svgDeEmblema(d), 480)
+    // AQUÍ SÍ SE ESPERA a las figuras. Lo que se sube es la imagen definitiva
+    // del emblema; subirla sin la figura porque el catálogo no había llegado
+    // sería guardar un escudo vacío para siempre.
+    const imagen = await rasterizarSvg(svgDeEmblema(d, await cargarFiguras()), 480)
     const ext = imagen.mime === 'image/webp' ? 'webp' : imagen.mime === 'image/png' ? 'png' : 'jpg'
     const clave = claveDeDiseno(d, await hashDeContenido(imagen.bytes), ext)
     await uploadImageAtKey(clave, imagen.bytes, imagen.mime)

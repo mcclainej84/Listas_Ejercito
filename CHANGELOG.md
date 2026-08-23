@@ -13,6 +13,38 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.153 — 23/08/2026 15:05
+
+- **120 figuras de verdad en el diseñador de emblemas**, dibujadas fuera y
+  trazadas a vectorial. Sustituyen a las 19 que había, que eran las que me
+  salieron y se notaba. Bestias, armas, calaveras, torres, símbolos y
+  naturaleza: agrupadas y con buscador, porque 120 casillas seguidas no se
+  miran, se sufren.
+  - **No viajan en el programa.** Son 650 kB, y metidas en el código se
+    descargarían en cada visita de todo el mundo para una pantalla que se abre
+    dos veces en la vida de un ejército. Viven en un archivo aparte que se pide
+    la primera vez que alguien abre el diseñador. El programa no ha engordado.
+  - `docs/trazar_figuras.py` convierte PNG (negro sobre transparente) en
+    figuras nuevas. Añadir más no toca código.
+
+- **El contorno ya no es un marco pintado encima: es la forma del emblema.**
+  Cinco: cuadrado, círculo, escudo, escudo gótico y banda. Un escudo es ahora un
+  escudo recortado, con las esquinas vacías, y no un cuadro con la silueta de un
+  escudo dibujada dentro. Los dos escudos están más estilizados que el de antes.
+  - **La figura se ENCAJA en el contorno, no se estira.** Cada forma declara
+    dónde cabe una figura sin tocar el borde, y la figura entra ahí con su
+    proporción intacta: una lanza sale larga y estrecha, un águila sale ancha, y
+    ninguna se sale ni se deforma.
+
+- **24 colores de campo** (antes 12) y **7 de figura** (antes 5), los dos con
+  selector libre al lado para lo que no esté en la paleta. **10 particiones**
+  de campo (antes 7): se suman cruz, bordura y burelado.
+
+- Los emblemas ya diseñados se siguen abriendo: el hueco que guardaba "¿lleva
+  escudo?" (1/0) se lee ahora como escudo/cuadrado.
+
+---
+
 ## 0.152 — 23/08/2026 13:32
 
 - **Una batalla creada ya no se edita.** Fuera el lápiz del listado y el modo
