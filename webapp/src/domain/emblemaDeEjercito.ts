@@ -324,10 +324,18 @@ export function disenoPorDefecto(colorFaccion: string | null | undefined): Disen
 // ---------------------------------------------------------------------------
 // EL DISEÑO VIAJA EN EL NOMBRE DEL ARCHIVO.
 //
-// `emblemas/gen-dragon~faja~2f5d8c~f6efdc~escudo~a1b2c3.webp`. Así, al reabrir
+// `emblemas/gen-dragon.faja.2f5d8c.f6efdc.escudo.a1b2c3.webp`. Así, al reabrir
 // el emblema de un ejército, el diseñador arranca con lo que el usuario eligió
 // en vez de empezar de cero — y sin una columna nueva en la base para guardar
 // el diseño. La clave ya la teníamos que guardar de todas formas.
+//
+// EL SEPARADOR ES UN PUNTO, y no es cosmético: el Worker solo acepta claves de
+// imagen con letras, números, `-`, `_`, `.` y `/` (ver isValidImageKey). Con la
+// `~` que se usaba antes, CADA emblema diseñado se rechazaba al subirlo con un
+// "clave de imagen no válida" — el diseñador entero no llegó a funcionar nunca.
+// El punto entra en esa lista y no aparece dentro de ninguna de las piezas
+// (colores en hexadecimal, claves en minúsculas y guiones), así que no hay
+// ambigüedad al partirla. Las claves con `~` se siguen leyendo por si acaso.
 //
 // El hueco del contorno guardaba antes un 1/0 ("¿lleva escudo?"), de cuando
 // solo había dos formas. Los emblemas de entonces se siguen leyendo: 1 era el
@@ -336,16 +344,21 @@ export function disenoPorDefecto(colorFaccion: string | null | undefined): Disen
 // ---------------------------------------------------------------------------
 export const PREFIJO_DISENO = 'emblemas/gen-'
 
+/** Separa las piezas del diseño dentro del nombre. Ver la nota de arriba. */
+const SEPARADOR = '.'
+
 export function claveDeDiseno(d: DisenoDeEmblema, hash: string, extension: string): string {
   const partes = [d.mueble, d.particion, d.fondo.slice(1), d.figura.slice(1), d.contorno, hash.slice(0, 10)]
-  return `${PREFIJO_DISENO}${partes.join('~')}.${extension}`
+  return `${PREFIJO_DISENO}${partes.join(SEPARADOR)}.${extension}`
 }
 
 /** Lee el diseño de una clave. Devuelve null si no es una clave de diseño. */
 export function disenoDesdeClave(clave: string | null | undefined): DisenoDeEmblema | null {
   if (!clave || !clave.startsWith(PREFIJO_DISENO)) return null
   const cuerpo = clave.slice(PREFIJO_DISENO.length).replace(/\.[^.]+$/, '')
-  const p = cuerpo.split('~')
+  // Por punto primero y por `~` después: así se siguen leyendo las claves que
+  // se escribieron con el separador viejo.
+  const p = cuerpo.includes(SEPARADOR) ? cuerpo.split(SEPARADOR) : cuerpo.split('~')
   if (p.length < 5) return null
   const fondo = `#${p[2]}`
   const figura = `#${p[3]}`

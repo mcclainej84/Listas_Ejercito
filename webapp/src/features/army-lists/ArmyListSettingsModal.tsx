@@ -265,7 +265,6 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
                   >
                     Cambiar el diseño…
                   </button>
-                  {diseno != null && <span className="text-micro text-ink-soft/70">Se guardará este</span>}
                 </div>
               )}
 

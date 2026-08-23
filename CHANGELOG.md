@@ -13,6 +13,20 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.157 — 23/08/2026 17:35
+
+- **Arreglado: guardar un emblema diseñado daba "clave de imagen no válida".**
+  El nombre con el que se sube lleva dentro el diseño, y separaba sus piezas con
+  una `~` que el Worker no admite en las claves de imagen. Resultado: NINGÚN
+  emblema diseñado se ha podido guardar nunca desde que existe el diseñador. El
+  separador pasa a ser un punto, que sí está permitido y tampoco aparece dentro
+  de ninguna de las piezas. **No hace falta desplegar nada**: el arreglo es de
+  este lado.
+- Fuera el "Se guardará este" del ajuste del emblema: el botón que hay al lado
+  ya dice lo que pasa.
+
+---
+
 ## 0.156 — 23/08/2026 17:05
 
 - **Catálogo de figuras rehecho entero con los dibujos nuevos: 116.** Las
