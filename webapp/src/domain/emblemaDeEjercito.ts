@@ -3,14 +3,20 @@
 //
 //   1. La FIGURA — el "mueble" heráldico. 120 siluetas, y no viven aquí: se
 //      piden a la red la primera vez (ver domain/emblemaFiguras y el porqué).
-//   2. El CONTORNO — la forma del emblema entero: cuadrado, círculo, dos
-//      escudos o una banda. No es un marco pintado encima: RECORTA el emblema,
-//      así que un escudo es un escudo de verdad, con las esquinas vacías.
+//   2. El ADORNO — la figura que enmarca al mueble: un cuadro algo más pequeño,
+//      un círculo, dos escudos o una línea cruzando por el medio.
 //   3. La PARTICIÓN del campo — jefe, faja, palo, banda, cuartelado…
 //   4. El color del CAMPO.
 //   5. El color de la FIGURA.
 //
-// LA FIGURA SE ENCAJA, NO SE ESTIRA. Cada contorno declara el hueco donde cabe
+// EL EMBLEMA ES SIEMPRE UN CUADRADO. El adorno se dibuja DENTRO, sobre el
+// campo; no recorta nada. Se probó lo contrario —que el adorno fuera la silueta
+// del emblema, de modo que un escudo tuviera las esquinas vacías— y estaba mal:
+// el emblema convive con los de facción en el mismo recuadro de 480, en el
+// listado, en la cabecera y en las batallas, y uno que cambia de forma según lo
+// que elijas rompe la fila. La forma la pone el sitio; el escudo es un adorno.
+//
+// LA FIGURA SE ENCAJA, NO SE ESTIRA. Cada adorno declara el hueco donde cabe
 // una figura sin tocar el borde (`caja`), y la figura se mete ahí conservando
 // su proporción: una lanza (190×1000) sale larga y estrecha, una faja
 // (1000×300) sale ancha y baja, y las dos caben. Estirarlas al hueco haría que
@@ -42,26 +48,41 @@ const TINTA = '#2b2013'
 // ---------------------------------------------------------------------------
 export interface Contorno {
   nombre: string
-  /** Silueta del emblema, en el cuadro de 480. */
+  /** El adorno, dibujado dentro del cuadrado de 480. */
   path: string
-  /** [x0, y0, x1, y1] donde se encaja la figura. */
+  /** [x0, y0, x1, y1] donde se encaja la figura, por dentro del adorno. */
   caja: [number, number, number, number]
+  /**
+   * Si el adorno encierra un área (todos menos la línea). Los que la encierran
+   * llevan un fondo apenas más oscuro, que es lo que hace que se lea como un
+   * escudo y no como cuatro trazos sueltos; una línea no encierra nada y
+   * rellenarla la convertiría en una barra.
+   */
+  relleno?: boolean
 }
 
+/**
+ * Los cinco adornos. Las cajas están medidas sobre cada forma: la del escudo
+ * termina antes de la punta, la del círculo se queda dentro del disco y la de
+ * la línea es casi todo el cuadro, porque una línea no encierra — la figura se
+ * le monta encima y la línea asoma por los dos lados.
+ */
 export const CONTORNOS: Record<string, Contorno> = {
-  cuadrado: { nombre: 'Cuadrado', path: 'M6 6H474V474H6Z', caja: [86, 86, 394, 394] },
-  circulo: { nombre: 'Círculo', path: 'M240 6A234 234 0 1 0 240.1 6Z', caja: [100, 100, 380, 380] },
+  cuadrado: { nombre: 'Cuadro', path: 'M62 62H418V418H62Z', caja: [96, 96, 384, 384], relleno: true },
+  circulo: { nombre: 'Círculo', path: 'M240 62A178 178 0 1 0 240.1 62Z', caja: [122, 122, 358, 358], relleno: true },
   escudo: {
     nombre: 'Escudo',
-    path: 'M38 26H442V214C442 318 372 386 240 464 108 386 38 318 38 214Z',
-    caja: [98, 92, 382, 338],
+    path: 'M88 70H392V244C392 330 332 388 240 422 148 388 88 330 88 244Z',
+    caja: [126, 108, 354, 326],
+    relleno: true,
   },
   'escudo-punta': {
     nombre: 'Escudo gótico',
-    path: 'M44 32Q240 84 436 32V206Q436 350 240 470 44 350 44 206Z',
-    caja: [108, 124, 372, 350],
+    path: 'M92 74Q240 116 388 74V240Q388 348 240 428 92 348 92 240Z',
+    caja: [132, 140, 348, 336],
+    relleno: true,
   },
-  banda: { nombre: 'Banda', path: 'M6 116H474V364H6Z', caja: [40, 140, 440, 340] },
+  linea: { nombre: 'Línea', path: 'M28 240H452', caja: [100, 100, 380, 380] },
 }
 
 /** Particiones del campo. Las piezas honorables de toda la vida. */
@@ -207,7 +228,7 @@ function encajarFigura(caja: [number, number, number, number], w: number, h: num
  * catálogo, y es mejor que un hueco.
  */
 export function svgDeEmblema(d: DisenoDeEmblema, figuras: CatalogoDeFiguras | null = figurasEnMemoria()): string {
-  const contorno = CONTORNOS[d.contorno] ?? CONTORNOS.escudo
+  const adorno = CONTORNOS[d.contorno] ?? CONTORNOS.escudo
   const base = HEX.test(d.fondo) ? d.fondo : '#6b6a63'
   const figuraColor = HEX.test(d.figura) ? d.figura : PERGAMINO
   const oscuro = mezcla(base, TINTA, 0.5)
@@ -223,22 +244,20 @@ export function svgDeEmblema(d: DisenoDeEmblema, figuras: CatalogoDeFiguras | nu
     ),
   ).toString(36)
   const dibujo = fig
-    ? `<g fill="${figuraColor}" transform="${encajarFigura(contorno.caja, fig.w, fig.h)}"><path d="${fig.d}"/></g>`
+    ? `<g fill="${figuraColor}" transform="${encajarFigura(adorno.caja, fig.w, fig.h)}"><path d="${fig.d}"/></g>`
     : ''
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
 <defs>
-<clipPath id="c${id}"><path d="${contorno.path}"/></clipPath>
 <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${medio}"/><stop offset="1" stop-color="${oscuro}"/></linearGradient>
 <radialGradient id="v${id}" cx="50%" cy="40%" r="72%"><stop offset="52%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".42"/></radialGradient>
 </defs>
-<g clip-path="url(#c${id})">
 <rect width="480" height="480" fill="url(#f${id})"/>
 ${particionSvg(d.particion, claro, oscuro)}
+<path d="${adorno.path}" fill="${adorno.relleno ? oscuro : 'none'}" fill-opacity=".35" stroke="${figuraColor}" stroke-opacity=".85" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
 ${dibujo}
 <rect width="480" height="480" fill="url(#v${id})"/>
-<g transform="translate(240 240) scale(.93) translate(-240 -240)"><path d="${contorno.path}" fill="none" stroke="${figuraColor}" stroke-opacity=".28" stroke-width="4"/></g>
-</g>
-<path d="${contorno.path}" fill="none" stroke="${figuraColor}" stroke-opacity=".9" stroke-width="12" stroke-linejoin="round"/>
+<rect x="14" y="14" width="452" height="452" fill="none" stroke="${figuraColor}" stroke-opacity=".28" stroke-width="4"/>
+<rect x="26" y="26" width="428" height="428" fill="none" stroke="${figuraColor}" stroke-opacity=".15" stroke-width="2"/>
 </svg>`
 }
 
@@ -262,9 +281,33 @@ export function urlDeMuestraDeMueble(
 ): string {
   const fig = figuras?.[clave]
   const cuerpo = fig
-    ? `<g fill="${figura}" transform="${encajarFigura([64, 64, 416, 416], fig.w, fig.h)}"><path d="${fig.d}"/></g>`
+    ? `<g fill="${figura}" transform="${encajarFigura([56, 56, 424, 424], fig.w, fig.h)}"><path d="${fig.d}"/></g>`
     : ''
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480"><rect width="480" height="480" fill="${fondo}"/>${cuerpo}</svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+/**
+ * Solo el CAMPO con su partición, sin adorno y sin figura. Para las muestras de
+ * "Campo" del diseñador.
+ *
+ * Sin adorno a propósito: lo que se está eligiendo ahí es cómo se parte el
+ * fondo, y con un escudo y un dragón delante las diez muestras se parecían
+ * entre sí mucho más de lo que se parecen los diez campos.
+ */
+export function urlDeMuestraDeCampo(particion: string, fondo: string, figura: string): string {
+  const base = HEX.test(fondo) ? fondo : '#6b6a63'
+  const tinta = HEX.test(figura) ? figura : PERGAMINO
+  const oscuro = mezcla(base, TINTA, 0.5)
+  const medio = mezcla(base, TINTA, 0.12)
+  const claro = mezcla(base, PERGAMINO, 0.3)
+  const id = Math.abs([...`${particion}${base}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7)).toString(36)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
+<defs><linearGradient id="k${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${medio}"/><stop offset="1" stop-color="${oscuro}"/></linearGradient></defs>
+<rect width="480" height="480" fill="url(#k${id})"/>
+${particionSvg(particion, claro, oscuro)}
+<rect x="14" y="14" width="452" height="452" fill="none" stroke="${tinta}" stroke-opacity=".28" stroke-width="4"/>
+</svg>`
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
@@ -306,10 +349,15 @@ export function disenoDesdeClave(clave: string | null | undefined): DisenoDeEmbl
   if (p.length < 5) return null
   const fondo = `#${p[2]}`
   const figura = `#${p[3]}`
-  // El contorno viejo era 1/0. Y la figura NO se valida contra el catálogo: no
-  // está cargado todavía cuando esto se llama, y una figura que no exista se
-  // pinta como "sin figura" en vez de tirar el diseño entero a la basura.
-  const contorno = p[4] === '1' ? 'escudo' : p[4] === '0' ? 'cuadrado' : p[4]
+  // El adorno ha cambiado de nombre dos veces y las dos se siguen leyendo: al
+  // principio era un 1/0 ("¿lleva escudo?"), y luego hubo una 'banda' que
+  // recortaba el emblema y ahora es la 'linea' que lo cruza. Romper emblemas ya
+  // guardados por un cambio que no les afecta sería gratuito.
+  //
+  // La figura NO se valida contra el catálogo: no está cargado todavía cuando
+  // esto se llama, y una figura que no exista se pinta como "sin figura" en vez
+  // de tirar el diseño entero a la basura.
+  const contorno = p[4] === '1' ? 'escudo' : p[4] === '0' ? 'cuadrado' : p[4] === 'banda' ? 'linea' : p[4]
   if (!PARTICIONES[p[1]] || !CONTORNOS[contorno] || !HEX.test(fondo) || !HEX.test(figura)) return null
   return { mueble: p[0], particion: p[1], fondo, figura, contorno }
 }

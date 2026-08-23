@@ -34,6 +34,7 @@ import {
   PALETA_FONDO,
   PARTICIONES,
   urlDeEmblema,
+  urlDeMuestraDeCampo,
   urlDeMuestraDeMueble,
   type DisenoDeEmblema,
 } from '@/domain/emblemaDeEjercito'
@@ -271,13 +272,11 @@ export function EmblemaDesignerModal({
                   title={nombre}
                   className="h-11 w-11"
                 >
-                  {/* Sin figura y en cuadrado: lo que se elige aquí es el campo,
-                      y con el dragón encima delante no se ve la partición. */}
-                  <img
-                    src={urlDeEmblema({ ...d, particion: clave, mueble: '', contorno: 'cuadrado' }, figuras)}
-                    alt=""
-                    className="h-full w-full"
-                  />
+                  {/* Solo el campo: ni adorno ni figura. Lo que se elige aquí
+                      es cómo se parte el fondo, y con un escudo y un dragón
+                      delante las diez muestras se parecían entre sí mucho más
+                      de lo que se parecen los diez campos. */}
+                  <img src={urlDeMuestraDeCampo(clave, d.fondo, d.figura)} alt="" className="h-full w-full" />
                 </Muestra>
               ))}
             </div>

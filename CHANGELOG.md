@@ -13,6 +13,34 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.155 — 23/08/2026 16:25
+
+- **El emblema vuelve a ser siempre un cuadrado**, y el contorno pasa a ser lo
+  que tenía que haber sido desde el principio: un adorno dibujado DENTRO. Que la
+  forma del emblema cambiara según lo que eligieras rompía la fila en el
+  listado, en la cabecera y en las batallas, donde convive con los emblemas de
+  facción en el mismo recuadro. La forma la pone el sitio; el escudo es un
+  dibujo.
+  - Cinco adornos: **cuadro** (algo más pequeño que el borde), **círculo**,
+    **escudo**, **escudo gótico** y una **línea** que cruza por el medio, con la
+    figura montada encima y la línea asomando por los dos lados.
+
+- **Más definición en las figuras.** Se vectorizan al doble de resolución
+  (2048 en vez de 1024, con el desenfoque a juego): las líneas finas —la
+  membrana del ala, las ventanas del castillo, el interior de la rosa— llegan
+  enteras en vez de fundirse. El archivo pasa de 592 kB a 716 kB, y como se pide
+  aparte y se queda en caché, no afecta al arranque.
+
+- **El emblema se guarda a 960 px, no a 480.** En una pantalla de las de ahora
+  un recuadro de 180 puntos ya son 360 píxeles reales, y a 480 el dibujo llegaba
+  justo: se veía el borde blando. Son unos kB más, una vez, por ejército.
+
+- Las muestras de "Campo" del diseñador se pintan **sin adorno y sin figura**:
+  lo que se elige ahí es cómo se parte el fondo, y con un escudo y un dragón
+  delante las diez se parecían entre sí mucho más que los diez campos.
+
+---
+
 ## 0.154 — 23/08/2026 16:00
 
 - **Las figuras ya no salen pixeladas.** Eran vectores, pero vectores con la

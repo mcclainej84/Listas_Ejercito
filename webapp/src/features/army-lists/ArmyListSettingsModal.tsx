@@ -90,7 +90,11 @@ export function ArmyListSettingsModal({ list, onClose, onSaved }: ArmyListSettin
     // AQUÍ SÍ SE ESPERA a las figuras. Lo que se sube es la imagen definitiva
     // del emblema; subirla sin la figura porque el catálogo no había llegado
     // sería guardar un escudo vacío para siempre.
-    const imagen = await rasterizarSvg(svgDeEmblema(d, await cargarFiguras()), 480)
+    // 960 y no 480: el emblema se mira en grande en el diseñador y en la ficha
+    // del ejército, y en una pantalla de las de ahora un cuadro de 180 puntos ya
+    // son 360 píxeles de verdad. A 480 el dibujo llegaba justo y se notaba el
+    // borde blando. Son unos pocos kB más, una vez, por ejército.
+    const imagen = await rasterizarSvg(svgDeEmblema(d, await cargarFiguras()), 960)
     const ext = imagen.mime === 'image/webp' ? 'webp' : imagen.mime === 'image/png' ? 'png' : 'jpg'
     const clave = claveDeDiseno(d, await hashDeContenido(imagen.bytes), ext)
     await uploadImageAtKey(clave, imagen.bytes, imagen.mime)
