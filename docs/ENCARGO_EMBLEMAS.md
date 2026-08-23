@@ -17,8 +17,23 @@
 > contorno, teñirla, la miniatura del catálogo— sale solo.
 >
 > Los PNG valen perfectamente y son más fáciles de encargar que un SVG limpio,
-> así que **el apartado 7 es ahora el camino recomendado**, no el plan B: 512 ×
-> 512, figura en negro puro, fondo transparente, y nada más.
+> así que **el apartado 7 es ahora el camino recomendado**, no el plan B: figura
+> en negro puro, fondo transparente, y nada más.
+>
+> **DOS COSAS QUE NO SON NEGOCIABLES, Y LAS DOS SON DE TAMAÑO:**
+>
+> 1. **Un archivo por figura.** Una hoja de contactos con las 120 juntas NO
+>    sirve, por grande que parezca: en una hoja de 1536 px con once columnas,
+>    cada figura ocupa unos 70 px. Recortarla y vectorizarla da una mancha —el
+>    dragón pierde la cola, el castillo las ventanas, el león la melena—, y eso
+>    ya no lo arregla ningún ajuste del trazador. Es exactamente el "sale
+>    pixelado" del que veníamos huyendo.
+>
+> 2. **Cuanto más grandes, mejor: 1024 × 1024 como mínimo, 2048 si la
+>    herramienta llega.** El vector no puede inventarse lo que no está en el
+>    origen: con 512 px el trazo sale bien, pero las líneas de un milímetro —la
+>    membrana del ala, el enrejado de una torre— llegan justas. Ese es hoy el
+>    techo de calidad del catálogo, y solo sube subiendo el origen.
 
 Documento para pasarle a una herramienta de generación (o a un ilustrador). Todo
 lo que hay aquí son requisitos para que lo que llegue entre en WHArmy **sin
