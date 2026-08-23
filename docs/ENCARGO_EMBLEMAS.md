@@ -1,11 +1,12 @@
 # Encargo: figuras heráldicas para los emblemas de ejército
 
-> **YA HAY 120 FIGURAS.** Llegaron como PNG en negro sobre transparente (el
-> "plan B" del apartado 7) y están trazadas a vectorial en
-> `webapp/public/assets/emblemas/figuras.json`. Este documento sigue valiendo
-> para pedir MÁS: es lo que hay que decirle a quien las dibuje.
+> **YA HAY 116 FIGURAS EN EL CATÁLOGO.** Llegaron como PNG en negro sobre
+> transparente (el "plan B" del apartado 7, que en la práctica ha resultado ser
+> el camino bueno) y están vectorizadas en
+> `webapp/public/assets/emblemas/figuras.json`. Este documento es lo que hay que
+> decirle a quien dibuje las siguientes.
 >
-> Para incorporarlas, no hay que tocar código:
+> Para incorporarlas no hay que tocar código:
 >
 > ```
 > apt install potrace && pip install pillow
@@ -13,27 +14,45 @@
 > ```
 >
 > y fundir `nuevas.json` con el que ya hay, repasando a mano el nombre visible
-> (`n`) y el grupo del catálogo (`g`) de cada una. El resto —encajarla en el
-> contorno, teñirla, la miniatura del catálogo— sale solo.
+> (`n`), el grupo (`g`) y el número (`i`). El resto —encajarla en el contorno,
+> teñirla, la miniatura del catálogo— sale solo.
 >
-> Los PNG valen perfectamente y son más fáciles de encargar que un SVG limpio,
-> así que **el apartado 7 es ahora el camino recomendado**, no el plan B: figura
-> en negro puro, fondo transparente, y nada más.
+> ---
 >
-> **DOS COSAS QUE NO SON NEGOCIABLES, Y LAS DOS SON DE TAMAÑO:**
+> ## LO QUE HAY QUE PEDIR, EN CUATRO LÍNEAS
 >
-> 1. **Un archivo por figura.** Una hoja de contactos con las 120 juntas NO
->    sirve, por grande que parezca: en una hoja de 1536 px con once columnas,
->    cada figura ocupa unos 70 px. Recortarla y vectorizarla da una mancha —el
->    dragón pierde la cola, el castillo las ventanas, el león la melena—, y eso
->    ya no lo arregla ningún ajuste del trazador. Es exactamente el "sale
->    pixelado" del que veníamos huyendo.
+> 1. **Un archivo PNG por figura.** Nunca una hoja de contactos.
+> 2. **1024 × 1024 como mínimo**, 2048 si la herramienta llega. 512 se acepta.
+> 3. **Figura en negro puro sobre fondo transparente.** Nada más: ni color, ni
+>    sombra, ni marco, ni fondo blanco.
+> 4. **El nombre del archivo es el nombre de la figura**, y tiene que
+>    corresponder con lo que está dibujado.
 >
-> 2. **Cuanto más grandes, mejor: 1024 × 1024 como mínimo, 2048 si la
->    herramienta llega.** El vector no puede inventarse lo que no está en el
->    origen: con 512 px el trazo sale bien, pero las líneas de un milímetro —la
->    membrana del ala, el enrejado de una torre— llegan justas. Ese es hoy el
->    techo de calidad del catálogo, y solo sube subiendo el origen.
+> ## POR QUÉ CADA UNA DE LAS CUATRO
+>
+> **1. Un archivo por figura.** Una hoja con las 120 juntas no sirve por grande
+> que parezca: en una hoja de 1536 px con once columnas, cada figura ocupa unos
+> 70 px. Vectorizar eso da una mancha —el dragón pierde la cola, el castillo las
+> ventanas, el león la melena—, y no lo arregla ningún ajuste. Se probó, y el
+> resultado era peor que lo que ya había.
+>
+> **2. Cuanto más grande, mejor.** El vector no puede inventarse lo que no está
+> en el origen. Con 512 px el trazo sale limpio, pero las líneas de un milímetro
+> —la membrana de un ala, el enrejado de una torre— llegan justas. Ese es hoy el
+> techo de calidad del catálogo, y solo sube subiendo el origen.
+>
+> **3. Negro sobre transparente.** Lo que se vectoriza es el canal alfa. Un
+> fondo blanco en vez de transparente convierte la figura en un cuadrado.
+>
+> **4. Nombres que correspondan.** En el último envío no correspondían —el
+> archivo "oso" era un estandarte, el "pulpo" una rata, el "búho" un kraken— y
+> hubo que renombrar las 116 a mano, mirando cada dibujo. Es media hora perdida
+> que se ahorra sola si el que las genera guarda cada una con su nombre.
+>
+> **Y NO MANDES LA MISMA DOS VECES.** El último envío traía 176 archivos y 60
+> eran duplicados: la misma imagen guardada con el número a dos y a tres cifras
+> (`04_dragon.png` y `004_dragon.png`). No rompe nada —se detectan comparando
+> los píxeles— pero es medio envío de más.
 
 Documento para pasarle a una herramienta de generación (o a un ilustrador). Todo
 lo que hay aquí son requisitos para que lo que llegue entre en WHArmy **sin
