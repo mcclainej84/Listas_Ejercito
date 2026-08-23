@@ -13,6 +13,26 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.156 — 23/08/2026 17:05
+
+- **Catálogo de figuras rehecho entero con los dibujos nuevos: 116.** Las
+  anteriores se van todas; no queda ninguna mezclada. Vienen de archivos sueltos
+  de 512 px, que es lo que permite vectorizarlas bien.
+  - El envío traía **176 archivos y 60 eran duplicados** —la misma imagen
+    guardada dos veces, con el número a dos y a tres cifras—. Se comprobó
+    comparando los píxeles, no los nombres: se quedan las 116 distintas.
+  - **Los nombres del envío no correspondían con los dibujos** (el archivo
+    "oso" era un estandarte, el "pulpo" una rata, el "búho" un kraken). Están
+    todos renombrados MIRANDO cada dibujo, uno por uno.
+  - Se van también las figuras rotas que arrastrábamos: la campana de peste y la
+    estrella caótica que llegaban partidas ya no existen; las de ahora están
+    enteras.
+- Numeración nueva del 1 al 116, agrupada y alfabética dentro de cada grupo, con
+  su hoja de referencia. El número sigue escrito en cada casilla y el buscador
+  lo acepta.
+
+---
+
 ## 0.155 — 23/08/2026 16:25
 
 - **El emblema vuelve a ser siempre un cuadrado**, y el contorno pasa a ser lo

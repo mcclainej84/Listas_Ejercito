@@ -313,7 +313,7 @@ ${particionSvg(particion, claro, oscuro)}
 
 export function disenoPorDefecto(colorFaccion: string | null | undefined): DisenoDeEmblema {
   return {
-    mueble: 'cruz_patee',
+    mueble: 'cruz_pate',
     particion: 'liso',
     fondo: colorFaccion && HEX.test(colorFaccion) ? colorFaccion : PALETA_FONDO[0].color,
     figura: PERGAMINO,

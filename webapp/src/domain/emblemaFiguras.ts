@@ -1,7 +1,7 @@
 // ============================================================================
 // LAS 120 FIGURAS HERÁLDICAS, y por qué no están dentro del programa.
 //
-// Son siluetas vectoriales, y juntas ocupan unos 650 kB de texto. Metidas en el
+// Son siluetas vectoriales, y juntas ocupan unos 700 kB de texto. Metidas en el
 // código se descargarían SIEMPRE: al abrir el listado de ejércitos, al mirar
 // una batalla, al consultar una ficha — en todas las visitas de todo el mundo,
 // para una pantalla que se abre dos veces en la vida de un ejército. Así que
@@ -33,7 +33,7 @@
 /** Una figura del catálogo, tal y como viene en el JSON. */
 export interface FiguraHeraldica {
   /**
-   * SU NÚMERO, 1..120, y el mismo que sale escrito en su casilla del
+   * SU NÚMERO, y el mismo que sale escrito en su casilla del
    * diseñador. No es un detalle de presentación: es lo que permite hablar de
    * una figura concreta —"quita la 65", "la 12 está torcida"— sin describirla.
    * Va en el archivo y no se calcula al vuelo para que no cambie según cómo se
