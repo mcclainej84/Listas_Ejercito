@@ -34,16 +34,22 @@ más resolución da más detalle y un archivo enorme; menos, siluetas que se
 redondean. Ver docs/ENCARGO_EMBLEMAS.md para lo que se le pide al dibujo.
 """
 import glob, os, re, subprocess, sys, json, tempfile
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ORIGEN = sys.argv[1] if len(sys.argv) > 1 else '.'
 DESTINO = sys.argv[2] if len(sys.argv) > 2 else 'figuras.json'
 TMP = tempfile.mkdtemp(prefix='figuras-')
 FUENTE = sorted(glob.glob(os.path.join(ORIGEN, '*.png')))
-RES = 448
-TURD = 14
-ALPHA = 1.33
-OPT = 1.2
+RES = 1024
+TURD = 30
+ALPHA = 1.33             # cuánto redondea las esquinas potrace
+# EL DESENFOQUE ES LO QUE QUITA LOS DIENTES DE SIERRA. El PNG de origen trae el
+# borde escalonado, y potrace lo copia tal cual: sale un vector con la escalera
+# dentro, que a tamaño grande se ve exactamente igual de pixelado que el PNG.
+# Desenfocar el alfa antes de umbralizar convierte esa escalera en una curva. Y
+# el archivo sale MÁS PEQUEÑO, porque una curva limpia necesita menos nodos.
+BLUR = 5.0               # en píxeles de RES; súbelo si aún se ven dientes
+OPT = 0.5
 
 num = re.compile(r'-?\d+(?:\.\d+)?')
 
@@ -147,7 +153,7 @@ for f in FUENTE:
     nombre = os.path.splitext(os.path.basename(f))[0]
     clave = re.sub(r'^\d+_', '', nombre)
     im = Image.open(f).convert('RGBA').getchannel('A')
-    im = im.resize((RES, RES), Image.LANCZOS).point(lambda v: 0 if v > 120 else 255).convert('1')
+    im = im.resize((RES, RES), Image.LANCZOS).filter(ImageFilter.GaussianBlur(BLUR)).point(lambda v: 0 if v > 128 else 255).convert('1')
     pbm = f'{TMP}/{clave}.pbm'
     im.save(pbm)
     svg = f'{TMP}/{clave}.svg'

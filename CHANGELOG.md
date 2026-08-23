@@ -13,6 +13,31 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.154 — 23/08/2026 16:00
+
+- **Las figuras ya no salen pixeladas.** Eran vectores, pero vectores con la
+  escalera dentro: el PNG de origen tiene el borde escalonado y el trazador la
+  copiaba punto por punto. Ahora se desenfoca el dibujo antes de vectorizarlo y
+  el contorno sale en curvas limpias. De propina, el archivo pesa MENOS —una
+  curva necesita menos nodos que una escalera.
+
+- **Las 120 caben en pantalla sin scroll.** Elegir emblema es comparar, y no se
+  compara lo que hay que recordar: con la rejilla desplazable había que retener
+  la mitad de arriba mientras se miraba la de abajo. Doce columnas de casillas
+  pequeñas entran de sobra, y pequeñas se leen igual — son siluetas, y acaban
+  saliendo a 40 px de todas formas.
+
+- **Cada figura lleva su número, del 1 al 120**, escrito en su casilla. Sirve
+  para poder decir "quita la 65" o "la 93 no pinta nada aquí" sin describirla.
+  El buscador también busca por número. Hay una hoja de referencia con las 120
+  numeradas y con su nombre.
+
+- Nombres repasados: acentos, y algunos que estaban mal (la 5 es un lobo, no una
+  cabeza de dragón). Las figuras van ordenadas por grupo y, dentro del grupo,
+  alfabéticamente — y el número no cambia aunque se filtre.
+
+---
+
 ## 0.153 — 23/08/2026 15:05
 
 - **120 figuras de verdad en el diseñador de emblemas**, dibujadas fuera y

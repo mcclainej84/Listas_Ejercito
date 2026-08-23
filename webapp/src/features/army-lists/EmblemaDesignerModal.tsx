@@ -7,11 +7,19 @@
 // descubrir el resultado al guardar es justo lo que no queremos: un emblema es
 // una decisión estética y las decisiones estéticas se toman mirando.
 //
-// 120 FIGURAS NO CABEN EN UNA REJILLA A PELO. Van agrupadas —bestias, armas,
-// calaveras, torres, símbolos, naturaleza— con un buscador al lado, porque
-// cuando uno viene a por "un dragón" quiere escribir "dragón", y cuando viene a
-// mirar quiere pasear por una categoría. La rejilla tiene su propio scroll para
-// que los colores y el contorno no se vayan de la pantalla mientras se busca.
+// LAS 120 CABEN TODAS, SIN SCROLL. Elegir un emblema es comparar, y no se
+// compara lo que no se ve a la vez: con la rejilla desplazable había que
+// recordar la mitad de arriba mientras se miraba la de abajo. Doce columnas de
+// casillas pequeñas entran de sobra, y la casilla pequeña no estorba porque
+// estas figuras son siluetas — se reconocen a 40 px, que es justo el tamaño al
+// que van a acabar saliendo en el listado de Ejércitos.
+//
+// CADA CASILLA LLEVA SU NÚMERO. Es lo que permite hablar de una figura sin
+// describirla: "la 65 está rota", "quita la 93". Va en la propia casilla y no
+// solo en el tooltip porque el tooltip hay que ir a buscarlo de una en una.
+//
+// El buscador y los grupos siguen: con todo a la vista, filtrar deja de ser una
+// necesidad y pasa a ser una comodidad, que es como tiene que ser.
 //
 // SUBIR, SOLO AL GUARDAR. Mientras se diseña no se toca la red (salvo el
 // catálogo de figuras, que se pide una vez). Al aceptar, el SVG se convierte en
@@ -111,9 +119,12 @@ export function EmblemaDesignerModal({
    * en la que estaba.
    */
   const visibles = useMemo(() => {
-    const todas = Object.entries(figuras ?? {})
+    // Por número, siempre: es el orden que el usuario tiene delante en la hoja
+    // de referencia, y un catálogo que se reordena solo no se aprende nunca.
+    const todas = Object.entries(figuras ?? {}).sort((a, b) => a[1].i - b[1].i)
     const q = normalizar(busca.trim())
-    if (q) return todas.filter(([clave, f]) => normalizar(f.n).includes(q) || clave.includes(q))
+    // Se busca también por NÚMERO: escribir "65" lleva a la 65.
+    if (q) return todas.filter(([clave, f]) => normalizar(f.n).includes(q) || clave.includes(q) || String(f.i) === q)
     if (grupo === 'todas') return todas
     return todas.filter(([, f]) => f.g === grupo)
   }, [figuras, grupo, busca])
@@ -122,7 +133,7 @@ export function EmblemaDesignerModal({
     <Modal
       title="Emblema del ejército"
       onClose={onCancel}
-      widthClassName="max-w-4xl"
+      widthClassName="max-w-5xl"
       footer={
         <>
           <Button variant="ghost" onClick={onCancel} disabled={guardando}>
@@ -180,7 +191,7 @@ export function EmblemaDesignerModal({
                   type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar figura…"
+                  placeholder="Buscar figura o nº…"
                   aria-label="Buscar figura"
                   className="w-32 rounded-sm border border-rule-dark/40 bg-parchment/70 px-2 py-0.5 text-xs text-ink placeholder:text-ink-soft/50 focus:border-bronze focus:outline-none"
                 />
@@ -217,14 +228,14 @@ export function EmblemaDesignerModal({
                 Ninguna figura se llama así.
               </p>
             ) : (
-              <div className="max-h-56 overflow-y-auto rounded-sm border border-rule-dark/25 bg-parchment/40 p-1.5">
-                <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-10">
+              <div className="rounded-sm border border-rule-dark/25 bg-parchment/40 p-1.5">
+                <div className="grid grid-cols-8 gap-1 sm:grid-cols-12">
                   {visibles.map(([clave, f]) => (
                     <Muestra
                       key={clave}
                       activa={d.mueble === clave}
                       onClick={() => cambiar({ mueble: clave })}
-                      title={f.n}
+                      title={`${f.i} · ${f.n}`}
                       className="aspect-square w-full"
                     >
                       <img
@@ -233,6 +244,15 @@ export function EmblemaDesignerModal({
                         loading="lazy"
                         className="h-full w-full"
                       />
+                      {/* El número, abajo a la derecha y sobre una pastilla del
+                          color del pergamino: encima del dibujo, a secas, se
+                          perdía en las figuras oscuras y en las claras. */}
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute right-0 bottom-0 rounded-tl-sm bg-parchment/85 px-[2px] text-[8px] leading-[1.15] font-semibold text-ink/70 tabular-nums"
+                      >
+                        {f.i}
+                      </span>
                     </Muestra>
                   ))}
                 </div>

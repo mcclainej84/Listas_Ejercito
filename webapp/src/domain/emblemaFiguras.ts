@@ -16,6 +16,12 @@
 // del contorno: una lanza es 190×1000 y una faja 1000×300, y las dos tienen que
 // caber sin deformarse (ver `encajarFigura`).
 //
+// EL DIBUJO SE SUAVIZA ANTES DE VECTORIZAR. Los PNG de origen tienen el borde
+// escalonado, y trazarlos tal cual copiaba la escalera al vector: se veía
+// pixelado a tamaño grande por muy vectorial que fuera. Se desenfoca el canal
+// alfa antes de umbralizar, y el trazo sale en curvas. De propina, ocupa menos:
+// una curva limpia necesita menos nodos que una escalera.
+//
 // SI FALTAN, EL EMBLEMA SE PINTA IGUAL, sin figura: campo, partición y
 // contorno. Es medio segundo mientras llega el archivo, y es mucho mejor que un
 // hueco vacío o una espera con la pantalla en blanco.
@@ -26,6 +32,14 @@
 
 /** Una figura del catálogo, tal y como viene en el JSON. */
 export interface FiguraHeraldica {
+  /**
+   * SU NÚMERO, 1..120, y el mismo que sale escrito en su casilla del
+   * diseñador. No es un detalle de presentación: es lo que permite hablar de
+   * una figura concreta —"quita la 65", "la 12 está torcida"— sin describirla.
+   * Va en el archivo y no se calcula al vuelo para que no cambie según cómo se
+   * ordene o se filtre la rejilla.
+   */
+  i: number
   /** Nombre visible ("Águila bicéfala"). */
   n: string
   /** Grupo del catálogo, para poder filtrar 120 sin ir a ojo. */
