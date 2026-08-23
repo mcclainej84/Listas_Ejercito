@@ -130,13 +130,19 @@ function heraldicaDe(bando: Bando, emblemUrl: string | null): BandoHeraldico {
 }
 
 /**
- * La firma de un bando: en qué estado está y, si el ejército es tuyo, el botón
- * para ponerla o retirarla.
+ * La firma de un bando: en qué estado está y, si el ejército es tuyo, la casilla
+ * con la que se pone y se quita.
+ *
+ * LA CASILLA ES EL MANDO, no un indicador con un botón al lado. Una casilla que
+ * dice si algo está hecho y encima se puede pulsar para hacerlo es un gesto que
+ * no hay que explicar, y ahorra el botón entero: la barra pasa de dos controles
+ * por bando a uno.
  *
  * Se enseñan SIEMPRE las dos, firmadas o no, y también cuando ninguna es tuya.
  * El estado de la partida le importa a todo el grupo —es lo que explica por qué
  * la batalla no se puede borrar todavía— y una fila que solo aparece cuando te
- * toca a ti obliga a adivinar qué pasa cuando no aparece.
+ * toca a ti obliga a adivinar qué pasa cuando no aparece. La diferencia es que
+ * la ajena no se puede pulsar y lo dice al pasar el ratón.
  */
 function FirmaDeBando({
   nombre,
@@ -151,42 +157,54 @@ function FirmaDeBando({
   ocupado: boolean
   onFirmar: (finalizada: boolean) => void
 }) {
-  return (
-    <span
-      className={clsx(
-        'flex items-center gap-2 rounded-sm border px-2 py-1',
-        finalizada ? 'border-success/50 bg-success/10' : 'border-rule-dark/35 bg-parchment/60',
-      )}
-    >
+  const marca = (
+    <>
       <span
         aria-hidden
         className={clsx(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] border',
-          finalizada ? 'border-success bg-success text-parchment' : 'border-ink-soft/45',
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] border transition-colors',
+          finalizada ? 'border-success bg-success text-parchment' : 'border-ink-soft/45 bg-parchment/80',
+          esMio && !finalizada && 'group-hover/firma:border-maroon group-hover/firma:bg-maroon/10',
         )}
       >
         {finalizada && <CheckIcon className="h-3 w-3" />}
       </span>
-      <span className="max-w-[14rem] truncate text-xs text-ink">{nombre}</span>
-      {esMio ? (
-        <button
-          type="button"
-          disabled={ocupado}
-          onClick={() => onFirmar(!finalizada)}
-          className={clsx(
-            'shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold tracking-wide transition-colors',
-            'disabled:opacity-50',
-            finalizada
-              ? 'text-ink-soft hover:bg-rule-dark/15 hover:text-ink'
-              : 'bg-maroon/10 text-maroon hover:bg-maroon/20',
-          )}
-        >
-          {finalizada ? 'Retirar' : 'Darla por terminada'}
-        </button>
-      ) : (
-        <span className="shrink-0 text-micro text-ink-soft/60">{finalizada ? 'finalizada' : 'pendiente'}</span>
-      )}
-    </span>
+      <span className="max-w-[16rem] truncate text-xs text-ink">{nombre}</span>
+    </>
+  )
+
+  const marco = clsx(
+    'flex items-center gap-2 rounded-sm border px-2 py-1 transition-colors',
+    finalizada ? 'border-success/50 bg-success/10' : 'border-rule-dark/35 bg-parchment/60',
+  )
+
+  if (!esMio) {
+    return (
+      <span
+        className={clsx(marco, 'cursor-default')}
+        title={`${nombre}: ${finalizada ? 'su dueño la ha dado por terminada.' : 'su dueño todavía no la ha dado por terminada.'} Solo él puede marcarla.`}
+      >
+        {marca}
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={finalizada}
+      disabled={ocupado}
+      onClick={() => onFirmar(!finalizada)}
+      className={clsx(marco, 'group/firma text-left hover:border-ink/40 disabled:opacity-60')}
+      title={
+        finalizada
+          ? `Has dado ${nombre} por terminada. Pulsa para retirarlo.`
+          : `Pulsa para dar ${nombre} por terminada por tu parte. Con las dos firmas, la batalla se podrá borrar.`
+      }
+    >
+      {marca}
+    </button>
   )
 }
 
@@ -575,11 +593,11 @@ export function BattlePage() {
           ocupado={firmando != null}
           onFirmar={(v) => void firmar('b', v)}
         />
-        <span className="min-w-[14rem] flex-1 text-mini leading-snug text-ink-soft/80">
-          {batalla.finalizadaA && batalla.finalizadaB
-            ? 'Los dos la han dado por terminada: ya se puede borrar desde el listado de Batallas.'
-            : 'Hasta que los dos jugadores la den por terminada, esta batalla no se puede borrar.'}
-        </span>
+        {batalla.finalizadaA && batalla.finalizadaB && (
+          <span className="text-mini leading-snug text-ink-soft/80">
+            Ya se puede borrar desde el listado de Batallas.
+          </span>
+        )}
         {errorDeFirma && <span className="w-full text-xs text-danger">{errorDeFirma}</span>}
       </section>
 

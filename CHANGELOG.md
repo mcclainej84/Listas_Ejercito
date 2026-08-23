@@ -13,6 +13,20 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.151 — 23/08/2026 13:12
+
+- **La casilla de "fin de la partida" ES el mando.** Se pulsa la casilla del
+  bando y queda dado por terminado; se vuelve a pulsar y se retira. Fuera el
+  botón "Darla por terminada", que decía en palabras lo que la casilla ya decía
+  con la forma y ocupaba el doble. La ajena no se puede pulsar y lo explica al
+  pasar el ratón.
+- Fuera también el aviso "hasta que los dos jugadores la den por terminada…":
+  era el estado normal de toda batalla en curso, así que estaba puesto casi
+  siempre y no contaba nada que no dijeran ya las dos casillas sin marcar. Solo
+  queda la línea de cuando sí se puede borrar.
+
+---
+
 ## 0.150 — 22/08/2026 17:59
 
 - **Una batalla se monta con cualquier ejército completado del grupo**, sin que
