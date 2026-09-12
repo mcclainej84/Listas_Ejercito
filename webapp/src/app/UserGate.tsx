@@ -1,9 +1,15 @@
 // ============================================================================
-// Puerta de acceso por USUARIO (perfil). Mientras no haya sesión, es lo único
-// que se ve. Tres modos: entrar, crear usuario y restablecer contraseña.
+// Puerta de acceso por USUARIO. Mientras no haya sesión, es lo único que se ve.
+// Tres modos: entrar, crear usuario y cambiar la contraseña.
 //
-// Recordatorio: esto identifica, no protege (ver userRepository). Restablecer
-// la contraseña no pide ninguna comprobación, por decisión expresa del usuario.
+// ESTO YA NO SOLO IDENTIFICA: entrar es también lo que acredita al navegador
+// para escribir (ver userRepository y la sección AUTENTICACIÓN del Worker). De
+// ahí el cambio visible aquí: "he olvidado la contraseña" era un restablecido
+// libre, y ahora es un CAMBIO que pide la contraseña actual. Sin eso, cualquiera
+// podría apropiarse de cualquier cuenta y, con ella, del permiso de escritura.
+//
+// Quien de verdad olvide la suya necesita a alguien con acceso a la base de
+// datos. Es el precio de que la contraseña sirva para algo.
 // ============================================================================
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { UserRepository } from '@/data/repositories/userRepository'
@@ -12,13 +18,15 @@ import { useSession, signIn } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { TextField } from '@/shared/ui/TextField'
 
-type Mode = 'entrar' | 'crear' | 'restablecer'
+type Mode = 'entrar' | 'crear' | 'cambiar'
 
 export function UserGate({ children }: { children: ReactNode }) {
   const { user } = useSession()
   const [mode, setMode] = useState<Mode>('entrar')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  /** Solo en modo "cambiar": la contraseña que se tiene ahora. */
+  const [actual, setActual] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -48,19 +56,19 @@ export function UserGate({ children }: { children: ReactNode }) {
         const created = await UserRepository.create(username, password)
         signIn(created)
       } else {
-        const found = await UserRepository.findByUsername(username)
-        if (!found) {
-          setError('No existe ningún usuario con ese nombre.')
+        if (!actual) {
+          setError('Escribe tu contraseña actual.')
           return
         }
         if (!password) {
           setError('Escribe la contraseña nueva.')
           return
         }
-        await UserRepository.resetPassword(found.id, password)
-        setInfo('Contraseña restablecida. Ya puedes entrar con ella.')
+        await UserRepository.changePassword(username, actual, password)
+        setInfo('Contraseña cambiada. Ya puedes entrar con la nueva.')
         setMode('entrar')
         setPassword('')
+        setActual('')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -69,8 +77,8 @@ export function UserGate({ children }: { children: ReactNode }) {
     }
   }
 
-  const title = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear usuario' : 'Restablecer contraseña'
-  const action = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear y entrar' : 'Restablecer'
+  const title = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear usuario' : 'Cambiar la contraseña'
+  const action = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear y entrar' : 'Cambiar'
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
@@ -96,8 +104,17 @@ export function UserGate({ children }: { children: ReactNode }) {
             ))}
           </datalist>
 
+          {mode === 'cambiar' && (
+            <TextField
+              label="Contraseña actual"
+              type="password"
+              value={actual}
+              onChange={(e) => setActual(e.target.value)}
+            />
+          )}
+
           <TextField
-            label={mode === 'restablecer' ? 'Contraseña nueva' : 'Contraseña'}
+            label={mode === 'cambiar' ? 'Contraseña nueva' : 'Contraseña'}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -122,16 +139,17 @@ export function UserGate({ children }: { children: ReactNode }) {
               Crear usuario
             </button>
           )}
-          {mode !== 'restablecer' && (
-            <button type="button" onClick={() => setMode('restablecer')} className="text-ink-soft hover:text-maroon">
-              He olvidado la contraseña
+          {mode !== 'cambiar' && (
+            <button type="button" onClick={() => setMode('cambiar')} className="text-ink-soft hover:text-maroon">
+              Cambiar la contraseña
             </button>
           )}
         </div>
 
         <p className="mt-5 border-t border-rule-dark/20 pt-3 text-mini leading-relaxed text-ink-soft">
-          Los usuarios sirven para separar tus ejércitos y tus facciones, no como medida de seguridad: cualquiera puede
-          restablecer una contraseña y el modo administrador se activa sin pedir nada.
+          Tu usuario separa tus ejércitos y tus facciones, y es además lo que te permite guardar cambios: sin entrar se
+          puede mirar todo, pero no modificar nada. Si olvidas la contraseña no hay forma de recuperarla desde aquí —
+          tendrá que cambiártela alguien con acceso a la base de datos.
         </p>
       </form>
     </div>

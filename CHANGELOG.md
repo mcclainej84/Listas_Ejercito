@@ -13,6 +13,38 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.159 — 12/09/2026 18:25
+
+- **Ahora el servidor comprueba de verdad quién escribe.** Leer sigue siendo
+  libre; para guardar cualquier cosa hay que haber entrado con tu usuario. El
+  navegador manda tu identificación en cada escritura y el Worker la verifica —
+  ya no basta con conocer la URL de la API.
+  - Entrar, darse de alta y cambiar la contraseña dejan de ser consultas desde
+    el navegador y pasan por el servidor (`/auth/login`, `/auth/register`,
+    `/auth/password`).
+
+- **Las contraseñas se mudan a una tabla propia (`user_secrets`).** Vivían en
+  `users`, que cualquiera podía leer con una consulta: la contraseña estaba a la
+  vista, y comprobarla en el servidor no habría servido de nada. Ahora están en
+  una tabla que las consultas normales tienen prohibida. La migración las copia
+  antes de vaciar las viejas, y solo vacía lo que ha comprobado que está
+  copiado.
+
+- **"He olvidado la contraseña" pasa a ser "Cambiar la contraseña", y pide la
+  actual.** Antes restablecía sin preguntar nada, y se podía permitir porque el
+  usuario no protegía nada; ahora es lo que autoriza a escribir, así que dejarlo
+  abierto sería una puerta para suplantar a cualquiera. **Quien olvide la suya
+  necesitará que se la cambie alguien con acceso a la base de datos.**
+
+- Salir de la sesión borra también la identificación guardada, de modo que ese
+  navegador deja de poder escribir.
+
+- **Hay que desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`).
+  Al abrir la página después, la migración se aplica sola y todos entran con su
+  contraseña de siempre.
+
+---
+
 ## 0.158 — 12/09/2026 18:00
 
 - **Fuera la contraseña de grupo.** Ya no se pide al entrar en Hojas, Ejércitos,

@@ -7,8 +7,13 @@
 // IMPORTANTE: el "modo admin" es una preferencia de VISTA, no un permiso. Se
 // activa y desactiva sin contraseña, por decisión expresa: solo controla si se
 // muestran las opciones de edición. No protege nada.
+//
+// Lo que SÍ autoriza es haber entrado: la credencial que se guarda al hacerlo
+// (ver data/network/auth) es lo que el Worker comprueba en cada escritura. Por
+// eso salir tiene que borrarla, y no solo olvidar el nombre.
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react'
+import { olvidarCredencial } from '@/data/network/auth'
 import type { User } from '@/domain/types'
 
 const USER_KEY = 'wharmy_session_user'
@@ -50,6 +55,9 @@ export function signIn(user: User): void {
 
 export function signOut(): void {
   current = { user: null, actingAsAdmin: false }
+  // Y con ella la credencial: si se quedara, este navegador seguiría pudiendo
+  // escribir como el usuario que acaba de salir (ver data/network/auth).
+  olvidarCredencial()
   try {
     localStorage.removeItem(USER_KEY)
     localStorage.removeItem(ADMIN_KEY)

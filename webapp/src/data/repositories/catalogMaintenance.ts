@@ -8,6 +8,7 @@
 // ============================================================================
 import { exec, execCatalog, execCatalogBatch, queryOne, runMigrations } from '@/data/sqlite/client'
 import { queryLocal } from '@/data/sqlite/localCatalog'
+import { credencialActual } from '@/data/network/auth'
 import { EQUIPMENT_ALIASES, UPGRADE_ALIASES, expandName } from '@/domain/catalogAliases'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { UpgradeRepository, UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
@@ -443,20 +444,32 @@ export async function ensureArmyListsOwned(): Promise<void> {
 }
 
 export async function runCatalogMaintenance(): Promise<void> {
+  // LAS MIGRACIONES VAN PRIMERO Y SIN SESIÓN, y el orden no es casual: esto se
+  // ejecuta al arrancar, ANTES de que nadie haya entrado (ver app/DatabaseGate,
+  // que envuelve a UserGate), y una de las migraciones es justamente la que crea
+  // la tabla contra la que se comprueban las contraseñas. Si hiciera falta estar
+  // dentro para aplicarla, no se podría entrar nunca. Por eso /admin/migrate es
+  // el único endpoint de escritura público del Worker.
+  //
+  // Se intentan SIEMPRE, sin marca en localStorage: son idempotentes y baratas
+  // (una petición), y cachearlas fue justo lo que hizo que, al añadir
+  // migraciones nuevas, una marca antigua de "ya hecho" impidiera que llegaran
+  // a aplicarse nunca.
+  try {
+    await runMigrations()
+  } catch (err) {
+    console.warn('[WHArmy] No se pudieron aplicar las migraciones:', err)
+  }
+
+  // El resto SÍ escribe por /mutate, así que necesita sesión. Sin ella no se
+  // intenta siquiera: se reintentará en la siguiente carga, ya con el usuario
+  // dentro.
+  if (credencialActual() == null) return
+
   try {
     await ensureArmyListsOwned()
   } catch (err) {
     console.warn('[WHArmy] No se pudieron asignar los ejércitos sin dueño:', err)
-  }
-
-  // Las migraciones se intentan SIEMPRE, sin marca en localStorage. Son
-  // idempotentes y baratas (una petición), y cachearlas fue justo lo que hizo
-  // que, al añadir migraciones nuevas, una marca antigua de "ya hecho"
-  // impidiera que llegaran a aplicarse nunca.
-  try {
-    await runMigrations()
-  } catch {
-    // Worker sin desplegar o sin red: se reintenta en la próxima carga.
   }
 
   if (!flagDone(RENAME_KEY)) {

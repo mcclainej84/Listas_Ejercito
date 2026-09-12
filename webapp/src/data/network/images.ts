@@ -16,7 +16,8 @@
 // "immutable" de un año sin riesgo de quedarse con una versión vieja: cambiar
 // la imagen de una hoja produce una clave distinta.
 // ============================================================================
-import { getApiBaseUrl } from '@/data/sqlite/client'
+import { getApiBaseUrl, SesionRequeridaError } from '@/data/sqlite/client'
+import { cabecerasDeAcceso } from '@/data/network/auth'
 import type { SheetTargetKind } from '@/data/repositories/unitSheetRepository'
 
 /** URL pública de una imagen ya guardada. */
@@ -59,9 +60,10 @@ export async function uploadImageAtKey(key: string, bytes: Uint8Array, mime: str
 
   const res = await fetch(imageUrl(key), {
     method: 'PUT',
-    headers: { 'Content-Type': mime },
+    headers: { 'Content-Type': mime, ...cabecerasDeAcceso() },
     body,
   })
+  if (res.status === 401) throw new SesionRequeridaError()
   if (res.status === 503) {
     throw new Error(
       'El almacén de imágenes no está configurado todavía. Hay que habilitar R2, crear el bucket ' +
@@ -108,10 +110,11 @@ export async function uploadImage(
 
   const res = await fetch(imageUrl(key), {
     method: 'PUT',
-    headers: { 'Content-Type': mime },
+    headers: { 'Content-Type': mime, ...cabecerasDeAcceso() },
     body,
   })
 
+  if (res.status === 401) throw new SesionRequeridaError()
   if (res.status === 503) {
     throw new Error(
       'El almacén de imágenes no está configurado todavía. Hay que habilitar R2, crear el bucket ' +
@@ -136,7 +139,7 @@ export async function uploadImage(
 export async function deleteImageQuietly(key: string | null | undefined): Promise<void> {
   if (!key) return
   try {
-    await fetch(imageUrl(key), { method: 'DELETE' })
+    await fetch(imageUrl(key), { method: 'DELETE', headers: cabecerasDeAcceso() })
   } catch {
     // Huérfano inofensivo; ver comentario de arriba.
   }

@@ -1014,7 +1014,10 @@ CREATE TABLE army_list_entry_upgrades (
 CREATE TABLE users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,   -- SHA-256 del texto introducido (ver shared/hash.ts)
+    -- YA NO GUARDA NADA: la contraseña vive en user_secrets (ver más abajo).
+    -- La columna se queda vacía ('') y existe solo porque es NOT NULL y borrarla
+    -- obligaría a recrear la tabla entera en D1. No mirarla para nada.
+    password_hash TEXT NOT NULL,
     created_at    TEXT NOT NULL,
     -- Facción favorita del usuario: sale preseleccionada en todas las
     -- pantallas con selector de facción (Hojas de Unidad, Ejércitos, Editor).
@@ -1026,6 +1029,26 @@ CREATE TABLE users (
     -- de salida (1) — ver la migración del Worker.
     show_mounts   INTEGER NOT NULL DEFAULT 1,
     show_magic    INTEGER NOT NULL DEFAULT 1
+);
+
+-- ---------------------------------------------------------------------------
+-- LAS CONTRASEÑAS, APARTE — y esta separación es toda la seguridad que hay.
+--
+-- El Worker expone /query, que admite cualquier SELECT y es PÚBLICO. Mientras
+-- el hash vivió en `users`, cualquiera podía leerlo; y como es lo que acredita
+-- para escribir, comprobarlo en el servidor no habría servido de nada.
+--
+-- Aquí sí sirve: /query y /mutate tienen PROHIBIDO nombrar esta tabla (ver
+-- TABLAS_PRIVADAS en worker/src/index.ts) y solo llegan a ella los endpoints
+-- /auth/login, /auth/register y /auth/password. `users` se queda con lo que sí
+-- es público —nombre, fecha, preferencias— y las consultas que la cruzan para
+-- sacar el nombre del dueño de un ejército siguen funcionando igual.
+--
+-- ON DELETE CASCADE: si se borra el usuario, su contraseña se va con él.
+-- ---------------------------------------------------------------------------
+CREATE TABLE user_secrets (
+    user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    password_hash TEXT NOT NULL   -- SHA-256 del texto introducido (ver shared/hash.ts)
 );
 
 -- Reglas destacadas de cada FACCIÓN, iguales para todos los usuarios: forman

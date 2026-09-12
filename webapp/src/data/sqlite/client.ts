@@ -6,11 +6,12 @@
 //     listas) viven en una única base de datos D1 en Cloudflare, servida por
 //     el Worker de webapp/worker/. Ya no hay copia local en IndexedDB: cada
 //     lectura y escritura va por red.
-//   - NADA de esto lleva contraseña: ni las lecturas ni las escrituras. Hubo
-//     una "contraseña de grupo" compartida y se retiró (ver la cabecera de
-//     worker/src/index.ts). Lo que hay ahora es el registro de usuarios de la
-//     propia app, que es cosa del navegador y NO llega al Worker: aquí no
-//     autentica nada.
+//   - LAS LECTURAS son públicas; LAS ESCRITURAS exigen haber entrado con un
+//     usuario. La credencial (id + hash de la contraseña) viaja en dos
+//     cabeceras que pone data/network/auth.ts, y el Worker la comprueba contra
+//     `user_secrets` — ver la sección AUTENTICACIÓN de worker/src/index.ts. Si
+//     la rechaza (401) se lanza `SesionRequeridaError`, que la aplicación usa
+//     para cerrar la sesión y volver a pedir la entrada.
 //
 // Esta es la única pieza de la app que sabe que el transporte es HTTP contra
 // el Worker. Todo lo demás (repositorios, dominio, UI) solo ve funciones
@@ -29,7 +30,22 @@
 // entran en ninguno de estos dos mecanismos: siguen siendo 100% de red con
 // `query`/`queryOne`/`exec`/`execBatch` normales (ver armyListRepository.ts).
 // ============================================================================
+import { cabecerasDeAcceso } from '@/data/network/auth'
 import { applyLocalWrite, invalidateLocalCatalog } from '@/data/sqlite/localCatalog'
+
+/**
+ * Se lanza cuando el servidor rechaza una escritura por no venir acreditada
+ * (401). Existe como tipo propio para que la aplicación pueda distinguirlo de
+ * un error de guardado cualquiera y reaccionar cerrando la sesión, en vez de
+ * enseñar "no se pudo guardar" a alguien cuya contraseña ha cambiado en otro
+ * sitio.
+ */
+export class SesionRequeridaError extends Error {
+  constructor(message = 'Hay que entrar con tu usuario para poder guardar cambios.') {
+    super(message)
+    this.name = 'SesionRequeridaError'
+  }
+}
 
 /** URL base del Worker. Exportada porque las imágenes (data/network/images.ts) también cuelgan de ella. */
 export function getApiBaseUrl(): string {
@@ -114,7 +130,11 @@ const BOOKMARK_HEADER = 'X-D1-Bookmark'
 let bookmark: string | null = null
 
 async function postJson<T>(path: string, body: unknown): Promise<{ status: number; data: T }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // La acreditación va SIEMPRE, también en las lecturas. Al servidor le sobra
+  // para /query, pero mandarla solo en unas rutas obligaba a que quien llama se
+  // acordara de cuáles, y olvidarse se manifestaba como un 401 suelto y
+  // desconcertante en la siguiente función que se añadiera.
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...cabecerasDeAcceso() }
   if (bookmark) headers[BOOKMARK_HEADER] = bookmark
 
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -176,6 +196,7 @@ export async function execBatch(statements: BatchStatement[]): Promise<BatchResu
   const { status, data } = await postJson<{ results?: BatchResult[]; error?: string }>('/mutate', {
     statements: statements.map((s) => ({ sql: s.sql, params: encodeParams(s.params) })),
   })
+  if (status === 401) throw new SesionRequeridaError(data.error)
   if (status !== 200) {
     throw new Error(data.error ?? `Error al guardar (${status}).`)
   }
@@ -220,6 +241,7 @@ export async function execCatalog(sql: string, params: SqlParam[] = []): Promise
 /** Vuelve a los datos de fábrica: borra TODO lo editado desde Administración (para todos los usuarios) y repone los datos maestros. */
 export async function resetToSeed(): Promise<void> {
   const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/reset-seed', {})
+  if (status === 401) throw new SesionRequeridaError(data.error)
   if (status !== 200) {
     throw new Error(data.error ?? `Error al restaurar los datos (${status}).`)
   }

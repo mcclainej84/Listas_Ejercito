@@ -41,3 +41,16 @@ ALTER TABLE battles ADD COLUMN finished_a INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE battles ADD COLUMN finished_b INTEGER NOT NULL DEFAULT 0;
 -- Unidad oculta: no se le enseña al rival en la sección de Batallas.
 ALTER TABLE army_list_entries ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+
+-- Las contraseñas se mudan a su propia tabla, para que /query (público, admite
+-- cualquier SELECT) deje de exponer la credencial con la que se escribe. En
+-- este orden: crear, COPIAR, y solo entonces vaciar el original — vaciando solo
+-- lo que se comprueba que está copiado. Al revés deja a todos sin contraseña.
+CREATE TABLE IF NOT EXISTS user_secrets (
+  user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  password_hash TEXT NOT NULL
+);
+INSERT OR IGNORE INTO user_secrets (user_id, password_hash)
+  SELECT id, password_hash FROM users WHERE password_hash <> '';
+UPDATE users SET password_hash = ''
+  WHERE password_hash <> '' AND id IN (SELECT user_id FROM user_secrets);

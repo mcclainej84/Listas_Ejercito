@@ -5,7 +5,12 @@
 //
 // Rutas:
 //   POST /query              — SELECT/WITH de solo lectura. Público.
-//   POST /mutate              — INSERT/UPDATE/DELETE en batch atómico. Público.
+//   POST /mutate              — INSERT/UPDATE/DELETE en batch atómico. Exige
+//                                usuario y contraseña (ver AUTENTICACIÓN).
+//   POST /auth/login          — Comprueba usuario+contraseña. Público, claro.
+//   POST /auth/register       — Crea un usuario. Público (cualquiera del grupo
+//                                se da de alta).
+//   POST /auth/password       — Cambia la contraseña. Exige la ACTUAL.
 //   GET  /snapshot            — Vuelca TODAS las filas de las 18 tablas de
 //                                CATÁLOGO (todo menos army_lists y afines) en
 //                                un único JSON. Público (sin contraseña, igual
@@ -17,22 +22,38 @@
 //                                forman parte de este volcado: siguen siendo
 //                                100% de red vía /query y /mutate.
 //   POST /admin/reset-seed    — Borra los datos maestros y los repone desde
-//                                seed-data.ts. Público.
+//                                seed-data.ts. Exige usuario y contraseña.
+//   POST /admin/migrate       — Migraciones de esquema. PÚBLICO a propósito;
+//                                ver la nota en onMigrate.
 //
-// SEGURIDAD: NO HAY NINGUNA. Ni contraseña, ni usuarios, ni sesiones: cualquiera
-// que conozca esta URL puede leer, escribir y vaciar la base. Hubo una
-// "contraseña de grupo" compartida y se retiró a propósito — la app tiene ya su
-// propio registro de usuarios y pedir además una contraseña común era un
-// trámite de más para el grupo.
+// ============================================================================
+// AUTENTICACIÓN — quién puede escribir
+// ============================================================================
 //
-// Conviene tenerlo presente, porque el registro de usuarios NO cubre este
-// hueco: vive entero en el navegador (users se consulta por /query, que es
-// público, y la comparación del hash la hace el cliente), así que aquí no
-// identifica a nadie. Lo único que protege esto es que la URL no circule.
+// LEER es público; ESCRIBIR exige ser uno de los usuarios registrados. El
+// navegador manda en cada escritura dos cabeceras: `X-WHArmy-User` con el id y
+// `X-WHArmy-Auth` con el SHA-256 de su contraseña, y aquí se comprueban contra
+// la tabla `user_secrets`. No hay sesiones ni tokens que caduquen: la credencial
+// ES la contraseña, igual que si se mandara en cada petición.
+//
+// POR QUÉ `user_secrets` Y NO `users.password_hash`. Porque /query es público y
+// deja hacer cualquier SELECT: mientras el hash vivió en `users`, cualquiera
+// podía leerlo y usarlo como credencial — comprobar la contraseña en el servidor
+// no habría servido de nada. Así que los hashes se mudaron a una tabla aparte
+// que /query y /mutate tienen PROHIBIDA (ver TABLAS_PRIVADAS), y a la que solo
+// llegan los tres endpoints /auth/* de este archivo. `users` se queda con lo que
+// sí es público —nombre, fecha, preferencias— y las consultas que la cruzan para
+// sacar el nombre del dueño de un ejército siguen funcionando igual.
+//
+// LO QUE ESTO NO ES. No hay HTTPS-only cookies, ni expiración, ni límite de
+// intentos, ni recuperación de contraseña: quien olvide la suya necesita a
+// alguien con acceso a la base. Es una herramienta de un grupo cerrado de
+// jugadores, no un producto multiusuario, y el objetivo es que la URL de la API
+// deje de ser una llave maestra — no resistir un ataque dirigido.
 //
 // La validación de prefijo SQL (SELECT/WITH para /query, INSERT/UPDATE/DELETE
-// para /mutate) sigue siendo la única barrera contra un cliente comprometido o
-// mal escrito — no hay un ORM ni sentencias predefinidas en el servidor.
+// para /mutate) sigue siendo la barrera contra un cliente comprometido o mal
+// escrito — no hay un ORM ni sentencias predefinidas en el servidor.
 //
 // Rendimiento: el usuario prueba la app desde España mientras que la D1 se
 // creó en Norteamérica (Este) — cada consulta cruzaba el Atlántico. En vez de
@@ -65,11 +86,14 @@ export interface Env {
 }
 
 const BOOKMARK_HEADER = 'X-D1-Bookmark'
+/** Id del usuario que escribe, y SHA-256 de su contraseña. Ver AUTENTICACIÓN arriba. */
+const USER_HEADER = 'X-WHArmy-User'
+const AUTH_HEADER = 'X-WHArmy-Auth'
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}`,
+  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}, ${USER_HEADER}, ${AUTH_HEADER}`,
   'Access-Control-Expose-Headers': BOOKMARK_HEADER,
 }
 
@@ -178,6 +202,56 @@ function startsWithKeyword(sql: string, keywords: string[]): boolean {
   return keywords.some((keyword) => normalized.startsWith(keyword))
 }
 
+/**
+ * Tablas que /query y /mutate NO pueden tocar, escriba quien escriba.
+ *
+ * Solo hay una, y es la que guarda los hashes de las contraseñas. Si se pudiera
+ * leer por /query —que admite cualquier SELECT y es público— la credencial
+ * estaría a la vista de cualquiera y comprobarla aquí no protegería nada. Se
+ * llega a ella únicamente por los endpoints /auth/*.
+ *
+ * La comprobación es por MENCIÓN del nombre, no por análisis de SQL: es tosca a
+ * propósito. Un SELECT legítimo nunca necesita nombrar esta tabla, así que
+ * pasarse de estricto no rompe nada y quedarse corto lo rompe todo.
+ */
+const TABLAS_PRIVADAS = ['user_secrets']
+
+function mencionaTablaPrivada(sql: string): boolean {
+  const normalizado = sql.toLowerCase()
+  return TABLAS_PRIVADAS.some((tabla) => normalizado.includes(tabla))
+}
+
+/**
+ * Quién está escribiendo, o null si no lo acredita.
+ *
+ * La credencial son dos cabeceras —id y hash de la contraseña— y se comprueban
+ * contra `user_secrets` en cada petición. Va en cabeceras y no en el cuerpo
+ * porque la subida de imágenes manda los bytes crudos y ahí no cabe un JSON.
+ *
+ * Si la tabla no existe todavía (Worker recién desplegado, migración sin
+ * aplicar) esto devuelve null y las escrituras se rechazan. Es lo correcto:
+ * ante la duda, no dejar pasar. La migración se aplica por /admin/migrate, que
+ * es público justamente para que se pueda salir de ese estado.
+ */
+async function usuarioQueEscribe(request: Request, env: Env): Promise<number | null> {
+  const id = Number(request.headers.get(USER_HEADER))
+  const hash = request.headers.get(AUTH_HEADER)
+  if (!Number.isInteger(id) || id <= 0 || !hash) return null
+  try {
+    const fila = await env.DB.prepare('SELECT user_id FROM user_secrets WHERE user_id = ? AND password_hash = ?')
+      .bind(id, hash)
+      .first<{ user_id: number }>()
+    return fila ? id : null
+  } catch {
+    return null
+  }
+}
+
+/** Respuesta estándar cuando quien escribe no se acredita. */
+function noAutorizado(): Response {
+  return jsonResponse({ error: 'Hay que entrar con tu usuario para poder guardar cambios.' }, 401)
+}
+
 // ============================================================================
 // /image/<clave> — imágenes de las hojas en R2
 // ============================================================================
@@ -231,6 +305,7 @@ async function onImage(request: Request, env: Env, url: URL): Promise<Response> 
   }
 
   if (request.method === 'PUT') {
+    if ((await usuarioQueEscribe(request, env)) == null) return noAutorizado()
     const contentType = request.headers.get('Content-Type') ?? ''
     if (!contentType.startsWith('image/')) {
       return jsonResponse({ error: 'El contenido debe ser una imagen.' }, 400)
@@ -245,11 +320,100 @@ async function onImage(request: Request, env: Env, url: URL): Promise<Response> 
   }
 
   if (request.method === 'DELETE') {
+    if ((await usuarioQueEscribe(request, env)) == null) return noAutorizado()
     await env.IMAGES.delete(key)
     return jsonResponse({ deleted: key })
   }
 
   return jsonResponse({ error: 'Método no permitido.' }, 405)
+}
+
+// ============================================================================
+// /auth/* — entrar, darse de alta y cambiar la contraseña
+// ============================================================================
+//
+// Son los ÚNICOS que tocan `user_secrets`. Reciben siempre el SHA-256 de la
+// contraseña, nunca la contraseña en claro: el navegador ya lo calculaba así
+// para guardarla, y mantenerlo evita que el texto viaje por red o acabe en un
+// registro del servidor.
+
+interface AuthRequestBody {
+  username?: string
+  /** SHA-256 de la contraseña. */
+  passwordHash?: string
+  /** Solo en /auth/password: el hash de la contraseña ACTUAL. */
+  currentHash?: string
+}
+
+/** El usuario tal y como lo espera el cliente (domain/types#User). */
+interface UserRow {
+  id: number
+  username: string
+  created_at: string
+}
+
+async function onLogin(request: Request, env: Env): Promise<Response> {
+  const { username, passwordHash } = (await request.json()) as AuthRequestBody
+  if (!username?.trim() || !passwordHash) {
+    return jsonResponse({ error: 'Faltan el usuario o la contraseña.' }, 400)
+  }
+  const user = await env.DB.prepare(
+    `SELECT u.id, u.username, u.created_at
+       FROM users u JOIN user_secrets s ON s.user_id = u.id
+      WHERE u.username = ? COLLATE NOCASE AND s.password_hash = ?`,
+  )
+    .bind(username.trim(), passwordHash)
+    .first<UserRow>()
+  // Un solo mensaje para "no existe" y "contraseña incorrecta": decir cuál de
+  // las dos es convierte esto en un comprobador de qué usuarios existen.
+  if (!user) return jsonResponse({ error: 'Usuario o contraseña incorrectos.' }, 401)
+  return jsonResponse({ user })
+}
+
+async function onRegister(request: Request, env: Env): Promise<Response> {
+  const { username, passwordHash } = (await request.json()) as AuthRequestBody
+  const nombre = username?.trim() ?? ''
+  if (!nombre || !passwordHash) {
+    return jsonResponse({ error: 'Faltan el usuario o la contraseña.' }, 400)
+  }
+  const existe = await env.DB.prepare('SELECT id FROM users WHERE username = ? COLLATE NOCASE').bind(nombre).first()
+  if (existe) return jsonResponse({ error: 'Ya existe un usuario con ese nombre.' }, 409)
+
+  // `users.password_hash` se queda vacía a propósito: la de verdad va en
+  // user_secrets. La columna sigue existiendo por compatibilidad (es NOT NULL).
+  const creado = new Date().toISOString()
+  const res = await env.DB.prepare("INSERT INTO users (username, password_hash, created_at) VALUES (?, '', ?)")
+    .bind(nombre, creado)
+    .run()
+  const id = Number(res.meta.last_row_id)
+  await env.DB.prepare('INSERT INTO user_secrets (user_id, password_hash) VALUES (?, ?)').bind(id, passwordHash).run()
+  return jsonResponse({ user: { id, username: nombre, created_at: creado } satisfies UserRow }, 201)
+}
+
+/**
+ * Cambia la contraseña, y EXIGE LA ACTUAL.
+ *
+ * Antes no la pedía: era un "he olvidado la contraseña" que restablecía sin
+ * comprobar nada, y se podía permitir porque los usuarios no protegían nada.
+ * Ahora sí protegen —son lo que autoriza a escribir—, así que un restablecido
+ * libre sería una puerta abierta a suplantar a cualquiera. Quien de verdad
+ * olvide la suya necesita a alguien con acceso a la base de datos.
+ */
+async function onChangePassword(request: Request, env: Env): Promise<Response> {
+  const { username, currentHash, passwordHash } = (await request.json()) as AuthRequestBody
+  if (!username?.trim() || !currentHash || !passwordHash) {
+    return jsonResponse({ error: 'Faltan datos para cambiar la contraseña.' }, 400)
+  }
+  const user = await env.DB.prepare(
+    `SELECT u.id FROM users u JOIN user_secrets s ON s.user_id = u.id
+      WHERE u.username = ? COLLATE NOCASE AND s.password_hash = ?`,
+  )
+    .bind(username.trim(), currentHash)
+    .first<{ id: number }>()
+  if (!user) return jsonResponse({ error: 'Usuario o contraseña actual incorrectos.' }, 401)
+
+  await env.DB.prepare('UPDATE user_secrets SET password_hash = ? WHERE user_id = ?').bind(passwordHash, user.id).run()
+  return jsonResponse({ ok: true })
 }
 
 interface QueryRequestBody {
@@ -307,6 +471,15 @@ export default {
       if (request.method === 'GET' && url.pathname === '/snapshot') {
         return await onSnapshot(request, env)
       }
+      if (request.method === 'POST' && url.pathname === '/auth/login') {
+        return await onLogin(request, env)
+      }
+      if (request.method === 'POST' && url.pathname === '/auth/register') {
+        return await onRegister(request, env)
+      }
+      if (request.method === 'POST' && url.pathname === '/auth/password') {
+        return await onChangePassword(request, env)
+      }
       if (request.method === 'POST' && url.pathname === '/admin/reset-seed') {
         return await onResetSeed(request, env)
       }
@@ -331,6 +504,9 @@ async function onQuery(request: Request, env: Env): Promise<Response> {
 
   if (!startsWithKeyword(sql, ['SELECT', 'WITH'])) {
     return jsonResponse({ error: 'Solo se permiten sentencias SELECT/WITH en /query.' }, 400)
+  }
+  if (mencionaTablaPrivada(sql)) {
+    return jsonResponse({ error: 'Esa tabla no se puede consultar.' }, 403)
   }
 
   // Sessions API: encamina esta lectura a la réplica más cercana al usuario
@@ -388,6 +564,8 @@ interface MutateRequestBody {
 }
 
 async function onMutate(request: Request, env: Env): Promise<Response> {
+  if ((await usuarioQueEscribe(request, env)) == null) return noAutorizado()
+
   const body = (await request.json()) as MutateRequestBody
 
   const statements = Array.isArray(body.statements) ? body.statements : []
@@ -398,6 +576,9 @@ async function onMutate(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: `Demasiadas sentencias en un mismo batch (máximo ${MAX_MUTATE_STATEMENTS}).` }, 400)
   }
   for (const statement of statements) {
+    if (mencionaTablaPrivada(statement.sql)) {
+      return jsonResponse({ error: 'Esa tabla no se puede modificar por aquí.' }, 403)
+    }
     if (!startsWithKeyword(statement.sql, ['INSERT', 'UPDATE', 'DELETE'])) {
       return jsonResponse({ error: 'Solo se permiten sentencias INSERT/UPDATE/DELETE en /mutate.' }, 400)
     }
@@ -928,8 +1109,39 @@ const MIGRATIONS: string[] = [
   // esa pantalla, porque si no bastaba con restar para saber qué se esconde.
   // --------------------------------------------------------------------------
   'ALTER TABLE army_list_entries ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
+  // --------------------------------------------------------------------------
+  // LAS CONTRASEÑAS SE MUDAN A SU PROPIA TABLA, y esta es la migración que hace
+  // que el servidor pueda por fin comprobar quién escribe.
+  //
+  // Vivían en `users.password_hash`, y `users` se lee por /query, que es
+  // público y admite cualquier SELECT: el hash estaba a la vista de cualquiera,
+  // así que usarlo como credencial no habría valido de nada. En `user_secrets`,
+  // que /query y /mutate tienen prohibida (ver TABLAS_PRIVADAS), sí vale.
+  //
+  // Van en tres pasos y en este orden, que importa: crear, COPIAR, y solo
+  // entonces vaciar el original — y vaciando únicamente las filas que se
+  // comprobó que están copiadas. Al revés, o sin esa condición, un fallo a
+  // medias dejaría a todo el mundo sin contraseña y sin forma de entrar.
+  // --------------------------------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS user_secrets (
+     user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+     password_hash TEXT NOT NULL
+   )`,
+  `INSERT OR IGNORE INTO user_secrets (user_id, password_hash)
+     SELECT id, password_hash FROM users WHERE password_hash <> ''`,
+  `UPDATE users SET password_hash = ''
+    WHERE password_hash <> '' AND id IN (SELECT user_id FROM user_secrets)`,
 ]
 
+/**
+ * Aplica las migraciones. ES EL ÚNICO ENDPOINT DE ESCRITURA PÚBLICO, y tiene que
+ * serlo: una de las migraciones es la que crea `user_secrets`, la tabla contra
+ * la que se comprueban las contraseñas. Si exigiera estar acreditado, haría
+ * falta poder entrar para crear lo que permite entrar.
+ *
+ * Lo que se puede hacer con él es aplicar unas migraciones idempotentes que ya
+ * se aplican solas en cada carga: molestar, no romper.
+ */
 async function onMigrate(env: Env): Promise<Response> {
   const applied: string[] = []
   const failed: { sql: string; error: string }[] = []
@@ -958,6 +1170,8 @@ async function onMigrate(env: Env): Promise<Response> {
 }
 
 async function onResetSeed(request: Request, env: Env): Promise<Response> {
+  if ((await usuarioQueEscribe(request, env)) == null) return noAutorizado()
+
   const session = env.DB.withSession(getIncomingBookmark(request))
   const deletes = RESET_DELETE_TABLES.map((table) => session.prepare(`DELETE FROM ${table}`))
   const inserts = SEED_STATEMENTS.map((s) => session.prepare(s.sql).bind(...s.params))

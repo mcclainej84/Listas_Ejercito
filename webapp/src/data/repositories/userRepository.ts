@@ -1,18 +1,39 @@
 // ============================================================================
-// Usuarios = PERFILES, no seguridad.
+// Usuarios: identifican Y autorizan.
 //
 // Sirven para saber quién eres y personalizar tu vista (tus ejércitos, qué
-// facciones ves). Decidido así a propósito: la API de lectura del Worker es
-// pública, el "modo admin" se activa sin contraseña y restablecer la contraseña
-// no pide comprobación. Es una herramienta de un grupo cerrado.
+// facciones ves), y desde que el Worker comprueba quién escribe son también lo
+// que permite guardar cambios — ver la sección AUTENTICACIÓN de
+// worker/src/index.ts.
 //
-// Los usuarios NO viajan en el snapshot del catálogo (no son catálogo y se
-// consultan poco), así que van por red con query/exec como las listas de
-// ejército.
+// POR ESO ENTRAR, DARSE DE ALTA Y CAMBIAR LA CONTRASEÑA NO SON CONSULTAS SQL.
+// Antes eran un SELECT y un UPDATE normales desde el navegador; ahora van por
+// /auth/login, /auth/register y /auth/password, porque el hash de la contraseña
+// vive en una tabla que /query tiene prohibida. Si se pudiera leer con un
+// SELECT cualquiera —y /query es público— la credencial estaría a la vista y
+// comprobarla en el servidor no protegería nada.
+//
+// Lo DEMÁS de un usuario (nombre, fecha, facción favorita, preferencias) sigue
+// siendo público y se consulta con query/exec como siempre.
+//
+// El "modo admin" sigue siendo una preferencia de vista que se activa sin pedir
+// nada: no es un permiso (ver useSession).
 // ============================================================================
-import { exec, execBatch, query, queryOne } from '@/data/sqlite/client'
+import { exec, execBatch, getApiBaseUrl, query, queryOne } from '@/data/sqlite/client'
+import { guardarCredencial, olvidarCredencial } from '@/data/network/auth'
 import { sha256Hex } from '@/shared/hash'
 import type { User } from '@/domain/types'
+
+/** POST a un endpoint /auth/*. Devuelve el cuerpo ya interpretado y el estado. */
+async function postAuth<T>(ruta: string, cuerpo: unknown): Promise<{ status: number; data: T & { error?: string } }> {
+  const res = await fetch(`${getApiBaseUrl()}${ruta}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cuerpo),
+  })
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string }
+  return { status: res.status, data }
+}
 
 function mapUser(row: Record<string, unknown>): User {
   return {
@@ -47,35 +68,56 @@ export const UserRepository = {
     )
   },
 
-  /** Comprueba la contraseña. Devuelve el usuario si coincide, null si no. */
+  /**
+   * Comprueba la contraseña contra el servidor. Devuelve el usuario si coincide,
+   * null si no — y de paso GUARDA LA CREDENCIAL con la que este navegador
+   * escribirá a partir de ahora.
+   */
   async authenticate(username: string, password: string): Promise<User | null> {
     const hash = await sha256Hex(password)
-    return queryOne(
-      'SELECT id, username, created_at FROM users WHERE username = ? COLLATE NOCASE AND password_hash = ?',
-      [username.trim(), hash],
-      mapUser,
-    )
+    const { status, data } = await postAuth<{ user?: Record<string, unknown> }>('/auth/login', {
+      username: username.trim(),
+      passwordHash: hash,
+    })
+    if (status === 401) return null
+    if (status !== 200 || !data.user) throw new Error(data.error ?? `No se pudo entrar (${status}).`)
+    const user = mapUser(data.user)
+    guardarCredencial({ userId: user.id, hash })
+    return user
   },
 
-  /** Crea un usuario. Falla si el nombre ya existe. */
+  /** Crea un usuario y deja la sesión acreditada. Falla si el nombre ya existe. */
   async create(username: string, password: string): Promise<User> {
     const name = username.trim()
     if (!name) throw new Error('El nombre de usuario es obligatorio.')
-    const existing = await UserRepository.findByUsername(name)
-    if (existing) throw new Error('Ya existe un usuario con ese nombre.')
     const hash = await sha256Hex(password)
-    const id = await exec('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)', [
-      name,
-      hash,
-      new Date().toISOString(),
-    ])
-    return { id, username: name, createdAt: new Date().toISOString() }
+    const { status, data } = await postAuth<{ user?: Record<string, unknown> }>('/auth/register', {
+      username: name,
+      passwordHash: hash,
+    })
+    if (status !== 201 || !data.user) throw new Error(data.error ?? `No se pudo crear el usuario (${status}).`)
+    const user = mapUser(data.user)
+    guardarCredencial({ userId: user.id, hash })
+    return user
   },
 
-  /** Restablece la contraseña de un usuario. Sin comprobaciones, por decisión expresa (ver cabecera). */
-  async resetPassword(userId: number, newPassword: string): Promise<void> {
-    const hash = await sha256Hex(newPassword)
-    await exec('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId])
+  /**
+   * Cambia la contraseña, PIDIENDO LA ACTUAL.
+   *
+   * Antes se restablecía sin comprobar nada, y se podía permitir porque el
+   * usuario no autorizaba nada. Ahora autoriza a escribir, así que un
+   * restablecido libre sería una puerta abierta para suplantar a cualquiera.
+   */
+  async changePassword(username: string, currentPassword: string, newPassword: string): Promise<void> {
+    const { status, data } = await postAuth<Record<string, never>>('/auth/password', {
+      username: username.trim(),
+      currentHash: await sha256Hex(currentPassword),
+      passwordHash: await sha256Hex(newPassword),
+    })
+    if (status === 401) throw new Error('Usuario o contraseña actual incorrectos.')
+    if (status !== 200) throw new Error(data.error ?? `No se pudo cambiar la contraseña (${status}).`)
+    // La credencial guardada lleva el hash viejo: ya no vale para escribir.
+    olvidarCredencial()
   },
 
   // ---- Facciones ocultas (preferencia "Mis facciones") --------------------
