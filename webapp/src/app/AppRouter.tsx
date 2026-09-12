@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, RouterProvider, createHashRouter } from 'react-router-dom'
 import { AppShell } from '@/shared/layout/AppShell'
-import { PasswordGate } from '@/shared/layout/PasswordGate'
 import { useSession } from '@/shared/session/useSession'
 import { FactionsListPage } from '@/features/admin/factions/FactionsListPage'
 import { RulesListPage } from '@/features/admin/rules/RulesListPage'
@@ -45,15 +44,6 @@ function AdminOnly({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-/** Envoltorio de las rutas de edición: modo administrador + contraseña de grupo. */
-function AdminRoute({ children }: { children: ReactNode }) {
-  return (
-    <AdminOnly>
-      <PasswordGate>{children}</PasswordGate>
-    </AdminOnly>
-  )
-}
-
 const router = createHashRouter([
   {
     element: <AppShell />,
@@ -62,171 +52,134 @@ const router = createHashRouter([
       {
         path: '/admin/facciones',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <FactionsListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/reglas',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <RulesListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/unidades',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <UnitsListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/unidades/:id',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <UnitDetailPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/monturas',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <MountsListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/carros',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <ChariotsListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/opciones',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <OptionsListPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/taxonomia',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <TaxonomyPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/sendas',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <MagicPathsPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/importar',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <ImportBookPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/admin/log',
         element: (
-          <AdminRoute>
+          <AdminOnly>
             <LogPage />
-          </AdminRoute>
+          </AdminOnly>
         ),
       },
       {
         path: '/hojas',
-        element: (
-          <PasswordGate>
-            <FichasPage />
-          </PasswordGate>
-        ),
+        element: <FichasPage />,
       },
       // La sección se llamaba "Fichas" y su ruta era /fichas. Se mantiene
       // redirigiendo para no romper los enlaces que alguien tuviera guardados.
       { path: '/fichas', element: <Navigate to="/hojas" replace /> },
       {
-        // Personajes de Renombre. SIN AdminRoute a propósito: la sección salió
-        // de "Editor" y la usa cualquiera (ver PersonajesRenombrePage). Solo
-        // queda la contraseña de grupo, como Hojas, Ejércitos y Mapas.
+        // Personajes de Renombre. SIN AdminOnly a propósito: la sección salió
+        // de "Editor" y la usa cualquiera (ver PersonajesRenombrePage).
         path: '/renombre',
-        element: (
-          <PasswordGate>
-            <PersonajesRenombrePage />
-          </PasswordGate>
-        ),
+        element: <PersonajesRenombrePage />,
       },
       // Estuvo en /admin/personajes-especiales mientras vivía dentro de
       // "Editor"; se redirige para no romper enlaces guardados ni el historial.
       { path: '/admin/personajes-especiales', element: <Navigate to="/renombre" replace /> },
       {
         path: '/ejercitos',
-        element: (
-          <PasswordGate>
-            <ArmyListsPage />
-          </PasswordGate>
-        ),
+        element: <ArmyListsPage />,
       },
       {
         path: '/ejercitos/:id',
-        element: (
-          <PasswordGate>
-            <ArmyListBuilderPage />
-          </PasswordGate>
-        ),
+        element: <ArmyListBuilderPage />,
       },
       {
         path: '/ejercitos/:id/despliegue',
-        element: (
-          <PasswordGate>
-            <DeploymentPage />
-          </PasswordGate>
-        ),
+        element: <DeploymentPage />,
       },
       {
         path: '/batallas',
-        element: (
-          <PasswordGate>
-            <BattlesListPage />
-          </PasswordGate>
-        ),
+        element: <BattlesListPage />,
       },
       {
         path: '/batallas/:id',
-        element: (
-          <PasswordGate>
-            <BattlePage />
-          </PasswordGate>
-        ),
+        element: <BattlePage />,
       },
       {
         path: '/mapas',
-        element: (
-          <PasswordGate>
-            <MapsListPage />
-          </PasswordGate>
-        ),
+        element: <MapsListPage />,
       },
       {
         path: '/mapas/:id',
-        element: (
-          <PasswordGate>
-            <MapEditorPage />
-          </PasswordGate>
-        ),
+        element: <MapEditorPage />,
       },
       { path: '*', element: <Navigate to="/hojas" replace /> },
     ],

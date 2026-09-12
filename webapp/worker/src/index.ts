@@ -4,9 +4,8 @@
 // ahora todos los navegadores leen/escriben la misma base de datos.
 //
 // Rutas:
-//   POST /query              — SELECT/WITH de solo lectura. Público (sin contraseña).
-//   POST /mutate              — INSERT/UPDATE/DELETE en batch atómico. Requiere
-//                                la contraseña de grupo (hash SHA-256).
+//   POST /query              — SELECT/WITH de solo lectura. Público.
+//   POST /mutate              — INSERT/UPDATE/DELETE en batch atómico. Público.
 //   GET  /snapshot            — Vuelca TODAS las filas de las 18 tablas de
 //                                CATÁLOGO (todo menos army_lists y afines) en
 //                                un único JSON. Público (sin contraseña, igual
@@ -18,14 +17,22 @@
 //                                forman parte de este volcado: siguen siendo
 //                                100% de red vía /query y /mutate.
 //   POST /admin/reset-seed    — Borra los datos maestros y los repone desde
-//                                seed-data.ts. Requiere la contraseña de grupo.
+//                                seed-data.ts. Público.
 //
-// Seguridad: este Worker es deliberadamente simple (una única "contraseña de
-// grupo" compartida, no hay usuarios ni sesiones) porque la app es una
-// herramienta de un grupo cerrado de jugadores, no un producto multiusuario.
+// SEGURIDAD: NO HAY NINGUNA. Ni contraseña, ni usuarios, ni sesiones: cualquiera
+// que conozca esta URL puede leer, escribir y vaciar la base. Hubo una
+// "contraseña de grupo" compartida y se retiró a propósito — la app tiene ya su
+// propio registro de usuarios y pedir además una contraseña común era un
+// trámite de más para el grupo.
+//
+// Conviene tenerlo presente, porque el registro de usuarios NO cubre este
+// hueco: vive entero en el navegador (users se consulta por /query, que es
+// público, y la comparación del hash la hace el cliente), así que aquí no
+// identifica a nadie. Lo único que protege esto es que la URL no circule.
+//
 // La validación de prefijo SQL (SELECT/WITH para /query, INSERT/UPDATE/DELETE
-// para /mutate) es la única barrera real contra un cliente comprometido o mal
-// escrito — no hay un ORM ni sentencias predefinidas en el servidor.
+// para /mutate) sigue siendo la única barrera contra un cliente comprometido o
+// mal escrito — no hay un ORM ni sentencias predefinidas en el servidor.
 //
 // Rendimiento: el usuario prueba la app desde España mientras que la D1 se
 // creó en Norteamérica (Este) — cada consulta cruzaba el Atlántico. En vez de
@@ -46,7 +53,6 @@ import { SEED_STATEMENTS } from './seed-data'
 
 export interface Env {
   DB: D1Database
-  GROUP_PASSWORD_HASH: string
   /**
    * Bucket R2 con las imágenes de las hojas (ilustración y emblema propio).
    *
@@ -59,13 +65,11 @@ export interface Env {
 }
 
 const BOOKMARK_HEADER = 'X-D1-Bookmark'
-/** Cabecera con el hash SHA-256 de la contraseña de grupo, para las peticiones cuyo cuerpo NO es JSON (subida de imágenes). */
-const PASSWORD_HEADER = 'X-WHArmy-Password'
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}, ${PASSWORD_HEADER}`,
+  'Access-Control-Allow-Headers': `Content-Type, ${BOOKMARK_HEADER}`,
   'Access-Control-Expose-Headers': BOOKMARK_HEADER,
 }
 
@@ -174,10 +178,6 @@ function startsWithKeyword(sql: string, keywords: string[]): boolean {
   return keywords.some((keyword) => normalized.startsWith(keyword))
 }
 
-async function checkPassword(env: Env, passwordHash: unknown): Promise<boolean> {
-  return typeof passwordHash === 'string' && passwordHash.length > 0 && passwordHash === env.GROUP_PASSWORD_HASH
-}
-
 // ============================================================================
 // /image/<clave> — imágenes de las hojas en R2
 // ============================================================================
@@ -231,9 +231,6 @@ async function onImage(request: Request, env: Env, url: URL): Promise<Response> 
   }
 
   if (request.method === 'PUT') {
-    if (!(await checkPassword(env, request.headers.get(PASSWORD_HEADER)))) {
-      return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
-    }
     const contentType = request.headers.get('Content-Type') ?? ''
     if (!contentType.startsWith('image/')) {
       return jsonResponse({ error: 'El contenido debe ser una imagen.' }, 400)
@@ -248,9 +245,6 @@ async function onImage(request: Request, env: Env, url: URL): Promise<Response> 
   }
 
   if (request.method === 'DELETE') {
-    if (!(await checkPassword(env, request.headers.get(PASSWORD_HEADER)))) {
-      return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
-    }
     await env.IMAGES.delete(key)
     return jsonResponse({ deleted: key })
   }
@@ -317,7 +311,7 @@ export default {
         return await onResetSeed(request, env)
       }
       if (request.method === 'POST' && url.pathname === '/admin/migrate') {
-        return await onMigrate(request, env)
+        return await onMigrate(env)
       }
       if (url.pathname.startsWith('/image/')) {
         return await onImage(request, env, url)
@@ -391,15 +385,10 @@ interface MutateStatement {
 
 interface MutateRequestBody {
   statements: MutateStatement[]
-  passwordHash: string
 }
 
 async function onMutate(request: Request, env: Env): Promise<Response> {
   const body = (await request.json()) as MutateRequestBody
-
-  if (!(await checkPassword(env, body.passwordHash))) {
-    return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
-  }
 
   const statements = Array.isArray(body.statements) ? body.statements : []
   if (statements.length === 0) {
@@ -430,15 +419,11 @@ async function onMutate(request: Request, env: Env): Promise<Response> {
   return jsonResponse({ results }, 200, { [BOOKMARK_HEADER]: session.getBookmark() ?? '' })
 }
 
-interface MigrateRequestBody {
-  passwordHash: string
-}
-
 // Migraciones idempotentes de esquema que el frontend no puede aplicar por
 // /mutate (que solo admite INSERT/UPDATE/DELETE): añaden columnas nuevas a la
 // D1 en producción. Cada una se envuelve en try/catch para poder ejecutarlas
 // tantas veces como haga falta sin romper si ya estaban aplicadas ("duplicate
-// column name"). Requiere la contraseña de grupo.
+// column name").
 const MIGRATIONS: string[] = [
   'ALTER TABLE units ADD COLUMN active INTEGER NOT NULL DEFAULT 1',
   // Opciones de unidad con ficha propia (grupos de apoyo y similares).
@@ -945,11 +930,7 @@ const MIGRATIONS: string[] = [
   'ALTER TABLE army_list_entries ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0',
 ]
 
-async function onMigrate(request: Request, env: Env): Promise<Response> {
-  const body = (await request.json()) as MigrateRequestBody
-  if (!(await checkPassword(env, body.passwordHash))) {
-    return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
-  }
+async function onMigrate(env: Env): Promise<Response> {
   const applied: string[] = []
   const failed: { sql: string; error: string }[] = []
   for (const sql of MIGRATIONS) {
@@ -976,17 +957,7 @@ async function onMigrate(request: Request, env: Env): Promise<Response> {
   return jsonResponse({ ok: true, applied, failed })
 }
 
-interface ResetSeedRequestBody {
-  passwordHash: string
-}
-
 async function onResetSeed(request: Request, env: Env): Promise<Response> {
-  const body = (await request.json()) as ResetSeedRequestBody
-
-  if (!(await checkPassword(env, body.passwordHash))) {
-    return jsonResponse({ error: 'Contraseña de grupo incorrecta o ausente.' }, 401)
-  }
-
   const session = env.DB.withSession(getIncomingBookmark(request))
   const deletes = RESET_DELETE_TABLES.map((table) => session.prepare(`DELETE FROM ${table}`))
   const inserts = SEED_STATEMENTS.map((s) => session.prepare(s.sql).bind(...s.params))

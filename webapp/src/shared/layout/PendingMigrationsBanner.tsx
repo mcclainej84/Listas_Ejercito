@@ -8,16 +8,14 @@
 // eso, y decirlo igualmente hacía que quien lo leía desplegara una y otra vez
 // algo que ya estaba desplegado. Desplegar el Worker solo SUBE EL CÓDIGO con
 // las migraciones dentro; quien las ejecuta es el navegador, llamando a
-// /admin/migrate con la contraseña de grupo. Entre una cosa y la otra hay tres
-// sitios donde se puede quedar parado:
+// /admin/migrate. Entre una cosa y la otra hay dos sitios donde se puede quedar
+// parado:
 //
 //   1. El Worker desplegado no tiene todavía esa migración → sí, falta desplegar.
-//   2. Este navegador no tiene guardada la contraseña de grupo → no se piden
-//      siquiera, y antes eso ocurría en el más absoluto silencio.
-//   3. Se piden, el Worker las intenta y alguna FALLA → el mensaje tiene que
+//   2. Se piden, el Worker las intenta y alguna FALLA → el mensaje tiene que
 //      traer el motivo, no repetir el consejo de siempre.
 //
-// El aviso distingue los tres y trae un botón para reintentar en el sitio, sin
+// El aviso distingue los dos y trae un botón para reintentar en el sitio, sin
 // recargar: si el problema era (1) y acabas de desplegar, se arregla desde
 // aquí y se ve que se ha arreglado.
 // ============================================================================
@@ -30,7 +28,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Tope de espera a las migraciones: si no llegan (sin contraseña, Worker caído), se comprueba igualmente. */
+/** Tope de espera a las migraciones: si no llegan (Worker caído), se comprueba igualmente. */
 const MIGRATIONS_WAIT_MS = 8000
 /** Margen para que un ALTER TABLE recién aplicado llegue a las réplicas de lectura de D1. */
 const REPLICA_LAG_MS = 3000
@@ -97,11 +95,9 @@ export function PendingMigrationsBanner() {
       <div className="mx-auto flex max-w-4xl items-start gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-ink">
-            {resultado?.estado === 'sin-contrasena'
-              ? 'La base de datos no está al día, y este navegador no puede ponerla: falta la contraseña de grupo.'
-              : fallidas.length > 0
-                ? 'La base de datos no está al día: el Worker intentó actualizarla y no pudo.'
-                : 'La base de datos no está al día.'}
+            {fallidas.length > 0
+              ? 'La base de datos no está al día: el Worker intentó actualizarla y no pudo.'
+              : 'La base de datos no está al día.'}
           </p>
           <p className="mt-1 text-xs text-ink-soft">
             Hasta entonces no funcionan estas partes, y sus datos pueden verse vacíos o dar error al guardar:{' '}
@@ -110,12 +106,6 @@ export function PendingMigrationsBanner() {
 
           {/* El motivo REAL, cuando se sabe. Un consejo genérico repetido sobre
               un problema que no es ese hace perder más tiempo que no decir nada. */}
-          {resultado?.estado === 'sin-contrasena' && (
-            <p className="mt-1.5 text-xs text-ink-soft">
-              Las migraciones las aplica el navegador llamando al Worker, y para eso hace falta la contraseña de grupo.
-              Vuelve a introducirla y pulsa <b>Aplicar ahora</b>.
-            </p>
-          )}
           {fallidas.length > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {fallidas.map((f) => (

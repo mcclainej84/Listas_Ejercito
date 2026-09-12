@@ -22,7 +22,8 @@ database_id = "d4faba12-adf0-4ee9-bcb8-17584667ddaa"
 binding = "IMAGES"
 bucket_name = "wharmy-images"
 
-# GROUP_PASSWORD_HASH (secreto, NO va aquí): se fija con
-#   wrangler secret put GROUP_PASSWORD_HASH
-# Debe ser el SHA-256 en hex de la contraseña de grupo (la misma función
-# sha256Hex que usa el cliente en src/data/network/auth.ts).
+# NO HAY SECRETOS. Hubo un GROUP_PASSWORD_HASH con la contraseña de grupo
+# compartida y se retiró: ahora el Worker no comprueba nada y cualquiera con
+# esta URL puede escribir (ver la cabecera de src/index.ts). Si algún día vuelve
+# a hacer falta, el secreto se fija con `wrangler secret put NOMBRE`; el que
+# había se puede borrar con `wrangler secret delete GROUP_PASSWORD_HASH`.

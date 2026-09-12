@@ -8,7 +8,6 @@
 // ============================================================================
 import { exec, execCatalog, execCatalogBatch, queryOne, runMigrations } from '@/data/sqlite/client'
 import { queryLocal } from '@/data/sqlite/localCatalog'
-import { hasStoredPassword } from '@/data/network/auth'
 import { EQUIPMENT_ALIASES, UPGRADE_ALIASES, expandName } from '@/domain/catalogAliases'
 import { UnitRepository } from '@/data/repositories/unitRepository'
 import { UpgradeRepository, UnitTypeTagRepository } from '@/data/repositories/lookupRepositories'
@@ -406,11 +405,10 @@ function setDone(key: string): void {
 
 /**
  * Mantenimiento único (por navegador) del catálogo compartido, disparado desde
- * app/DatabaseGate cuando el catálogo local ya está listo. Solo actúa si hay
- * contraseña de grupo guardada (las escrituras la necesitan). Cada bloque tiene
- * su propia marca de "hecho" y su try/catch: si uno falla —p.ej. el Worker aún
- * no tiene la ruta /admin/migrate porque no se ha desplegado— no bloquea al
- * otro y se reintenta en la siguiente carga.
+ * app/DatabaseGate cuando el catálogo local ya está listo. Cada bloque tiene su
+ * propia marca de "hecho" y su try/catch: si uno falla —p.ej. el Worker aún no
+ * tiene la ruta /admin/migrate porque no se ha desplegado— no bloquea al otro y
+ * se reintenta en la siguiente carga.
  *
  * 1) Migraciones de esquema (columnas/tablas nuevas).
  * 2) Renombrado de abreviaturas de equipo/opciones a su descripción completa.
@@ -445,8 +443,6 @@ export async function ensureArmyListsOwned(): Promise<void> {
 }
 
 export async function runCatalogMaintenance(): Promise<void> {
-  if (!hasStoredPassword()) return
-
   try {
     await ensureArmyListsOwned()
   } catch (err) {

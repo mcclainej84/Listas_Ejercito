@@ -1,4 +1,4 @@
-/** SHA-256 en hexadecimal, con la API del navegador. Compartido por la contraseña de grupo y por los perfiles de usuario. */
+/** SHA-256 en hexadecimal, con la API del navegador. Lo usan las contraseñas de los perfiles de usuario. */
 export async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text)
   const digest = await crypto.subtle.digest('SHA-256', bytes)

@@ -114,9 +114,8 @@ export function mensajeDeMigracionPendiente(err: unknown): string | null {
   if (!/no such (table|column)/i.test(detalle)) return null
   return (
     'A la base de datos le falta una columna que esta función necesita. Van en el código del Worker, pero ' +
-    'desplegarlo solo las SUBE: quien las aplica es esta página, y hace falta tener guardada la contraseña de ' +
-    'grupo. Así que: cd webapp/worker && npx wrangler deploy, y luego "Aplicar ahora" en el aviso de arriba (o ' +
-    'recargar). ' +
+    'desplegarlo solo las SUBE: quien las aplica es esta página. Así que: cd webapp/worker && npx wrangler ' +
+    'deploy, y luego "Aplicar ahora" en el aviso de arriba (o recargar). ' +
     `(${detalle})`
   )
 }

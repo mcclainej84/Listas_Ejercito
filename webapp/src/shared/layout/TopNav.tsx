@@ -19,9 +19,7 @@ interface NavItem {
 // PREPARAR fichas y ejércitos (dar de alta unidades, reglas, monturas...),
 // no para usarlos día a día — de ahí que el usuario pidiera esconderlas
 // detrás de un único punto de entrada en vez de ocupar 5 huecos en la barra.
-// Cada ruta sigue protegida por su propio <PasswordGate> (ver AppRouter.tsx)
-// exactamente igual que antes; este menú no añade ni quita ninguna
-// comprobación de contraseña, solo reorganiza la navegación.
+// El menú solo reorganiza la navegación: no cambia quién puede entrar.
 const EDITOR_ITEMS: NavItem[] = [
   { to: '/admin/facciones', label: 'Facciones' },
   { to: '/admin/unidades', label: 'Unidades' },

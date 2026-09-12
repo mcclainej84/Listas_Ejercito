@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.158 — 12/09/2026 18:00
+
+- **Fuera la contraseña de grupo.** Ya no se pide al entrar en Hojas, Ejércitos,
+  Batallas, Mapas, Renombre ni en el Editor: la pantalla que la pedía desaparece
+  y con ella el trámite de tener que introducirla en cada navegador. Cada uno
+  entra con su propio usuario y ya está.
+  - El Worker deja de comprobarla en todas partes: escrituras, subida y borrado
+    de imágenes, restaurar datos de fábrica y migraciones.
+  - Se puede borrar el secreto que la guardaba:
+    `wrangler secret delete GROUP_PASSWORD_HASH`.
+
+- **Hay que desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`).
+  Hasta que se despliegue, el Worker antiguo sigue exigiendo la contraseña y la
+  página nueva ya no la manda: no se podrá guardar nada.
+
+- **Y conviene saber lo que esto significa:** el Worker ya no comprueba nada, y
+  el registro de usuarios NO lo sustituye — vive entero en el navegador, así que
+  el servidor no sabe quién llama. Cualquiera que conozca la URL de la API puede
+  escribir y vaciar la base. Lo único que protege los datos ahora es que esa URL
+  no circule.
+
+---
+
 ## 0.157 — 23/08/2026 17:35
 
 - **Arreglado: guardar un emblema diseñado daba "clave de imagen no válida".**

@@ -6,12 +6,11 @@
 //     listas) viven en una única base de datos D1 en Cloudflare, servida por
 //     el Worker de webapp/worker/. Ya no hay copia local en IndexedDB: cada
 //     lectura y escritura va por red.
-//   - Las lecturas (`query`/`queryOne`) son públicas, sin contraseña.
-//   - Las escrituras (`exec`/`execBatch`) y "Restaurar datos de fábrica"
-//     (`resetToSeed`) requieren la contraseña de grupo — ver
-//     data/network/auth.ts. Si el servidor la rechaza (401), se lanza
-//     `AuthRequiredError` para que la UI pueda distinguirlo de otros errores
-//     y pedir la contraseña de nuevo.
+//   - NADA de esto lleva contraseña: ni las lecturas ni las escrituras. Hubo
+//     una "contraseña de grupo" compartida y se retiró (ver la cabecera de
+//     worker/src/index.ts). Lo que hay ahora es el registro de usuarios de la
+//     propia app, que es cosa del navegador y NO llega al Worker: aquí no
+//     autentica nada.
 //
 // Esta es la única pieza de la app que sabe que el transporte es HTTP contra
 // el Worker. Todo lo demás (repositorios, dominio, UI) solo ve funciones
@@ -30,14 +29,7 @@
 // entran en ninguno de estos dos mecanismos: siguen siendo 100% de red con
 // `query`/`queryOne`/`exec`/`execBatch` normales (ver armyListRepository.ts).
 // ============================================================================
-import { clearPassword, getStoredPasswordHash } from '@/data/network/auth'
 import { applyLocalWrite, invalidateLocalCatalog } from '@/data/sqlite/localCatalog'
-
-// Cuando el servidor rechaza una escritura por contraseña incorrecta/ausente
-// (401), se borra aquí mismo el hash guardado (ver clearPassword) antes de
-// propagar el error: así <PasswordGate> reacciona al instante (se suscribe a
-// data/network/auth.ts#onAuthChange) y vuelve a pedir la contraseña, en vez
-// de dejar que cada pantalla que escribe tenga que acordarse de hacerlo.
 
 /** URL base del Worker. Exportada porque las imágenes (data/network/images.ts) también cuelgan de ella. */
 export function getApiBaseUrl(): string {
@@ -48,14 +40,6 @@ export function getApiBaseUrl(): string {
     )
   }
   return url
-}
-
-/** Se lanza cuando el servidor rechaza una escritura por contraseña de grupo ausente/incorrecta (401). */
-export class AuthRequiredError extends Error {
-  constructor(message = 'Contraseña de grupo incorrecta o ausente.') {
-    super(message)
-    this.name = 'AuthRequiredError'
-  }
 }
 
 const changeListeners = new Set<() => void>()
@@ -189,15 +173,9 @@ export interface BatchResult {
  * unitRepository.toggleRelation/toggleProfile/saveUnitDetail).
  */
 export async function execBatch(statements: BatchStatement[]): Promise<BatchResult[]> {
-  const passwordHash = await getStoredPasswordHash()
   const { status, data } = await postJson<{ results?: BatchResult[]; error?: string }>('/mutate', {
     statements: statements.map((s) => ({ sql: s.sql, params: encodeParams(s.params) })),
-    passwordHash,
   })
-  if (status === 401) {
-    clearPassword()
-    throw new AuthRequiredError()
-  }
   if (status !== 200) {
     throw new Error(data.error ?? `Error al guardar (${status}).`)
   }
@@ -241,12 +219,7 @@ export async function execCatalog(sql: string, params: SqlParam[] = []): Promise
 
 /** Vuelve a los datos de fábrica: borra TODO lo editado desde Administración (para todos los usuarios) y repone los datos maestros. */
 export async function resetToSeed(): Promise<void> {
-  const passwordHash = await getStoredPasswordHash()
-  const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/reset-seed', { passwordHash })
-  if (status === 401) {
-    clearPassword()
-    throw new AuthRequiredError()
-  }
+  const { status, data } = await postJson<{ ok?: boolean; error?: string }>('/admin/reset-seed', {})
   if (status !== 200) {
     throw new Error(data.error ?? `Error al restaurar los datos (${status}).`)
   }
@@ -260,18 +233,15 @@ export async function resetToSeed(): Promise<void> {
 
 /**
  * EN QUÉ QUEDÓ el último intento de migrar. Existe porque durante mucho tiempo
- * quedar en nada y salir bien eran indistinguibles desde fuera:
- * `runMigrations` devolvía `void` y se iba en silencio si no había contraseña.
- * El resultado es que el aviso de la pantalla acusaba siempre de lo mismo
- * —"falta desplegar el Worker"— aunque el Worker estuviera desplegado y el
- * problema fuera otro, y quien lo leía desplegaba una y otra vez algo que ya
- * estaba desplegado.
+ * quedar en nada y salir bien eran indistinguibles desde fuera: `runMigrations`
+ * devolvía `void` y se iba en silencio. El resultado es que el aviso de la
+ * pantalla acusaba siempre de lo mismo —"falta desplegar el Worker"— aunque el
+ * Worker estuviera desplegado y el problema fuera otro, y quien lo leía
+ * desplegaba una y otra vez algo que ya estaba desplegado.
  */
 export type ResultadoDeMigraciones =
   /** Se pidieron y el Worker contestó. `fallidas` puede traer las que no pudo. */
   | { estado: 'aplicadas'; fallidas: { sql: string; error: string }[] }
-  /** No se pidieron: no hay contraseña de grupo guardada en este navegador. */
-  | { estado: 'sin-contrasena' }
   /** Se pidieron y la petición falló entera (red, 500, Worker sin la ruta…). */
   | { estado: 'error'; motivo: string }
 
@@ -288,26 +258,16 @@ export function ultimoResultadoDeMigraciones(): ResultadoDeMigraciones | null {
  *
  * OJO CON LO QUE SIGNIFICA "DESPLEGAR EL WORKER": desplegarlo solo sube el
  * código con las migraciones dentro. Quien las EJECUTA es esta función, desde
- * el navegador, y necesita la contraseña de grupo. Por eso se devuelve el
- * resultado en vez de tragárselo: sin él no hay forma de distinguir "no se
- * intentó" de "se intentó y salió bien".
+ * el navegador. Por eso se devuelve el resultado en vez de tragárselo: sin él
+ * no hay forma de distinguir "no se intentó" de "se intentó y salió bien".
  */
 export async function runMigrations(): Promise<ResultadoDeMigraciones> {
   try {
-    const passwordHash = await getStoredPasswordHash()
-    if (!passwordHash) {
-      ultimoResultado = { estado: 'sin-contrasena' }
-      return ultimoResultado
-    }
     const { status, data } = await postJson<{
       ok?: boolean
       error?: string
       failed?: { sql: string; error: string }[]
-    }>('/admin/migrate', { passwordHash })
-    if (status === 401) {
-      clearPassword()
-      throw new AuthRequiredError()
-    }
+    }>('/admin/migrate', {})
     if (status !== 200) {
       throw new Error(data.error ?? `Error al migrar (${status}).`)
     }

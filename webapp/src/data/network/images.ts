@@ -16,11 +16,8 @@
 // "immutable" de un año sin riesgo de quedarse con una versión vieja: cambiar
 // la imagen de una hoja produce una clave distinta.
 // ============================================================================
-import { AuthRequiredError, getApiBaseUrl } from '@/data/sqlite/client'
-import { clearPassword, getStoredPasswordHash } from '@/data/network/auth'
+import { getApiBaseUrl } from '@/data/sqlite/client'
 import type { SheetTargetKind } from '@/data/repositories/unitSheetRepository'
-
-const PASSWORD_HEADER = 'X-WHArmy-Password'
 
 /** URL pública de una imagen ya guardada. */
 export function imageUrl(key: string): string {
@@ -57,19 +54,14 @@ async function contentHash(bytes: Uint8Array): Promise<string> {
  * que permite que un mapa viejo siga viendo su imagen de siempre.
  */
 export async function uploadImageAtKey(key: string, bytes: Uint8Array, mime: string): Promise<string> {
-  const passwordHash = await getStoredPasswordHash()
   const body = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(body).set(bytes)
 
   const res = await fetch(imageUrl(key), {
     method: 'PUT',
-    headers: { 'Content-Type': mime, [PASSWORD_HEADER]: passwordHash ?? '' },
+    headers: { 'Content-Type': mime },
     body,
   })
-  if (res.status === 401) {
-    clearPassword()
-    throw new AuthRequiredError()
-  }
   if (res.status === 503) {
     throw new Error(
       'El almacén de imágenes no está configurado todavía. Hay que habilitar R2, crear el bucket ' +
@@ -101,11 +93,7 @@ export async function buildImageKey(
   return `sheets/${kind}/${id}/${slot}-${await contentHash(bytes)}.${extensionFor(mime)}`
 }
 
-/**
- * Sube la imagen y devuelve su clave. Requiere la contraseña de grupo, que
- * viaja en una cabecera y no en el cuerpo porque el cuerpo son los bytes
- * crudos de la imagen.
- */
+/** Sube la imagen y devuelve su clave. */
 export async function uploadImage(
   kind: SheetTargetKind,
   id: number,
@@ -113,7 +101,6 @@ export async function uploadImage(
   bytes: Uint8Array,
   mime: string,
 ): Promise<string> {
-  const passwordHash = await getStoredPasswordHash()
   const key = await buildImageKey(kind, id, slot, bytes, mime)
 
   const body = new ArrayBuffer(bytes.byteLength)
@@ -121,16 +108,10 @@ export async function uploadImage(
 
   const res = await fetch(imageUrl(key), {
     method: 'PUT',
-    headers: { 'Content-Type': mime, [PASSWORD_HEADER]: passwordHash ?? '' },
+    headers: { 'Content-Type': mime },
     body,
   })
 
-  if (res.status === 401) {
-    // Mismo trato que una escritura rechazada en client.ts: se borra el hash
-    // guardado para que <PasswordGate> vuelva a pedir la contraseña al vuelo.
-    clearPassword()
-    throw new AuthRequiredError()
-  }
   if (res.status === 503) {
     throw new Error(
       'El almacén de imágenes no está configurado todavía. Hay que habilitar R2, crear el bucket ' +
@@ -155,11 +136,7 @@ export async function uploadImage(
 export async function deleteImageQuietly(key: string | null | undefined): Promise<void> {
   if (!key) return
   try {
-    const passwordHash = await getStoredPasswordHash()
-    await fetch(imageUrl(key), {
-      method: 'DELETE',
-      headers: { [PASSWORD_HEADER]: passwordHash ?? '' },
-    })
+    await fetch(imageUrl(key), { method: 'DELETE' })
   } catch {
     // Huérfano inofensivo; ver comentario de arriba.
   }
