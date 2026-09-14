@@ -25,13 +25,35 @@ import { sha256Hex } from '@/shared/hash'
 import type { User } from '@/domain/types'
 
 /** POST a un endpoint /auth/*. Devuelve el cuerpo ya interpretado y el estado. */
-async function postAuth<T>(ruta: string, cuerpo: unknown): Promise<{ status: number; data: T & { error?: string } }> {
+async function postAuth<T>(
+  ruta: string,
+  cuerpo: unknown,
+): Promise<{ status: number; data: T & { error?: string; code?: string } }> {
   const res = await fetch(`${getApiBaseUrl()}${ruta}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cuerpo),
   })
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string }
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string; code?: string }
+
+  // UN 404 DE RUTA NO ES UN 404 DE DATO, Y AQUÍ SE SEPARAN.
+  //
+  // El Worker responde 404 a una ruta que no conoce, y 404 también cuando la
+  // operación existe pero el dato no ("no hay ningún usuario con ese nombre").
+  // Quien llama solo veía el número, así que con el Worker sin desplegar
+  // /auth/reset no existía y la pantalla anunciaba muy convencida que el usuario
+  // no existía — justo después de que crearlo fallara por existir ya. Dos
+  // mensajes contradictorios sobre la misma cuenta, y ninguno era el problema.
+  //
+  // Se mira el `code` y TAMBIÉN el 'Not found' de siempre, porque el Worker que
+  // hay desplegado ahora mismo es justo el que no manda código: si solo se
+  // comprobara lo nuevo, el aviso llegaría después de arreglar lo que avisa.
+  if (res.status === 404 && (data.code === 'ruta-desconocida' || data.error === 'Not found')) {
+    throw new Error(
+      `El servidor no conoce la operación "${ruta}": está sirviendo una versión anterior. Hay que desplegar el Worker.`,
+    )
+  }
+
   return { status: res.status, data }
 }
 

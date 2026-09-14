@@ -370,6 +370,14 @@ interface UserRow {
   created_at: string
 }
 
+/**
+ * Lo que se responde a una ruta que este Worker no conoce. Dice lo que casi
+ * siempre pasa —el Worker va por detrás de la página— en vez de un "Not found"
+ * que obliga a adivinarlo.
+ */
+const ERROR_RUTA_DESCONOCIDA =
+  'Este Worker no conoce esa ruta: está sirviendo una versión anterior a la que espera la página. Hay que desplegarlo.'
+
 async function onLogin(request: Request, env: Env): Promise<Response> {
   const { username, passwordHash } = (await request.json()) as AuthRequestBody
   if (!username?.trim() || !passwordHash) {
@@ -479,7 +487,7 @@ async function onResetPassword(request: Request, env: Env): Promise<Response> {
   const user = await env.DB.prepare('SELECT id, username, created_at FROM users WHERE username = ? COLLATE NOCASE')
     .bind(nombre)
     .first<UserRow>()
-  if (!user) return jsonResponse({ error: 'No existe ningún usuario con ese nombre.' }, 404)
+  if (!user) return jsonResponse({ error: 'No existe ningún usuario con ese nombre.', code: 'sin-usuario' }, 404)
 
   // INSERT ... ON CONFLICT y no UPDATE: un usuario puede no tener fila en
   // user_secrets todavía (creado antes de que existiera la tabla), y un UPDATE
@@ -571,7 +579,13 @@ export default {
       if (url.pathname.startsWith('/image/')) {
         return await onImage(request, env, url)
       }
-      return jsonResponse({ error: 'Not found' }, 404)
+      // RUTA DESCONOCIDA, CON CÓDIGO PROPIO. Un 404 pelado aquí es indistinguible
+      // del 404 legítimo de "ese usuario no existe", y esa confusión costó un
+      // rato de verdad: con el Worker sin desplegar, /auth/reset no existía, la
+      // página recibía ESTE 404 y le decía al usuario que "Mali" no existía…
+      // justo después de negarse a crearlo porque ya existía. El código deja a la
+      // página distinguir "no conozco esa operación" de "no encuentro ese dato".
+      return jsonResponse({ error: ERROR_RUTA_DESCONOCIDA, code: 'ruta-desconocida' }, 404)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       return jsonResponse({ error: message }, 500)

@@ -13,6 +13,37 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.163 — 14/09/2026 17:03
+
+**Arreglado: la aplicación decía que un usuario no existía y a la vez que ya
+existía.** Crear a "Mali" fallaba con "ese nombre ya está cogido" y, acto
+seguido, restablecerle la contraseña fallaba con "no existe ningún usuario con
+ese nombre". Las dos cosas no podían ser ciertas, y de hecho solo lo era la
+primera: **Mali existe**.
+
+Lo que pasaba es que el Worker responde **404** a dos cosas distintas — "no
+conozco esa ruta" y "conozco la operación, pero ese dato no está"— y la página
+solo miraba el número. Con el Worker todavía sin desplegar, `/auth/reset` no
+existía en el servidor; la página recibía el 404 de ruta desconocida y lo
+traducía por el único 404 que sabía interpretar: que el usuario no existía.
+
+- El Worker distingue ahora los dos casos con un `code` propio, y a una ruta que
+  no conoce responde diciendo exactamente eso: que está sirviendo una versión
+  anterior a la que espera la página.
+- La página corta ese caso en un solo sitio (`postAuth`), así que **vale para
+  todas** las operaciones de acceso, no solo para restablecer: entrar, crear
+  usuario y cambiar contraseña dejan igualmente de poder mentir si algún día se
+  vuelven a adelantar al Worker.
+- Y reconoce también el `Not found` de siempre, no solo el código nuevo: el
+  Worker que hay desplegado ahora mismo es justo el que no manda código, así que
+  el aviso correcto sale **antes** de desplegar, que es cuando hace falta.
+
+- **Hay que desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`) —
+  sigue pendiente desde la 0.161, y es lo que hace que "He olvidado la
+  contraseña" funcione de verdad.
+
+---
+
 ## 0.162 — 14/09/2026 16:56
 
 **El programa se adapta al teléfono.** No es una pantalla nueva ni un modo
