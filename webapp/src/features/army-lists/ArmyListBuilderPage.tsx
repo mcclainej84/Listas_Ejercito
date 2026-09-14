@@ -167,6 +167,239 @@ function hasCost(p: { cost: number | null }): boolean {
   return (p.cost ?? 0) > 0
 }
 
+/**
+ * Lo que hace falta saber de una entrada para enseñarla en la lista. Lo calcula
+ * el constructor una sola vez (ver `filas`) y lo consumen las DOS vistas: la
+ * tabla del ordenador y las fichas del móvil.
+ */
+interface FilaDeLista {
+  entry: ArmyListEntry
+  cost: number
+  combo: string
+  shieldMetal: ReturnType<typeof categoryShieldMetal>
+  cabalgadura: string
+  sendas: string
+}
+
+/**
+ * El retoque a mano del coste, empaquetado para poder pasarlo entero a la vista
+ * de fichas. Son seis cosas que van juntas siempre; como seis props sueltas
+ * ensuciarían la firma sin añadir nada.
+ */
+interface EdicionDeCoste {
+  editandoId: number | null
+  texto: string
+  setTexto: (v: string) => void
+  empezar: (entry: ArmyListEntry) => void
+  confirmar: (entryId: number) => void
+  cancelar: () => void
+  restablecer: (entryId: number) => void
+}
+
+/**
+ * ============================================================================
+ * LA LISTA DE UNIDADES EN EL MÓVIL: UNA FICHA POR ENTRADA.
+ *
+ * La tabla de al lado mide 46rem —736 px— porque tiene que darle una columna a
+ * cada cosa: arrastre, emblema, escudo, número, unidad, equipo, tres de mando,
+ * coste y papelera. En un teléfono de 390 px eso se venía resolviendo con
+ * `overflow-x-auto`, y funcionaba en el sentido estricto de que no se rompía
+ * nada… pero leer el ejército consistía en arrastrar cada fila de lado a lado
+ * para enterarte de lo que llevaba. Un ejército que no se puede mirar entero no
+ * se está enseñando.
+ *
+ * Aquí la misma información se apila en vertical, que es la dirección en la que
+ * un teléfono tiene sitio de sobra. Cambia la FORMA, no el contenido: se puede
+ * tocar la ficha para editar la entrada, ponerle nombre, retocar el coste a
+ * mano y quitarla, igual que en la tabla.
+ *
+ * DOS COSAS SE QUEDAN FUERA A PROPÓSITO:
+ *   · Arrastrar para reordenar. No hay forma decente de hacerlo con el dedo sin
+ *     traerse una librería entera, y "Ordenar por" —que está ahí arriba— cubre
+ *     el caso real. Reordenar a mano se hace en el ordenador.
+ *   · Los iconos mudos de mando. En la tabla son tres columnas con un icono
+ *     arriba, porque ahí el ancho es el que escasea; en la ficha sobra sitio
+ *     para escribir "Estandarte" y no hay que adivinar nada.
+ * ============================================================================
+ */
+function FichasDeLaLista({
+  filas,
+  soloLectura,
+  opciones,
+  editandoId,
+  needsReviewIds,
+  coste,
+  onEditar,
+  onNombrar,
+  onQuitar,
+}: {
+  filas: FilaDeLista[]
+  soloLectura: boolean
+  opciones: { showMounts: boolean; showMagic: boolean }
+  editandoId: number | null
+  needsReviewIds: Set<number>
+  coste: EdicionDeCoste
+  onEditar: (entry: ArmyListEntry) => void
+  onNombrar: (entry: ArmyListEntry) => void
+  onQuitar: (entry: ArmyListEntry) => void
+}) {
+  return (
+    <ul className="space-y-2 md:hidden">
+      {filas.map(({ entry, cost, combo, shieldMetal, cabalgadura, sendas }) => {
+        const mando = COMMAND_COLUMNS.filter((col) => col.has(entry))
+        const editandoCoste = coste.editandoId === entry.id
+        return (
+          <li
+            key={entry.id}
+            onClick={() => {
+              if (!soloLectura) onEditar(entry)
+            }}
+            className={clsx(
+              'rounded-sm border px-3 py-2.5',
+              editandoId === entry.id
+                ? 'border-bronze/60 bg-bronze/10'
+                : 'border-rule-dark/30 bg-parchment/60 active:bg-parchment-dark/40',
+            )}
+          >
+            <div className="flex items-start gap-2">
+              {shieldMetal && <CategoryShield metal={shieldMetal} className="mt-0.5 h-[18px] w-[18px] shrink-0" />}
+              {entry.unit.faction.emblemUrl && (
+                <img
+                  src={entry.unit.faction.emblemUrl}
+                  alt={entry.unit.faction.name}
+                  title={entry.unit.faction.name}
+                  className="mt-0.5 h-[18px] w-[18px] shrink-0 rounded-[2px] object-cover"
+                />
+              )}
+              <p className="min-w-0 flex-1 text-sm leading-snug text-ink">
+                {/* El "3×" delante y no en una columna aparte: leído en voz alta
+                    es como se dice ("tres carros"), y en una ficha estrecha una
+                    cifra suelta a la derecha no se ata a nada. */}
+                {entry.quantity > 1 && <span className="font-semibold text-ink-soft">{entry.quantity}× </span>}
+                {entry.alias ? (
+                  <>
+                    <span className="font-medium">{entry.alias}</span>{' '}
+                    <span className="text-ink-soft">({entry.unit.name})</span>
+                  </>
+                ) : (
+                  <span className="font-medium">{entry.unit.name}</span>
+                )}
+                {!soloLectura && (entry.unit.unitType === 'personaje' || entry.alias) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onNombrar(entry)
+                    }}
+                    aria-label={
+                      entry.alias ? `Cambiar el nombre de ${entry.alias}` : `Poner nombre a ${entry.unit.name}`
+                    }
+                    className={clsx(
+                      'ml-1.5 inline-flex align-text-bottom',
+                      entry.alias ? 'text-bronze' : 'text-ink-soft/40',
+                    )}
+                  >
+                    <NameTagIcon className="h-4 w-4" />
+                  </button>
+                )}
+                {needsReviewIds.has(entry.id) && (
+                  <WarningIcon
+                    className="ml-1.5 inline-flex h-4 w-4 align-text-bottom text-danger-dark"
+                    aria-label="Sus opciones se desmarcaron por un cambio en el catálogo"
+                  />
+                )}
+              </p>
+
+              {/* El coste, a la derecha y en su sitio de siempre: es la columna
+                  que se recorre de arriba abajo cuando cuadras los puntos. Se
+                  toca para escribirlo a mano, igual que en la tabla. */}
+              <span
+                className="shrink-0 text-right tabular-nums"
+                onClick={(e) => e.stopPropagation()}
+                role="presentation"
+              >
+                {editandoCoste ? (
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    autoFocus
+                    value={coste.texto}
+                    onChange={(e) => coste.setTexto(e.target.value)}
+                    onBlur={() => coste.confirmar(entry.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') coste.confirmar(entry.id)
+                      if (e.key === 'Escape') coste.cancelar()
+                    }}
+                    aria-label={`Coste de ${entry.unit.name}`}
+                    className="w-16 rounded-sm border border-bronze bg-parchment px-1 py-0.5 text-center text-sm text-ink outline-none"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={soloLectura}
+                    onClick={() => coste.empezar(entry)}
+                    title={soloLectura ? undefined : 'Pincha para escribir el coste a mano'}
+                    className="text-sm font-semibold text-maroon disabled:cursor-default"
+                  >
+                    {cost}
+                    <span className="text-mini font-normal text-ink-soft"> pts</span>
+                    {entry.costOverride != null && <PencilIcon className="ml-1 inline h-3 w-3 align-baseline" />}
+                  </button>
+                )}
+              </span>
+            </div>
+
+            {combo !== '—' && <p className="mt-1 text-xs leading-snug text-ink-soft">{combo}</p>}
+            {opciones.showMounts && cabalgadura && <p className="mt-0.5 text-mini text-ink-soft">{cabalgadura}</p>}
+            {opciones.showMagic && sendas && <p className="mt-0.5 text-mini text-bronze">{sendas}</p>}
+
+            {(mando.length > 0 || !soloLectura) && (
+              <div className="mt-2 flex items-center gap-3 border-t border-rule-dark/15 pt-1.5">
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                  {mando.map((col) => (
+                    <span key={col.key} className="flex items-center gap-1 text-mini text-maroon">
+                      <col.Icon className="h-4 w-4 object-contain" />
+                      {col.label}
+                    </span>
+                  ))}
+                </span>
+                {!soloLectura && (
+                  <>
+                    {entry.costOverride != null && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          coste.restablecer(entry.id)
+                        }}
+                        className="shrink-0 rounded-sm px-2 py-1 text-mini font-medium text-bronze"
+                      >
+                        Coste calculado
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onQuitar(entry)
+                      }}
+                      aria-label={`Quitar ${entry.unit.name}`}
+                      className="-my-1 shrink-0 rounded-sm p-1.5 text-ink-soft"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 interface EntryDraft {
   editingEntryId: number | null
   unitId: number | null
@@ -489,6 +722,54 @@ export function ArmyListBuilderPage() {
 
   const currentEntries = entries ?? list.entries
   const total = computeListTotal(currentEntries)
+
+  // ==========================================================================
+  // LO QUE SE ENSEÑA DE CADA ENTRADA, CALCULADO UNA SOLA VEZ.
+  //
+  // La lista se pinta de dos maneras: TABLA en pantalla ancha y FICHAS APILADAS
+  // en el móvil (ver más abajo). Las dos necesitan exactamente estos mismos
+  // datos derivados —el coste, el equipo resumido, la cabalgadura, las sendas—,
+  // y calcularlos por separado en cada una es la forma segura de que un día
+  // digan cosas distintas: la tabla contando una opción que la ficha no, o al
+  // revés. Se calculan aquí y las dos vistas se limitan a colocarlos.
+  // ==========================================================================
+  const filas = currentEntries.map((entry) => {
+    const equipNames = entry.unit.equipmentOptions.filter((e) => entry.equipmentIds.includes(e.id)).map((e) => e.name)
+    const upgradeNames = entry.unit.upgradeOptions.filter((u) => entry.upgradeIds.includes(u.id)).map((u) => u.name)
+
+    // "Montura: Caballo de guerra · Carro: Carro bretoniano". Los dos en la
+    // MISMA línea, la montura primero: son excluyentes en la práctica (o
+    // cabalgas o vas en carro), así que darles una línea a cada uno dejaría casi
+    // siempre una vacía. Cada uno va rotulado porque, sin rótulo, un nombre
+    // suelto bajo la unidad no dice qué es.
+    const monturaNombre = entry.mountProfileId
+      ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId)?.name
+      : null
+    const carroNombre = entry.chariotProfileId
+      ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId)?.name
+      : null
+
+    // "Sendas: Fuego 2 · Bestias 1". El nivel va pegado a su senda porque puede
+    // ser distinto en cada una.
+    const listaSendas = entry.magicPaths
+      .map((mp) => {
+        const senda = magicPaths?.find((p) => p.id === mp.pathId)
+        return senda ? `${senda.name} ${mp.level}` : null
+      })
+      .filter(Boolean)
+      .join(' · ')
+
+    return {
+      entry,
+      cost: computeEntryCost(entry.unit, entry),
+      combo: [...equipNames, ...upgradeNames].join(', ') || '—',
+      shieldMetal: categoryShieldMetal(entry.unit.category?.code),
+      cabalgadura: [monturaNombre ? `Montura: ${monturaNombre}` : null, carroNombre ? `Carro: ${carroNombre}` : null]
+        .filter(Boolean)
+        .join(' · '),
+      sendas: listaSendas ? `Sendas: ${listaSendas}` : '',
+    }
+  })
 
   // Composición del ejército (Selección de puntos): cuántas unidades de cada
   // categoría exige o permite el reglamento con estos puntos.
@@ -1190,7 +1471,7 @@ export function ArmyListBuilderPage() {
           />
         }
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Compartida contigo: se puede mirar y exportar, nada más. El
                 candado va en la cabecera, junto a los botones que SÍ funcionan,
                 para que se entienda antes de intentar cambiar algo. */}
@@ -1253,7 +1534,7 @@ export function ArmyListBuilderPage() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-4 rounded-sm border border-rule-dark/40 bg-parchment/70 px-4 py-3">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-sm border border-rule-dark/40 bg-parchment/70 px-3 py-2.5 sm:px-4 sm:py-3">
         <p className="text-sm">
           <span className="font-display text-lg font-semibold text-maroon">{total}</span>{' '}
           <span className="text-ink-soft">pts{pointsLimit != null && <> / {pointsLimit}</>}</span>
@@ -1418,7 +1699,10 @@ export function ArmyListBuilderPage() {
                   ) : (
                     <div>
                       <div className="mb-4 flex flex-wrap items-end gap-3">
-                        <div className="w-56">
+                        {/* Ancho fijo solo cuando hay sitio: en un móvil 14rem
+                            son más de lo que mide la columna y el desplegable
+                            se salía por la derecha. */}
+                        <div className="w-full sm:w-56">
                           <Select
                             label="Facción"
                             value={effectiveFactionId}
@@ -1760,317 +2044,306 @@ export function ArmyListBuilderPage() {
           {currentEntries.length === 0 ? (
             <p className="text-xs italic text-ink-soft">Todavía no has añadido ninguna unidad.</p>
           ) : (
-            /* `overflow-x-auto` + `min-w-[46rem]`: con emblema, escudo, tres
-               columnas de mando y coste, la tabla no cabe en un móvil. Antes se
-               aplastaba hasta ser ilegible; ahora se desplaza en horizontal
-               manteniendo las proporciones. */
-            <div className="overflow-x-auto rounded-sm border border-rule-dark/30">
-              <table className="w-full min-w-[46rem] table-fixed border-collapse text-xs">
-                <thead>
-                  {/* Cada columna con ancho fijo y `align-middle` en todas las
+            <>
+              <FichasDeLaLista
+                filas={filas}
+                soloLectura={soloLectura}
+                opciones={opciones}
+                editandoId={draft.editingEntryId}
+                needsReviewIds={needsReviewIds}
+                coste={{
+                  editandoId: editingCostId,
+                  texto: costText,
+                  setTexto: setCostText,
+                  empezar: startEditCost,
+                  confirmar: commitCost,
+                  cancelar: () => setEditingCostId(null),
+                  restablecer: resetCost,
+                }}
+                onEditar={startEditEntry}
+                onNombrar={setNamingEntry}
+                onQuitar={setDeletingEntry}
+              />
+
+              {/* LA TABLA, DE `md` PARA ARRIBA.
+               `min-w-[46rem]` son 736 px: con emblema, escudo, tres columnas de
+               mando y coste, no hay forma de que quepa en un teléfono. Durante
+               un tiempo se resolvió con `overflow-x-auto`, y técnicamente era
+               cierto —la tabla se desplazaba en horizontal—, pero en la práctica
+               significaba mirar un ejército por una rendija de un tercio de
+               ancho y arrastrar de lado para leer cada fila. Por debajo de `md`
+               ahora no hay tabla: hay fichas (arriba). */}
+              <div className="hidden overflow-x-auto rounded-sm border border-rule-dark/30 md:block">
+                <table className="w-full min-w-[46rem] table-fixed border-collapse text-xs">
+                  <thead>
+                    {/* Cada columna con ancho fijo y `align-middle` en todas las
                       celdas: es lo que mantiene el emblema, el escudo, el
                       número y los checks alineados en la misma línea óptica
                       aunque el nombre de la unidad ocupe más alto. */}
-                  <tr className="bg-parchment-dark/50 text-ink-soft">
-                    <th className="w-6 border-b border-rule-dark/30" />
-                    <th className="w-8 border-b border-rule-dark/30" />
-                    <th className="w-7 border-b border-rule-dark/30" />
-                    <th className="w-10 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">
-                      Nº
-                    </th>
-                    <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">Unidad</th>
-                    <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">
-                      Equipo / opciones
-                    </th>
-                    {COMMAND_COLUMNS.map((col) => (
-                      <th
-                        key={col.key}
-                        className="w-8 border-b border-rule-dark/30 py-1.5 align-middle"
-                        aria-label={col.label}
-                      >
-                        <Tooltip label={col.label} className="flex justify-center text-ink-soft">
-                          <col.Icon className="h-5 w-5 object-contain" />
-                        </Tooltip>
+                    <tr className="bg-parchment-dark/50 text-ink-soft">
+                      <th className="w-6 border-b border-rule-dark/30" />
+                      <th className="w-8 border-b border-rule-dark/30" />
+                      <th className="w-7 border-b border-rule-dark/30" />
+                      <th className="w-10 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">
+                        Nº
                       </th>
-                    ))}
-                    <th className="w-16 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">
-                      Coste
-                    </th>
-                    <th className="w-8 border-b border-rule-dark/30" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-rule-dark/15">
-                  {currentEntries.map((entry) => {
-                    const cost = computeEntryCost(entry.unit, entry)
-                    const equipNames = entry.unit.equipmentOptions
-                      .filter((e) => entry.equipmentIds.includes(e.id))
-                      .map((e) => e.name)
-                    const upgradeNames = entry.unit.upgradeOptions
-                      .filter((u) => entry.upgradeIds.includes(u.id))
-                      .map((u) => u.name)
-                    const combo = [...equipNames, ...upgradeNames].join(', ') || '—'
-                    const shieldMetal = categoryShieldMetal(entry.unit.category?.code)
-
-                    // "Montura: Caballo de guerra · Carro: Carro bretoniano".
-                    // Los dos en la MISMA línea, la montura primero: son
-                    // excluyentes en la práctica (o cabalgas o vas en carro),
-                    // así que darles una línea a cada uno dejaría casi siempre
-                    // una vacía. Cada uno va rotulado porque, sin rótulo, un
-                    // nombre suelto bajo la unidad no dice qué es.
-                    const monturaNombre = entry.mountProfileId
-                      ? entry.unit.profiles.montura.find((p) => p.id === entry.mountProfileId)?.name
-                      : null
-                    const carroNombre = entry.chariotProfileId
-                      ? entry.unit.profiles.carro.find((p) => p.id === entry.chariotProfileId)?.name
-                      : null
-                    const cabalgadura = [
-                      monturaNombre ? `Montura: ${monturaNombre}` : null,
-                      carroNombre ? `Carro: ${carroNombre}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-
-                    // "Sendas: Fuego 2 · Bestias 1". El nivel va pegado a su
-                    // senda porque puede ser distinto en cada una.
-                    const listaSendas = entry.magicPaths
-                      .map((mp) => {
-                        const senda = magicPaths?.find((p) => p.id === mp.pathId)
-                        return senda ? `${senda.name} ${mp.level}` : null
-                      })
-                      .filter(Boolean)
-                      .join(' · ')
-                    const sendas = listaSendas ? `Sendas: ${listaSendas}` : ''
-                    return (
-                      <tr
-                        key={entry.id}
-                        draggable={!soloLectura}
-                        onDragStart={(e) => {
-                          e.stopPropagation()
-                          dragEntryId.current = entry.id
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault()
-                          setDragOverEntryId(entry.id)
-                        }}
-                        onDragLeave={() => setDragOverEntryId((id) => (id === entry.id ? null : id))}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          handleDropEntry(entry.id)
-                        }}
-                        className={clsx(
-                          !soloLectura && 'cursor-pointer hover:bg-parchment-dark/40',
-                          draft.editingEntryId === entry.id && 'bg-bronze/10',
-                          dragOverEntryId === entry.id && 'bg-bronze/10',
-                        )}
-                        onClick={() => {
-                          if (!soloLectura) startEditEntry(entry)
-                        }}
-                      >
-                        <td className="py-1.5 text-center align-middle">
-                          {!soloLectura && (
-                            <span
-                              className="inline-flex cursor-grab p-1 text-ink-soft/60"
-                              title="Arrastra para reordenar"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <DragHandleIcon className="h-3.5 w-3.5" />
-                            </span>
+                      <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">
+                        Unidad
+                      </th>
+                      <th className="border-b border-rule-dark/30 py-1.5 text-left align-middle font-semibold">
+                        Equipo / opciones
+                      </th>
+                      {COMMAND_COLUMNS.map((col) => (
+                        <th
+                          key={col.key}
+                          className="w-8 border-b border-rule-dark/30 py-1.5 align-middle"
+                          aria-label={col.label}
+                        >
+                          <Tooltip label={col.label} className="flex justify-center text-ink-soft">
+                            <col.Icon className="h-5 w-5 object-contain" />
+                          </Tooltip>
+                        </th>
+                      ))}
+                      <th className="w-16 border-b border-rule-dark/30 py-1.5 text-center align-middle font-semibold">
+                        Coste
+                      </th>
+                      <th className="w-8 border-b border-rule-dark/30" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule-dark/15">
+                    {filas.map(({ entry, cost, combo, shieldMetal, cabalgadura, sendas }) => {
+                      return (
+                        <tr
+                          key={entry.id}
+                          draggable={!soloLectura}
+                          onDragStart={(e) => {
+                            e.stopPropagation()
+                            dragEntryId.current = entry.id
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                            setDragOverEntryId(entry.id)
+                          }}
+                          onDragLeave={() => setDragOverEntryId((id) => (id === entry.id ? null : id))}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            handleDropEntry(entry.id)
+                          }}
+                          className={clsx(
+                            !soloLectura && 'cursor-pointer hover:bg-parchment-dark/40',
+                            draft.editingEntryId === entry.id && 'bg-bronze/10',
+                            dragOverEntryId === entry.id && 'bg-bronze/10',
                           )}
-                        </td>
-                        <td className="py-1.5 text-center align-middle">
-                          {entry.unit.faction.emblemUrl && (
-                            <Tooltip label={entry.unit.faction.name} className="inline-flex">
-                              <img
-                                src={entry.unit.faction.emblemUrl}
-                                alt=""
-                                className="h-5 w-5 rounded-[2px] object-cover shadow-sm shadow-black/20"
-                              />
-                            </Tooltip>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-center align-middle">
-                          {shieldMetal && (
-                            <Tooltip label={entry.unit.category?.name ?? ''} className="inline-flex">
-                              <CategoryShield metal={shieldMetal} className="h-[18px] w-[18px]" />
-                            </Tooltip>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-center align-middle text-ink">{entry.quantity}</td>
-                        <td className="py-1.5 align-middle text-ink">
-                          {/* Con nombre propio manda el nombre y el tipo va
+                          onClick={() => {
+                            if (!soloLectura) startEditEntry(entry)
+                          }}
+                        >
+                          <td className="py-1.5 text-center align-middle">
+                            {!soloLectura && (
+                              <span
+                                className="inline-flex cursor-grab p-1 text-ink-soft/60"
+                                title="Arrastra para reordenar"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DragHandleIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-center align-middle">
+                            {entry.unit.faction.emblemUrl && (
+                              <Tooltip label={entry.unit.faction.name} className="inline-flex">
+                                <img
+                                  src={entry.unit.faction.emblemUrl}
+                                  alt=""
+                                  className="h-5 w-5 rounded-[2px] object-cover shadow-sm shadow-black/20"
+                                />
+                              </Tooltip>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-center align-middle">
+                            {shieldMetal && (
+                              <Tooltip label={entry.unit.category?.name ?? ''} className="inline-flex">
+                                <CategoryShield metal={shieldMetal} className="h-[18px] w-[18px]" />
+                              </Tooltip>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-center align-middle text-ink">{entry.quantity}</td>
+                          <td className="py-1.5 align-middle text-ink">
+                            {/* Con nombre propio manda el nombre y el tipo va
                               entre paréntesis: "Jules el Bretón (Paladín
                               Bretoniano)". El tipo NO se pierde nunca, porque
                               es lo que dice qué reglas se aplican. */}
-                          {entry.alias ? (
-                            <>
-                              <span className="font-medium">{entry.alias}</span>{' '}
-                              <span className="text-ink-soft">({entry.unit.name})</span>
-                            </>
-                          ) : (
-                            entry.unit.name
-                          )}
-                          {/* Bautizar es cosa de PERSONAJES. Una unidad de
+                            {entry.alias ? (
+                              <>
+                                <span className="font-medium">{entry.alias}</span>{' '}
+                                <span className="text-ink-soft">({entry.unit.name})</span>
+                              </>
+                            ) : (
+                              entry.unit.name
+                            )}
+                            {/* Bautizar es cosa de PERSONAJES. Una unidad de
                               tropa son veinte miniaturas iguales: "Jules el
                               Bretón (Lanceros)" no significa nada, y ofrecerlo
                               solo invita a llenar la lista de nombres que no
                               distinguen a nadie. */}
-                          {/* La segunda condición es una salida de emergencia:
+                            {/* La segunda condición es una salida de emergencia:
                               si una tropa ya tuviera nombre de antes, hay que
                               poder quitárselo — si no, se quedaría clavado. */}
-                          {!soloLectura && (entry.unit.unitType === 'personaje' || entry.alias) && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setNamingEntry(entry)
-                              }}
-                              title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
-                              aria-label={
-                                entry.alias
-                                  ? `Cambiar el nombre de ${entry.alias}`
-                                  : `Poner nombre a ${entry.unit.name}`
-                              }
-                              className={clsx(
-                                'ml-1.5 inline-flex align-text-bottom transition-colors',
-                                entry.alias ? 'text-bronze hover:text-maroon' : 'text-ink-soft/40 hover:text-bronze',
-                              )}
-                            >
-                              <NameTagIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {needsReviewIds.has(entry.id) && (
-                            <Tooltip
-                              label="Sus opciones se desmarcaron por un cambio en el catálogo: vuelve a elegirlas"
-                              className="ml-1.5 inline-flex align-text-bottom text-danger-dark"
-                            >
-                              <WarningIcon className="h-3.5 w-3.5" />
-                            </Tooltip>
-                          )}
+                            {!soloLectura && (entry.unit.unitType === 'personaje' || entry.alias) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setNamingEntry(entry)
+                                }}
+                                title={entry.alias ? 'Cambiar el nombre propio' : 'Ponerle un nombre propio'}
+                                aria-label={
+                                  entry.alias
+                                    ? `Cambiar el nombre de ${entry.alias}`
+                                    : `Poner nombre a ${entry.unit.name}`
+                                }
+                                className={clsx(
+                                  'ml-1.5 inline-flex align-text-bottom transition-colors',
+                                  entry.alias ? 'text-bronze hover:text-maroon' : 'text-ink-soft/40 hover:text-bronze',
+                                )}
+                              >
+                                <NameTagIcon className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {needsReviewIds.has(entry.id) && (
+                              <Tooltip
+                                label="Sus opciones se desmarcaron por un cambio en el catálogo: vuelve a elegirlas"
+                                className="ml-1.5 inline-flex align-text-bottom text-danger-dark"
+                              >
+                                <WarningIcon className="h-3.5 w-3.5" />
+                              </Tooltip>
+                            )}
 
-                          {/* Líneas extra bajo el nombre, no columnas nuevas:
+                            {/* Líneas extra bajo el nombre, no columnas nuevas:
                               solo las lleva una minoría de entradas, y dos
                               columnas más vacías en casi todas las filas
                               habrían estrechado el resto de la tabla para
                               nada. Cada una se puede apagar desde el menú del
                               usuario (ver ArmyListOptionsModal). */}
-                          {opciones.showMounts && cabalgadura && (
-                            <span className="mt-0.5 block truncate text-mini text-ink-soft" title={cabalgadura}>
-                              {cabalgadura}
-                            </span>
-                          )}
-                          {opciones.showMagic && sendas && (
-                            <span className="mt-0.5 block truncate text-mini text-bronze" title={sendas}>
-                              {sendas}
-                            </span>
-                          )}
-                        </td>
-                        <td className="truncate py-1.5 align-middle text-ink-soft" title={combo}>
-                          {combo}
-                        </td>
-                        {COMMAND_COLUMNS.map((col) => (
-                          <td key={col.key} className="py-1.5 text-center align-middle">
-                            <Tooltip
-                              label={`${col.label}: ${col.has(entry) ? 'sí' : 'no'}`}
-                              className={col.has(entry) ? 'inline-flex text-maroon' : 'inline-flex text-ink-soft/35'}
-                            >
-                              {col.has(entry) ? <CheckIcon className="h-3.5 w-3.5" /> : <span aria-hidden>·</span>}
-                            </Tooltip>
+                            {opciones.showMounts && cabalgadura && (
+                              <span className="mt-0.5 block truncate text-mini text-ink-soft" title={cabalgadura}>
+                                {cabalgadura}
+                              </span>
+                            )}
+                            {opciones.showMagic && sendas && (
+                              <span className="mt-0.5 block truncate text-mini text-bronze" title={sendas}>
+                                {sendas}
+                              </span>
+                            )}
                           </td>
-                        ))}
-                        {/* El coste se escribe a mano pinchándolo. Sirve para
+                          <td className="truncate py-1.5 align-middle text-ink-soft" title={combo}>
+                            {combo}
+                          </td>
+                          {COMMAND_COLUMNS.map((col) => (
+                            <td key={col.key} className="py-1.5 text-center align-middle">
+                              <Tooltip
+                                label={`${col.label}: ${col.has(entry) ? 'sí' : 'no'}`}
+                                className={col.has(entry) ? 'inline-flex text-maroon' : 'inline-flex text-ink-soft/35'}
+                              >
+                                {col.has(entry) ? <CheckIcon className="h-3.5 w-3.5" /> : <span aria-hidden>·</span>}
+                              </Tooltip>
+                            </td>
+                          ))}
+                          {/* El coste se escribe a mano pinchándolo. Sirve para
                             lo que la fórmula no cubre (una errata del libro,
                             una regla de la casa), y una vez escrito manda a
                             todos los efectos: total, avisos de límite, ordenar
                             por coste y los dos PDF. El lápiz avisa de que ese
                             número ya no sale del cálculo. */}
-                        <td
-                          className="py-1.5 text-center align-middle font-medium text-ink"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {soloLectura ? (
-                            <>
-                              {cost}
-                              {entry.costOverride != null && (
-                                <Tooltip
-                                  label="Coste escrito a mano por su autor"
-                                  className="ml-1 inline-flex text-bronze"
-                                >
-                                  <PencilIcon className="h-3 w-3" />
-                                </Tooltip>
-                              )}
-                            </>
-                          ) : editingCostId === entry.id ? (
-                            <input
-                              type="number"
-                              min={0}
-                              autoFocus
-                              value={costText}
-                              onChange={(e) => setCostText(e.target.value)}
-                              onBlur={() => commitCost(entry.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') commitCost(entry.id)
-                                // Escape sale sin guardar, que es lo que
-                                // espera cualquiera que se haya equivocado de
-                                // fila.
-                                if (e.key === 'Escape') setEditingCostId(null)
-                              }}
-                              aria-label={`Coste de ${entry.unit.name}`}
-                              className="w-14 rounded-sm border border-bronze bg-parchment px-1 py-0.5 text-center text-xs text-ink outline-none"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5">
-                              <button
-                                type="button"
-                                onClick={() => startEditCost(entry)}
-                                title={
-                                  entry.costOverride != null
-                                    ? 'Coste escrito a mano. Pincha para cambiarlo'
-                                    : 'Pincha para escribir el coste a mano'
-                                }
-                                className="rounded-sm px-1 py-0.5 hover:bg-parchment-dark"
-                              >
+                          <td
+                            className="py-1.5 text-center align-middle font-medium text-ink"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {soloLectura ? (
+                              <>
                                 {cost}
-                              </button>
-                              {/* El lápiz avisa de que el coste es a mano Y
+                                {entry.costOverride != null && (
+                                  <Tooltip
+                                    label="Coste escrito a mano por su autor"
+                                    className="ml-1 inline-flex text-bronze"
+                                  >
+                                    <PencilIcon className="h-3 w-3" />
+                                  </Tooltip>
+                                )}
+                              </>
+                            ) : editingCostId === entry.id ? (
+                              <input
+                                type="number"
+                                min={0}
+                                autoFocus
+                                value={costText}
+                                onChange={(e) => setCostText(e.target.value)}
+                                onBlur={() => commitCost(entry.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') commitCost(entry.id)
+                                  // Escape sale sin guardar, que es lo que
+                                  // espera cualquiera que se haya equivocado de
+                                  // fila.
+                                  if (e.key === 'Escape') setEditingCostId(null)
+                                }}
+                                aria-label={`Coste de ${entry.unit.name}`}
+                                className="w-14 rounded-sm border border-bronze bg-parchment px-1 py-0.5 text-center text-xs text-ink outline-none"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditCost(entry)}
+                                  title={
+                                    entry.costOverride != null
+                                      ? 'Coste escrito a mano. Pincha para cambiarlo'
+                                      : 'Pincha para escribir el coste a mano'
+                                  }
+                                  className="rounded-sm px-1 py-0.5 hover:bg-parchment-dark"
+                                >
+                                  {cost}
+                                </button>
+                                {/* El lápiz avisa de que el coste es a mano Y
                                   deshace el retoque de un clic. Es su botón y
                                   no parte del anterior: dentro de otro botón
                                   sería HTML inválido, y confundir "cambiarlo"
                                   con "deshacerlo" en el mismo sitio es pedir
                                   un borrado accidental. */}
-                              {entry.costOverride != null && (
-                                <button
-                                  type="button"
-                                  onClick={() => resetCost(entry.id)}
-                                  title="Coste escrito a mano: pincha para volver al calculado"
-                                  aria-label={`Volver al coste calculado de ${entry.unit.name}`}
-                                  className="rounded-sm p-0.5 text-bronze hover:bg-maroon/10 hover:text-maroon"
-                                >
-                                  <PencilIcon className="h-3 w-3" />
-                                </button>
-                              )}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-center align-middle">
-                          {!soloLectura && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setDeletingEntry(entry)
-                              }}
-                              className="rounded-sm p-1 text-ink-soft hover:bg-maroon/10 hover:text-danger"
-                              aria-label={`Quitar ${entry.unit.name}`}
-                            >
-                              <TrashIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                                {entry.costOverride != null && (
+                                  <button
+                                    type="button"
+                                    onClick={() => resetCost(entry.id)}
+                                    title="Coste escrito a mano: pincha para volver al calculado"
+                                    aria-label={`Volver al coste calculado de ${entry.unit.name}`}
+                                    className="rounded-sm p-0.5 text-bronze hover:bg-maroon/10 hover:text-maroon"
+                                  >
+                                    <PencilIcon className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-center align-middle">
+                            {!soloLectura && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDeletingEntry(entry)
+                                }}
+                                className="rounded-sm p-1 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                                aria-label={`Quitar ${entry.unit.name}`}
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </Panel>
       </div>

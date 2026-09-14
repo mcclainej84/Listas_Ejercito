@@ -40,7 +40,13 @@ export function AppShell() {
     <div className={clsx('flex min-h-screen flex-col', grayscale && 'grayscale-media')}>
       <TopNav />
       <PendingMigrationsBanner />
-      <main className="flex-1 px-6 py-8">
+      {/* EL MARGEN LATERAL ES DISTINTO EN EL MÓVIL. `px-6` son 48 px de los 390
+          que tiene un teléfono: un octavo de la pantalla gastado en aire, justo
+          donde no sobra. Por debajo de `sm` se queda en 12 px a cada lado y el
+          contenido recupera 36 px de ancho — que es la diferencia entre que el
+          nombre de una unidad quepa o se parta. De `sm` en adelante, lo de
+          siempre. */}
+      <main className="flex-1 px-3 py-5 sm:px-6 sm:py-8">
         <div className={clsx('mx-auto', enBatalla ? 'max-w-[94rem]' : 'max-w-4xl')}>
           <Outlet />
         </div>

@@ -23,9 +23,16 @@ interface PanelProps {
  */
 export function Panel({ title, subtitle, headerRight, children }: PanelProps) {
   return (
-    <section className="rounded-sm border border-rule-dark/40 bg-parchment/70 p-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <section className="rounded-sm border border-rule-dark/40 bg-parchment/70 p-3 sm:p-5">
+      {/* EL TÍTULO SE QUEDA LA LÍNEA ENTERA EN EL MÓVIL (`basis-full`). Con los
+          controles de la derecha al lado —"Ordenar por", el sentido y
+          "Limpiar"—, al título le quedaban tres centímetros y "Unidades en la
+          lista" se partía en dos renglones estrechos mientras los controles
+          ocupaban el resto. Bajándolos a su propia línea, el apartado se lee y
+          los controles siguen a mano. De `sm` en adelante, todo en una línea
+          como siempre. */}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 basis-full sm:basis-auto">
           <h2 className="font-display text-lg font-semibold leading-tight text-ink">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs text-ink-soft">{subtitle}</p>}
         </div>

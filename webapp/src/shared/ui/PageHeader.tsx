@@ -14,15 +14,25 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions, leading }: PageHeaderProps) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-2">
-      <div className="flex min-w-0 items-center gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b-2 border-ink pb-2 sm:mb-6">
+      {/* `basis-full` EN EL MÓVIL: el título y su explicación se quedan la línea
+          entera y los botones bajan a la suya. Sin esto, `justify-between` les
+          dejaba sitio al lado y la explicación se leía en una columna de cuatro
+          palabras de ancho —ocho renglones— con media pantalla en blanco a la
+          derecha. */}
+      <div className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-auto">
         {leading}
         <div className="min-w-0">
-          <h1 className="font-display text-2xl leading-tight text-ink">{title}</h1>
+          <h1 className="font-display text-xl leading-tight text-ink sm:text-2xl">{title}</h1>
           {description && <p className="mt-1 max-w-2xl text-sm text-ink-soft">{description}</p>}
         </div>
       </div>
-      {actions && <div className="flex shrink-0 gap-2 pb-1">{actions}</div>}
+      {/* LOS BOTONES SE PARTEN EN VARIAS LÍNEAS SI HACE FALTA. Con `shrink-0` a
+          secas, una cabecera con cinco botones (la del constructor) desbordaba
+          la pantalla del móvil por la derecha y arrastraba consigo el ancho de
+          toda la página. `flex-wrap` los apila; `sm:shrink-0` conserva la fila
+          única en cuanto hay sitio. */}
+      {actions && <div className="flex flex-wrap gap-2 pb-1 sm:shrink-0">{actions}</div>}
     </div>
   )
 }

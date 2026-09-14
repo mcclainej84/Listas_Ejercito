@@ -184,7 +184,7 @@ export function ArmyListsPage() {
         title="Ejércitos"
         description="Tus listas de ejército guardadas: crea una nueva, retómala donde la dejaste o expórtala a PDF para llevarla a la partida."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Configuración COMÚN a todos los ejércitos, de ahí que viva en el
                 listado y no dentro de una lista concreta. */}
             <Button variant="secondary" onClick={() => setEditingComposition(true)}>
@@ -240,7 +240,14 @@ export function ArmyListsPage() {
             <div
               key={list.id}
               className={clsx(
-                'group flex items-center gap-3 px-4 py-3 transition-colors',
+                // DOS LÍNEAS EN EL MÓVIL. En una sola caben el emblema, el
+                // nombre, el sello de 8rem y tres acciones: en un teléfono eso
+                // deja al nombre —lo único que de verdad se lee— en una columna
+                // de cuatro centímetros donde todo se parte. Envuelto, el
+                // ejército ocupa la primera línea entero y los mandos bajan a la
+                // segunda; `sm:flex-nowrap` devuelve la fila única en cuanto hay
+                // sitio, así que en el ordenador no cambia nada.
+                'group flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 transition-colors sm:flex-nowrap sm:px-4',
                 list.ready && !list.shared && 'bg-maroon/[0.04]',
               )}
             >
@@ -253,7 +260,7 @@ export function ArmyListsPage() {
                 }}
                 size="sm"
               />
-              <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
+              <button className="min-w-0 flex-1 basis-0 text-left" onClick={() => navigate(`/ejercitos/${list.id}`)}>
                 <p className="flex items-center gap-1.5 font-display text-lg font-semibold text-maroon">
                   {list.name}
                   {/* El candado, aquí y en la propia lista al abrirla: hay que
@@ -283,71 +290,85 @@ export function ArmyListsPage() {
                   este programa significa "esto es una etiqueta, no un botón
                   más". En una lista compartida no sale: cerrar la de otro no es
                   cosa tuya. */}
+              {/* SELLO Y ACCIONES VAN EN UN BLOQUE PROPIO. Así, cuando la fila
+                  se parte en el móvil, bajan los dos juntos a la segunda línea
+                  y quedan alineados a la derecha en vez de repartirse a medias
+                  entre las dos. En el ordenador el bloque es `w-auto` y la fila
+                  vuelve a leerse de un tirón. */}
               {!list.shared && (
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={list.ready}
-                  disabled={cerrandoId === list.id || (enBatalla?.has(list.id) ?? false)}
-                  onClick={() => alternarListo(list, !list.ready)}
-                  title={
-                    enBatalla?.has(list.id)
-                      ? 'Está en una batalla, así que no se puede reabrir: lo que la batalla enseña no puede cambiar. Borra la batalla o cámbiale el ejército.'
-                      : list.ready
-                        ? 'Completada: la lista y su despliegue se abren en solo lectura. Pulsa para volver a editarlos.'
-                        : 'Márcala cuando esté completada: se cerrará a cambios —la lista y su despliegue— hasta que la desmarques.'
-                  }
-                  className={clsx(
-                    // Ancho FIJO: sin fijarlo los sellos quedaban escalonados de
-                    // una fila a otra en vez de formar columna, que es justo lo
-                    // que se venía a arreglar.
-                    'flex w-32 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors disabled:opacity-50',
-                    list.ready
-                      ? 'border border-maroon/45 bg-maroon/10 text-maroon hover:bg-maroon/15'
-                      : 'border border-dashed border-rule-dark/35 text-ink-soft/45 hover:border-bronze/60 hover:text-bronze',
-                  )}
-                >
-                  {/* EL MISMO RÓTULO EN LOS DOS ESTADOS. Un interruptor no se
+                <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={list.ready}
+                    disabled={cerrandoId === list.id || (enBatalla?.has(list.id) ?? false)}
+                    onClick={() => alternarListo(list, !list.ready)}
+                    title={
+                      enBatalla?.has(list.id)
+                        ? 'Está en una batalla, así que no se puede reabrir: lo que la batalla enseña no puede cambiar. Borra la batalla o cámbiale el ejército.'
+                        : list.ready
+                          ? 'Completada: la lista y su despliegue se abren en solo lectura. Pulsa para volver a editarlos.'
+                          : 'Márcala cuando esté completada: se cerrará a cambios —la lista y su despliegue— hasta que la desmarques.'
+                    }
+                    className={clsx(
+                      // Ancho FIJO: sin fijarlo los sellos quedaban escalonados de
+                      // una fila a otra en vez de formar columna, que es justo lo
+                      // que se venía a arreglar.
+                      'flex w-32 shrink-0 items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors disabled:opacity-50',
+                      list.ready
+                        ? 'border border-maroon/45 bg-maroon/10 text-maroon hover:bg-maroon/15'
+                        : 'border border-dashed border-rule-dark/35 text-ink-soft/45 hover:border-bronze/60 hover:text-bronze',
+                    )}
+                  >
+                    {/* EL MISMO RÓTULO EN LOS DOS ESTADOS. Un interruptor no se
                       cambia de nombre según esté encendido o apagado: lo que
                       dice es de QUÉ trata, y si está puesto o no lo dicen el
                       sello frente al contorno de trazos, el candado frente al
                       visto, y `aria-checked` para quien no ve ninguno de los
                       dos. */}
-                  {list.ready ? <LockIcon className="h-3 w-3" /> : <CheckIcon className="h-3 w-3" />}
-                  Completado
-                </button>
-              )}
+                    {list.ready ? <LockIcon className="h-3 w-3" /> : <CheckIcon className="h-3 w-3" />}
+                    Completado
+                  </button>
 
-              {/* Duplicar, compartir y borrar son cosa del dueño. En una lista
-                  compartida contigo no salen: no es que fallen, es que no
-                  existen. */}
-              {!list.shared && (
-                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze"
-                    onClick={() => setSharing(list)}
-                    aria-label={`Compartir ${list.name}`}
-                    title="Compartir esta lista con otros usuarios"
-                  >
-                    Compartir
-                  </button>
-                  <button
-                    className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze disabled:cursor-wait disabled:opacity-50"
-                    onClick={() => handleDuplicate(list)}
-                    disabled={duplicatingId === list.id}
-                    aria-label={`Duplicar ${list.name}`}
-                    title="Duplicar esta lista"
-                  >
-                    {duplicatingId === list.id ? 'Copiando…' : 'Duplicar'}
-                  </button>
-                  <button
-                    className="rounded-sm px-1.5 py-0.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
-                    onClick={() => setDeleting(list)}
-                    aria-label={`Borrar ${list.name}`}
-                    title="Borrar"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Duplicar, compartir y borrar son cosa del dueño. En una lista
+                    compartida contigo no salen: no es que fallen, es que no
+                    existen.
+
+                    APARECEN AL PASAR EL RATÓN SOLO DONDE HAY RATÓN. Estaban en
+                    `opacity-0` con `group-hover`, y en Tailwind v4 `hover:` ya
+                    va dentro de `@media (hover: hover)`: en un teléfono ese
+                    hover no ocurre NUNCA, así que los tres botones se quedaban
+                    invisibles para siempre. Compartir, duplicar y borrar un
+                    ejército sencillamente no existían desde el móvil. Ahora se
+                    ven de partida y solo se esconden donde hay un cursor con el
+                    que sacarlos. */}
+                  <div className="flex shrink-0 items-center gap-1 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
+                    <button
+                      className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze"
+                      onClick={() => setSharing(list)}
+                      aria-label={`Compartir ${list.name}`}
+                      title="Compartir esta lista con otros usuarios"
+                    >
+                      Compartir
+                    </button>
+                    <button
+                      className="rounded-sm px-2 py-0.5 text-mini font-medium text-ink-soft hover:bg-bronze/10 hover:text-bronze disabled:cursor-wait disabled:opacity-50"
+                      onClick={() => handleDuplicate(list)}
+                      disabled={duplicatingId === list.id}
+                      aria-label={`Duplicar ${list.name}`}
+                      title="Duplicar esta lista"
+                    >
+                      {duplicatingId === list.id ? 'Copiando…' : 'Duplicar'}
+                    </button>
+                    <button
+                      className="rounded-sm px-1.5 py-0.5 text-ink-soft hover:bg-maroon/10 hover:text-danger"
+                      onClick={() => setDeleting(list)}
+                      aria-label={`Borrar ${list.name}`}
+                      title="Borrar"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

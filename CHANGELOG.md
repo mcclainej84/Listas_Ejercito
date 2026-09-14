@@ -13,6 +13,62 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.162 — 14/09/2026 16:56
+
+**El programa se adapta al teléfono.** No es una pantalla nueva ni un modo
+aparte: es el mismo programa midiendo el ancho que tiene y colocando las cosas
+en consecuencia. Los mapas y el despliegue se quedan como están —ahí hace falta
+pantalla grande y no hay nada que fingir—; esto va de **hacer y mirar
+ejércitos** desde el móvil.
+
+- **La lista de unidades deja de ser una tabla en el móvil y pasa a ser una
+  ficha por unidad.** La tabla mide 736 px porque le da una columna a cada cosa
+  (emblema, escudo, número, unidad, equipo, tres de mando, coste, papelera), y
+  en un teléfono eso se resolvía desplazándola de lado: técnicamente se veía
+  todo, en la práctica había que arrastrar cada fila de punta a punta para
+  enterarse de lo que llevaba. Ahora la misma información se apila hacia abajo,
+  que es donde un teléfono tiene sitio. Se sigue pudiendo tocar para editar,
+  poner nombre propio, retocar el coste a mano y quitar la unidad. El grupo de
+  mando va **escrito** ("Portaestandarte", "Músico", "Campeón") en vez de con
+  tres iconos mudos, porque en la ficha sobra ancho para decirlo. De tableta en
+  adelante vuelve la tabla de siempre, intacta.
+
+- **Compartir, duplicar y borrar un ejército EXISTEN otra vez en el móvil.**
+  Estaban puestos para aparecer al pasar el ratón por encima, y en Tailwind v4
+  ese "al pasar el ratón" se compila dentro de `@media (hover: hover)`: en un
+  teléfono no ocurre nunca, así que los tres botones eran invisibles para
+  siempre. No era que costara encontrarlos: no había forma. Ahora se ven de
+  partida y solo se esconden donde hay un cursor con el que sacarlos.
+
+- **La fila de cada ejército se parte en dos líneas** cuando la pantalla es
+  estrecha: arriba el emblema y el nombre —lo que se lee—, abajo el sello de
+  "Completado" y los botones. En una sola línea, el nombre se quedaba con cuatro
+  centímetros y se partía en tres renglones.
+
+- **La barra de arriba se parte también en dos**: marca, buscador y usuario
+  arriba; las cinco secciones debajo, con el nombre acortado ("Hojas",
+  "Renombre") para que entren las cinco de una vez. Antes había que arrastrar la
+  barra de lado para llegar a "Batallas" y "Mapas" — un gesto que no se le
+  ocurre a nadie, así que esas dos secciones sencillamente no existían en el
+  teléfono.
+
+- **Los diálogos ya no se salen de la pantalla.** El tope de altura estaba en el
+  cuerpo del diálogo, así que la caja medía ese 70 % *más* la cabecera *más* el
+  pie: en un móvil el botón de guardar quedaba fuera y no había forma de llegar
+  a él. Ahora el tope lo lleva la caja entera y solo se desplaza el cuerpo:
+  cabecera y pie se ven siempre.
+
+- Y el resto de ajustes de la misma familia: márgenes laterales de 12 px en vez
+  de 24 (36 px más de ancho útil para los nombres), los botones de las cabeceras
+  se apilan en varias líneas en vez de desbordar la página, el título de cada
+  apartado se queda su línea entera, y el desplegable de facción del constructor
+  deja de salirse por la derecha.
+
+- Comprobado a 390 px y a 1440: cero desbordamiento horizontal en las dos
+  pantallas. En el ordenador no cambia nada.
+
+---
+
 ## 0.161 — 14/09/2026 11:15
 
 - **Vuelve "He olvidado la contraseña", ahora con contraseña de administrador.**
