@@ -8,6 +8,7 @@ import { useGlobalGrayscale } from '@/shared/theme/useGrayscaleMode'
 import { setActingAsAdmin, signOut, useSession } from '@/shared/session/useSession'
 import { MyFactionsModal } from '@/features/user/MyFactionsModal'
 import { ArmyListOptionsModal } from '@/features/user/ArmyListOptionsModal'
+import { CambiarPasswordModal } from '@/features/user/CambiarPasswordModal'
 
 interface NavItem {
   to: string
@@ -221,9 +222,11 @@ function GlobalGrayscaleToggle() {
 function UserMenu({
   onOpenFactions,
   onOpenArmyListOptions,
+  onOpenPassword,
 }: {
   onOpenFactions: () => void
   onOpenArmyListOptions: () => void
+  onOpenPassword: () => void
 }) {
   const { user, actingAsAdmin } = useSession()
   const [open, setOpen] = useState(false)
@@ -311,6 +314,15 @@ function UserMenu({
             <button
               onClick={() => {
                 setOpen(false)
+                onOpenPassword()
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-ink hover:bg-parchment-dark"
+            >
+              Cambiar contraseña
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false)
                 signOut()
               }}
               className="w-full border-t border-rule-dark/20 px-3 py-2 text-left text-sm text-ink-soft hover:bg-parchment-dark hover:text-maroon"
@@ -328,6 +340,7 @@ export function TopNav() {
   const { user, actingAsAdmin } = useSession()
   const [factionsOpen, setFactionsOpen] = useState(false)
   const [listOptionsOpen, setListOptionsOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   return (
     <header className="border-b-2 border-ink bg-parchment/90 backdrop-blur-sm">
@@ -358,9 +371,12 @@ export function TopNav() {
           <UserMenu
             onOpenFactions={() => setFactionsOpen(true)}
             onOpenArmyListOptions={() => setListOptionsOpen(true)}
+            onOpenPassword={() => setPasswordOpen(true)}
           />
         </div>
       </div>
+
+      {passwordOpen && user && <CambiarPasswordModal user={user} onClose={() => setPasswordOpen(false)} />}
 
       {listOptionsOpen && user && (
         <ArmyListOptionsModal

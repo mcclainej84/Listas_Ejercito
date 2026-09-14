@@ -1,15 +1,20 @@
 // ============================================================================
 // Puerta de acceso por USUARIO. Mientras no haya sesión, es lo único que se ve.
-// Tres modos: entrar, crear usuario y cambiar la contraseña.
+// DOS modos, y solo dos: entrar y crear usuario.
 //
 // ESTO YA NO SOLO IDENTIFICA: entrar es también lo que acredita al navegador
-// para escribir (ver userRepository y la sección AUTENTICACIÓN del Worker). De
-// ahí el cambio visible aquí: "he olvidado la contraseña" era un restablecido
-// libre, y ahora es un CAMBIO que pide la contraseña actual. Sin eso, cualquiera
-// podría apropiarse de cualquier cuenta y, con ella, del permiso de escritura.
+// para escribir (ver userRepository y la sección AUTENTICACIÓN del Worker).
 //
-// Quien de verdad olvide la suya necesita a alguien con acceso a la base de
-// datos. Es el precio de que la contraseña sirva para algo.
+// POR QUÉ AQUÍ NO SE CAMBIA LA CONTRASEÑA. Estuvo, y estaba mal puesto: desde
+// una pantalla a la que llega cualquiera se podía apuntar al usuario que fuera
+// con solo escribir su nombre. Pedía la actual, así que no era una puerta
+// abierta, pero sí un banco de pruebas cómodo para ir probando contraseñas
+// ajenas — y a quien quiere cambiar la suya no le cuesta nada entrar primero.
+// Ahora se cambia desde dentro, en el menú del usuario (ver
+// features/user/CambiarPasswordModal).
+//
+// Quien olvide la suya necesita a alguien con acceso a la base de datos. No hay
+// recuperación, y es el precio de que la contraseña sirva para algo.
 // ============================================================================
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { UserRepository } from '@/data/repositories/userRepository'
@@ -18,15 +23,16 @@ import { useSession, signIn } from '@/shared/session/useSession'
 import { Button } from '@/shared/ui/Button'
 import { TextField } from '@/shared/ui/TextField'
 
-type Mode = 'entrar' | 'crear' | 'cambiar'
+type Mode = 'entrar' | 'crear'
+
+/** Mínimo de la contraseña al crear el usuario. Corto: es un grupo de amigos. */
+const MINIMO = 4
 
 export function UserGate({ children }: { children: ReactNode }) {
   const { user } = useSession()
   const [mode, setMode] = useState<Mode>('entrar')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  /** Solo en modo "cambiar": la contraseña que se tiene ahora. */
-  const [actual, setActual] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -41,6 +47,14 @@ export function UserGate({ children }: { children: ReactNode }) {
     setError(null)
     setInfo(null)
     try {
+      if (!username.trim()) {
+        setError('Escribe tu nombre de usuario.')
+        return
+      }
+      if (!password) {
+        setError(mode === 'crear' ? 'Escribe una contraseña.' : 'Escribe tu contraseña.')
+        return
+      }
       if (mode === 'entrar') {
         const found = await UserRepository.authenticate(username, password)
         if (!found) {
@@ -48,27 +62,13 @@ export function UserGate({ children }: { children: ReactNode }) {
           return
         }
         signIn(found)
-      } else if (mode === 'crear') {
-        if (!password) {
-          setError('Escribe una contraseña.')
+      } else {
+        if (password.length < MINIMO) {
+          setError(`La contraseña tiene que tener al menos ${MINIMO} caracteres.`)
           return
         }
         const created = await UserRepository.create(username, password)
         signIn(created)
-      } else {
-        if (!actual) {
-          setError('Escribe tu contraseña actual.')
-          return
-        }
-        if (!password) {
-          setError('Escribe la contraseña nueva.')
-          return
-        }
-        await UserRepository.changePassword(username, actual, password)
-        setInfo('Contraseña cambiada. Ya puedes entrar con la nueva.')
-        setMode('entrar')
-        setPassword('')
-        setActual('')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -77,8 +77,8 @@ export function UserGate({ children }: { children: ReactNode }) {
     }
   }
 
-  const title = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear usuario' : 'Cambiar la contraseña'
-  const action = mode === 'entrar' ? 'Entrar' : mode === 'crear' ? 'Crear y entrar' : 'Cambiar'
+  const title = mode === 'entrar' ? 'Entrar' : 'Crear usuario'
+  const action = mode === 'entrar' ? 'Entrar' : 'Crear y entrar'
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
@@ -95,7 +95,8 @@ export function UserGate({ children }: { children: ReactNode }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
-            list="wharmy-usuarios"
+            autoComplete="username"
+            list={mode === 'entrar' ? 'wharmy-usuarios' : undefined}
           />
           {/* Sugerencias con los usuarios existentes, para no tener que recordar el nombre exacto. */}
           <datalist id="wharmy-usuarios">
@@ -104,18 +105,10 @@ export function UserGate({ children }: { children: ReactNode }) {
             ))}
           </datalist>
 
-          {mode === 'cambiar' && (
-            <TextField
-              label="Contraseña actual"
-              type="password"
-              value={actual}
-              onChange={(e) => setActual(e.target.value)}
-            />
-          )}
-
           <TextField
-            label={mode === 'cambiar' ? 'Contraseña nueva' : 'Contraseña'}
+            label="Contraseña"
             type="password"
+            autoComplete={mode === 'crear' ? 'new-password' : 'current-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -128,28 +121,27 @@ export function UserGate({ children }: { children: ReactNode }) {
           {busy ? 'Un momento…' : action}
         </Button>
 
-        <div className="mt-4 flex flex-wrap justify-between gap-2 text-xs">
-          {mode !== 'entrar' && (
-            <button type="button" onClick={() => setMode('entrar')} className="text-ink-soft hover:text-maroon">
-              ← Entrar
-            </button>
-          )}
-          {mode !== 'crear' && (
-            <button type="button" onClick={() => setMode('crear')} className="text-ink-soft hover:text-maroon">
-              Crear usuario
-            </button>
-          )}
-          {mode !== 'cambiar' && (
-            <button type="button" onClick={() => setMode('cambiar')} className="text-ink-soft hover:text-maroon">
-              Cambiar la contraseña
-            </button>
-          )}
+        {/* Un solo enlace, el del otro modo: con tres, la pantalla parecía un
+            menú de opciones cuando lo que se viene a hacer aquí es entrar. */}
+        <div className="mt-4 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === 'entrar' ? 'crear' : 'entrar')
+              setError(null)
+              setInfo(null)
+              setPassword('')
+            }}
+            className="text-ink-soft hover:text-maroon"
+          >
+            {mode === 'entrar' ? 'Crear un usuario nuevo' : '← Ya tengo usuario'}
+          </button>
         </div>
 
         <p className="mt-5 border-t border-rule-dark/20 pt-3 text-mini leading-relaxed text-ink-soft">
           Tu usuario separa tus ejércitos y tus facciones, y es además lo que te permite guardar cambios: sin entrar se
-          puede mirar todo, pero no modificar nada. Si olvidas la contraseña no hay forma de recuperarla desde aquí —
-          tendrá que cambiártela alguien con acceso a la base de datos.
+          puede mirar todo, pero no modificar nada. La contraseña se cambia desde dentro, en el menú de tu nombre. Si la
+          olvidas no hay forma de recuperarla: tendrá que cambiártela alguien con acceso a la base de datos.
         </p>
       </form>
     </div>

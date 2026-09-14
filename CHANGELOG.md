@@ -13,6 +13,29 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.160 — 14/09/2026 08:55
+
+- **La contraseña se cambia desde dentro, no desde la pantalla de entrada.**
+  Estaba mal puesta: desde una pantalla a la que llega cualquiera se podía
+  apuntar al usuario que fuera con solo escribir su nombre. Pedía la actual, así
+  que no era una puerta abierta, pero sí un banco de pruebas cómodo para ir
+  probando contraseñas ajenas. Ahora está en el menú de tu nombre, arriba a la
+  derecha, y solo cambia la tuya.
+  - Pide la actual, la nueva y **la nueva repetida**: en algo que no se ve, un
+    error de tecleo te deja fuera y no hay recuperación.
+  - **Sigues dentro al cambiarla.** Antes el cambio te echaba de tu propia
+    sesión y todo lo que intentaras guardar después fallaba sin explicación.
+
+- **La pantalla de entrada se queda en dos cosas: entrar y crear usuario**, con
+  un solo enlace para pasar de una a otra. Ya no aparecen los tres modos a la
+  vez, así que tampoco sale "crear usuario" mientras haces otra cosa.
+  - Se avisa si el nombre o la contraseña están vacíos antes de llamar al
+    servidor, y la contraseña nueva pide un mínimo de 4 caracteres.
+  - Los campos se declaran bien para el gestor de contraseñas del navegador, de
+    modo que ofrezca guardar y rellenar lo que toca.
+
+---
+
 ## 0.159 — 12/09/2026 18:25
 
 - **Ahora el servidor comprueba de verdad quién escribe.** Leer sigue siendo

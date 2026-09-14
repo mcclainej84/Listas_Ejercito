@@ -20,7 +20,7 @@
 // nada: no es un permiso (ver useSession).
 // ============================================================================
 import { exec, execBatch, getApiBaseUrl, query, queryOne } from '@/data/sqlite/client'
-import { guardarCredencial, olvidarCredencial } from '@/data/network/auth'
+import { guardarCredencial } from '@/data/network/auth'
 import { sha256Hex } from '@/shared/hash'
 import type { User } from '@/domain/types'
 
@@ -102,22 +102,27 @@ export const UserRepository = {
   },
 
   /**
-   * Cambia la contraseña, PIDIENDO LA ACTUAL.
+   * Cambia la contraseña del usuario que ha entrado, PIDIENDO LA ACTUAL.
    *
-   * Antes se restablecía sin comprobar nada, y se podía permitir porque el
-   * usuario no autorizaba nada. Ahora autoriza a escribir, así que un
-   * restablecido libre sería una puerta abierta para suplantar a cualquiera.
+   * Solo se llega aquí desde dentro de la sesión (ver
+   * features/user/CambiarPasswordModal): recibe el `User` entero y no un nombre
+   * suelto justamente para que no se pueda invocar sobre una cuenta ajena.
+   *
+   * Y AL ACABAR, RENUEVA LA CREDENCIAL. La guardada lleva el hash viejo, que
+   * acaba de dejar de valer: sin esto, cambiar la contraseña te echaba de tu
+   * propia sesión — todo lo que intentaras guardar a continuación fallaba con un
+   * "hay que entrar" incomprensible, sin haber hecho nada malo.
    */
-  async changePassword(username: string, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(user: User, currentPassword: string, newPassword: string): Promise<void> {
+    const nuevoHash = await sha256Hex(newPassword)
     const { status, data } = await postAuth<Record<string, never>>('/auth/password', {
-      username: username.trim(),
+      username: user.username,
       currentHash: await sha256Hex(currentPassword),
-      passwordHash: await sha256Hex(newPassword),
+      passwordHash: nuevoHash,
     })
-    if (status === 401) throw new Error('Usuario o contraseña actual incorrectos.')
+    if (status === 401) throw new Error('La contraseña actual no es correcta.')
     if (status !== 200) throw new Error(data.error ?? `No se pudo cambiar la contraseña (${status}).`)
-    // La credencial guardada lleva el hash viejo: ya no vale para escribir.
-    olvidarCredencial()
+    guardarCredencial({ userId: user.id, hash: nuevoHash })
   },
 
   // ---- Facciones ocultas (preferencia "Mis facciones") --------------------
