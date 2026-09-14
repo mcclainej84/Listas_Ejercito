@@ -11,6 +11,9 @@
 //   POST /auth/register       — Crea un usuario. Público (cualquiera del grupo
 //                                se da de alta).
 //   POST /auth/password       — Cambia la contraseña. Exige la ACTUAL.
+//   POST /auth/reset          — Restablece la contraseña de CUALQUIER usuario
+//                                sin saber la suya. Exige la contraseña de
+//                                administrador (ver RESTABLECER).
 //   GET  /snapshot            — Vuelca TODAS las filas de las 18 tablas de
 //                                CATÁLOGO (todo menos army_lists y afines) en
 //                                un único JSON. Público (sin contraseña, igual
@@ -75,6 +78,12 @@ import { SEED_STATEMENTS } from './seed-data'
 export interface Env {
   DB: D1Database
   /**
+   * SHA-256 (hex) de la contraseña de administrador que permite RESTABLECER la
+   * contraseña de cualquiera. Opcional: si no está puesto vale el de abajo.
+   * Se cambia con `wrangler secret put ADMIN_RESET_HASH`.
+   */
+  ADMIN_RESET_HASH?: string
+  /**
    * Bucket R2 con las imágenes de las hojas (ilustración y emblema propio).
    *
    * Es OPCIONAL a propósito: mientras no esté configurado el binding, la app
@@ -84,6 +93,13 @@ export interface Env {
    */
   IMAGES?: R2Bucket
 }
+
+/**
+ * SHA-256 de la contraseña de administrador por defecto. El hash y no la
+ * contraseña: así el código no la publica, ni siquiera a quien lea el
+ * repositorio. Se sustituye poniendo el secreto ADMIN_RESET_HASH.
+ */
+const ADMIN_RESET_HASH_POR_DEFECTO = 'd522da0e48ed89aa82b086bce82d2214035a535a4de4fe4c9b52f4393faac083'
 
 const BOOKMARK_HEADER = 'X-D1-Bookmark'
 /** Id del usuario que escribe, y SHA-256 de su contraseña. Ver AUTENTICACIÓN arriba. */
@@ -343,6 +359,8 @@ interface AuthRequestBody {
   passwordHash?: string
   /** Solo en /auth/password: el hash de la contraseña ACTUAL. */
   currentHash?: string
+  /** Solo en /auth/reset: el hash de la contraseña de administrador. */
+  adminHash?: string
 }
 
 /** El usuario tal y como lo espera el cliente (domain/types#User). */
@@ -405,14 +423,75 @@ async function onChangePassword(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: 'Faltan datos para cambiar la contraseña.' }, 400)
   }
   const user = await env.DB.prepare(
-    `SELECT u.id FROM users u JOIN user_secrets s ON s.user_id = u.id
+    `SELECT u.id, u.username, u.created_at FROM users u JOIN user_secrets s ON s.user_id = u.id
       WHERE u.username = ? COLLATE NOCASE AND s.password_hash = ?`,
   )
     .bind(username.trim(), currentHash)
-    .first<{ id: number }>()
+    .first<UserRow>()
   if (!user) return jsonResponse({ error: 'Usuario o contraseña actual incorrectos.' }, 401)
 
   await env.DB.prepare('UPDATE user_secrets SET password_hash = ? WHERE user_id = ?').bind(passwordHash, user.id).run()
+  await registrarCambioDeClave(env, user, 'Cambió su contraseña')
+  return jsonResponse({ ok: true })
+}
+
+/**
+ * Deja constancia en el registro de cambios (pantalla "Log").
+ *
+ * `username` es el usuario AL QUE se le cambió la contraseña, no quien lo hizo:
+ * en un restablecimiento nadie ha entrado, así que no hay un "quien" que anotar.
+ * Por eso la descripción dice expresamente si fue un cambio propio —sabiendo la
+ * contraseña vieja— o un restablecimiento con la de administrador. Confundir
+ * las dos cosas en el registro sería peor que no registrarlas.
+ *
+ * Nunca lanza: perder una línea del registro no puede tumbar un cambio de
+ * contraseña que YA está hecho.
+ */
+async function registrarCambioDeClave(env: Env, user: UserRow, descripcion: string): Promise<void> {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO change_log (created_at, user_id, username, entity, entity_id, action, description)
+       VALUES (?, ?, ?, 'usuario', ?, 'editar', ?)`,
+    )
+      .bind(new Date().toISOString(), user.id, user.username, user.id, descripcion)
+      .run()
+  } catch {
+    // Tabla sin migrar o escritura fallida: se sigue.
+  }
+}
+
+/**
+ * Restablece la contraseña de cualquier usuario SIN saber la suya, a cambio de
+ * la contraseña de administrador. Ver la sección RESTABLECER de la cabecera:
+ * es una puerta de atrás consentida, y lo que la hace asumible es que queda
+ * registrada a la vista de todo el grupo.
+ */
+async function onResetPassword(request: Request, env: Env): Promise<Response> {
+  const { username, passwordHash, adminHash } = (await request.json()) as AuthRequestBody
+  const nombre = username?.trim() ?? ''
+  if (!nombre || !passwordHash || !adminHash) {
+    return jsonResponse({ error: 'Faltan datos para restablecer la contraseña.' }, 400)
+  }
+  if (adminHash !== (env.ADMIN_RESET_HASH ?? ADMIN_RESET_HASH_POR_DEFECTO)) {
+    return jsonResponse({ error: 'La contraseña de administrador no es correcta.' }, 401)
+  }
+
+  const user = await env.DB.prepare('SELECT id, username, created_at FROM users WHERE username = ? COLLATE NOCASE')
+    .bind(nombre)
+    .first<UserRow>()
+  if (!user) return jsonResponse({ error: 'No existe ningún usuario con ese nombre.' }, 404)
+
+  // INSERT ... ON CONFLICT y no UPDATE: un usuario puede no tener fila en
+  // user_secrets todavía (creado antes de que existiera la tabla), y un UPDATE
+  // no afectaría a ninguna fila dejando el restablecido en nada sin avisar.
+  await env.DB.prepare(
+    `INSERT INTO user_secrets (user_id, password_hash) VALUES (?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET password_hash = excluded.password_hash`,
+  )
+    .bind(user.id, passwordHash)
+    .run()
+
+  await registrarCambioDeClave(env, user, 'Restableció la contraseña con la contraseña de administrador')
   return jsonResponse({ ok: true })
 }
 
@@ -479,6 +558,9 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/auth/password') {
         return await onChangePassword(request, env)
+      }
+      if (request.method === 'POST' && url.pathname === '/auth/reset') {
+        return await onResetPassword(request, env)
       }
       if (request.method === 'POST' && url.pathname === '/admin/reset-seed') {
         return await onResetSeed(request, env)

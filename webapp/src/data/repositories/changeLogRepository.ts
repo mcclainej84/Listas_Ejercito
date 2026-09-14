@@ -8,6 +8,14 @@
 // catálogo del grupo, y llenarían el registro de ruido tapando justo lo que
 // interesa auditar.
 //
+// CON UNA EXCEPCIÓN: los CAMBIOS DE CONTRASEÑA (entidad 'usuario'). No son
+// catálogo, pero son lo único que puede hacer una persona en nombre de otra —
+// cualquiera con la contraseña de administrador puede restablecer la de quien
+// quiera (ver la sección RESTABLECER del Worker). Esa puerta se dejó abierta a
+// sabiendas, y lo que la hace asumible es precisamente que se vea aquí. Las
+// escribe el propio Worker, no `record`: cuando se restablece una contraseña no
+// hay nadie dentro de la aplicación que las pueda anotar.
+//
 // Granularidad: UNA entrada por acción ("editó la unidad Guerreros"), no por
 // campo. Un diff campo a campo obligaría a leer el estado anterior en cada
 // guardado y multiplicaría las filas sin ayudar a la pregunta real de esta
@@ -21,7 +29,7 @@ import { exec, query } from '@/data/sqlite/client'
 import { queryLocalOne } from '@/data/sqlite/localCatalog'
 import { getCurrentUser } from '@/shared/session/useSession'
 
-export type ChangeLogEntity = 'faccion' | 'unidad' | 'regla' | 'equipo' | 'opcion' | 'montura' | 'carro'
+export type ChangeLogEntity = 'faccion' | 'unidad' | 'regla' | 'equipo' | 'opcion' | 'montura' | 'carro' | 'usuario'
 export type ChangeLogAction = 'crear' | 'editar' | 'borrar'
 
 export interface ChangeLogEntry {
@@ -43,6 +51,7 @@ export const ENTITY_LABELS: Record<ChangeLogEntity, string> = {
   opcion: 'Opción de unidad',
   montura: 'Montura/Dotación',
   carro: 'Carro',
+  usuario: 'Usuario',
 }
 
 export const ACTION_LABELS: Record<ChangeLogAction, string> = {

@@ -13,6 +13,33 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.161 — 14/09/2026 11:15
+
+- **Vuelve "He olvidado la contraseña", ahora con contraseña de administrador.**
+  Desde la pantalla de entrada se puede poner una contraseña nueva a cualquier
+  usuario sin saber la vieja, si se conoce la contraseña de administrador. Se
+  pide dos veces la nueva, para que un error de tecleo no deje a nadie fuera.
+  - Sirve para cualquier usuario, así que quien conozca esa contraseña puede
+    cambiarle la de otro. Se acepta a sabiendas: es más cómodo que rescatar a
+    nadie a mano desde la base de datos, y **queda registrado**.
+  - La contraseña de administrador **se comprueba en el servidor** y no viaja en
+    la página: no se puede sacar mirando el código del navegador. Se cambia con
+    `wrangler secret put ADMIN_RESET_HASH` (el SHA-256 de la nueva, no la nueva).
+
+- **Los cambios de contraseña salen en el Log**, con su tipo propio ("Usuario"),
+  y distinguen los dos casos: *"Cambió su contraseña"* cuando fue el propio
+  dueño sabiendo la suya, y *"Restableció la contraseña con la contraseña de
+  administrador"* cuando se usó la puerta de atrás. Eso es lo que hace asumible
+  tenerla: no impide nada, pero no deja hacerlo en silencio.
+
+- En modo restablecer no se ofrece crear usuario: quien viene a recuperar su
+  cuenta no quiere una nueva, y ofrecérsela justo ahí es la forma más fácil de
+  acabar con dos cuentas y los ejércitos repartidos.
+
+- **Hay que desplegar el Worker** (`cd webapp/worker && npx wrangler deploy`).
+
+---
+
 ## 0.160 — 14/09/2026 08:55
 
 - **La contraseña se cambia desde dentro, no desde la pantalla de entrada.**
