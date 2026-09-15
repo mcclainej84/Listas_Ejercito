@@ -13,6 +13,23 @@ es posterior a `0.9`, aunque como número decimal sería menor.
 
 ---
 
+## 0.164 — 15/09/2026 12:04
+
+- **El alias de la unidad (Editor > Unidades) pasa de apartado a una línea.**
+  Eran un título, un rótulo, una casilla de tres caracteres y un párrafo de dos
+  renglones explicando para qué servía: 123 px de alto para un dato de tres
+  letras. Ahora es `Alias` y su casilla, en la misma línea, 44 px. El párrafo se
+  ha quitado; lo que decía está en el `title` de la casilla para quien lo
+  necesite la primera vez, y las iniciales que se usarán si se deja en blanco
+  siguen a la vista **dentro** de la casilla, de ejemplo, en vez de contadas con
+  palabras al lado.
+
+- El aviso de iniciales repetidas no se toca: sigue apareciendo, en rojo cuando
+  bloquea el guardado y en bronce cuando solo avisa. Ahora va al lado de la
+  casilla, y baja debajo solo si no cabe.
+
+---
+
 ## 0.163 — 14/09/2026 17:03
 
 **Arreglado: la aplicación decía que un usuario no existía y a la vez que ya

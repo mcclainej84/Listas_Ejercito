@@ -601,35 +601,44 @@ export function UnitDetailPage() {
           </Panel>
 
           {/* --------------------------------------------------------------
-              EL ALIAS TIENE PANEL PROPIO. No son "datos generales" de la
-              unidad: es un dato de dibujo que solo existe para el Despliegue,
-              y metido en la fila del nombre descuadraba la rejilla —un campo
-              de tres caracteres al lado de uno de texto largo— además de
-              mezclar dos cosas que no tienen nada que ver.
-              -------------------------------------------------------------- */}
-          <Panel title="Alias en el Despliegue">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="w-20">
-                <TextField
-                  label="Iniciales"
-                  maxLength={ALIAS_MAX}
-                  placeholder={inicialesDe(draft.scalar.name) || '—'}
-                  className="text-center uppercase"
-                  error={aliasEscritoRepetido ? ' ' : undefined}
-                  value={draft.scalar.alias ?? ''}
-                  onChange={(e) =>
-                    updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
-                  }
-                />
-              </div>
-              <p className="min-w-[16rem] flex-1 pb-1 text-xs leading-relaxed text-ink-soft">
-                Lo que se escribe dentro de la peana sobre la mesa, tres caracteres como mucho. En blanco se usan las
-                del nombre (<b>{inicialesDe(draft.scalar.name) || '—'}</b>). No se usa en ningún otro sitio.
-              </p>
-            </div>
+              EL ALIAS: UN RÓTULO Y UNA CASILLA, EN UNA LÍNEA.
+              No son "datos generales" de la unidad —es un dato de dibujo que
+              solo existe para el Despliegue—, así que sigue teniendo sitio
+              propio; pero tres caracteres no dan para un apartado entero.
 
-            {/* El choque se dice debajo y a lo ancho: en un campo de tres
-                caracteres no cabe explicar nada.
+              AQUÍ ESTUVO UN PÁRRAFO EXPLICANDO QUÉ ES. Ocupaba cuatro veces
+              más que el campo que explicaba, y lo que decía cabe en el
+              `title`: quien no sepa qué es lo mira una vez, y quien ya lo sabe
+              —que es el caso siempre menos el primero— no vuelve a leerlo
+              cada vez que abre una unidad. El sustituto del texto es el
+              PLACEHOLDER, que enseña las iniciales que se van a usar si se
+              deja en blanco en vez de contarlo con palabras.
+
+              Va en una caja como la de los apartados de al lado para que no
+              parezca un campo suelto entre paneles, pero de una sola línea.
+              -------------------------------------------------------------- */}
+          <section className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-sm border border-rule-dark/40 bg-parchment/70 px-3 py-2">
+            <label htmlFor="alias-despliegue" className="font-display text-lg leading-tight font-semibold text-ink">
+              Alias
+            </label>
+            <input
+              id="alias-despliegue"
+              maxLength={ALIAS_MAX}
+              placeholder={inicialesDe(draft.scalar.name) || '—'}
+              value={draft.scalar.alias ?? ''}
+              onChange={(e) =>
+                updateDraft((d) => ({ ...d, scalar: { ...d.scalar, alias: normalizarAlias(e.target.value) } }))
+              }
+              title="Lo que se escribe dentro de la peana en el Despliegue, tres caracteres como mucho. En blanco se usan las iniciales del nombre. No se usa en ningún otro sitio."
+              className={clsx(
+                'w-16 rounded-sm border bg-parchment/70 px-2 py-1 text-center text-xs uppercase text-ink outline-none',
+                'transition-colors focus:border-bronze focus:ring-2 focus:ring-bronze/25',
+                aliasEscritoRepetido ? 'border-danger' : 'border-rule-dark/50',
+              )}
+            />
+
+            {/* El choque se dice al lado, y debajo cuando no cabe: en un campo
+                de tres caracteres no cabe explicar nada.
 
                 Escritas a mano y repetidas → error, y no deja guardar. Si son
                 las automáticas del nombre → solo aviso: hay 31 choques
@@ -638,7 +647,7 @@ export function UnitDetailPage() {
             {choqueDeAlias.length > 0 && (
               <p
                 className={clsx(
-                  'mt-2 flex items-start gap-1.5 text-xs leading-relaxed',
+                  'flex min-w-[14rem] flex-1 items-start gap-1.5 text-xs leading-relaxed',
                   aliasEscritoRepetido ? 'text-danger' : 'text-bronze',
                 )}
               >
@@ -652,7 +661,7 @@ export function UnitDetailPage() {
                 </span>
               </p>
             )}
-          </Panel>
+          </section>
 
           <Panel title="Opciones de equipo">
             <RelationEditor
